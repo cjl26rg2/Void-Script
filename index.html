@@ -3,37 +3,31 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VoidScript — Free AI Agent for Roblox Studio (500x Upgraded)</title>
-  <meta name="description" content="VoidScript turns 30+ AI chats (DeepSeek, Gemini, ChatGPT, Grok and more) into an autonomous Roblox Studio agent that reads/edits scripts, runs Luau, and builds your game. Free & open-source. No API key required." />
-  <meta property="og:title" content="VoidScript — Free AI Agent for Roblox Studio" />
-  <meta property="og:description" content="Turn any AI chat into a Roblox Studio agent. Free, open-source, no API key." />
-  <meta property="og:type" content="website" />
+  <title>The VoidScript Chronicle — Autonomous AI Agent for Roblox Studio</title>
+  <meta name="description" content="An editorial exploration of VoidScript: turn 30+ AI chats into a Roblox Studio agent that reads scripts, executes Luau, and builds games. Free, open-source, zero API keys." />
   
   <style>
     :root {
-      --bg: #07070d;
-      --bg-elevated: #0e0e18;
-      --panel: #131320;
-      --panel-hover: #1b1b2d;
-      --panel-active: #222238;
-      --line: rgba(255, 255, 255, 0.08);
-      --line-bright: rgba(255, 255, 255, 0.18);
-      --fg: #f2f2f8;
-      --muted: #a4a4b8;
-      --dim: #6c6c80;
-      --violet: #7c8cff;
-      --violet-light: #a6b2ff;
-      --deep: #5b46f0;
-      --cyan: #38bdf8;
-      --emerald: #34d399;
-      --amber: #fbbf24;
-      --rose: #f43f5e;
+      --bg: #0c0b0e;
+      --bg-elevated: #131217;
+      --bg-card: #18171d;
+      --bg-card-hover: #201f27;
+      --border: rgba(255, 255, 255, 0.12);
+      --border-bright: rgba(255, 255, 255, 0.28);
+      --fg: #f3f3f7;
+      --fg-muted: #a19fae;
+      --fg-dim: #6c6b78;
+      --accent-violet: #8996ff;
+      --accent-violet-dark: #6350f2;
+      --accent-gold: #e5c483;
+      --accent-emerald: #34d399;
+      --accent-rose: #f43f5e;
+      --accent-cyan: #38bdf8;
       --rblx: #ff4d42;
-      --maxw: 1200px;
-      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-      --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
-      --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.5);
-      --shadow-glow: 0 0 40px rgba(124, 140, 255, 0.25);
+      --serif: "Playfair Display", "Newsreader", "Georgia", "Times New Roman", serif;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+      --maxw: 1240px;
     }
 
     * {
@@ -44,10 +38,10 @@
 
     html {
       scroll-behavior: smooth;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      line-height: 1.6;
       background: var(--bg);
       color: var(--fg);
+      font-family: var(--sans);
+      line-height: 1.6;
       color-scheme: dark;
     }
 
@@ -55,186 +49,127 @@
       overflow-x: hidden;
       min-height: 100vh;
       position: relative;
+      border-top: 4px solid var(--accent-gold);
     }
 
-    /* Selection styling */
     ::selection {
-      background: rgba(124, 140, 255, 0.3);
-      color: #fff;
+      background: var(--accent-violet);
+      color: #000;
     }
 
-    /* Typography & Utilities */
+    /* Editorial Layout & Grid */
     .wrap {
       max-width: var(--maxw);
       margin: 0 auto;
-      padding: 0 24px;
+      padding: 0 28px;
     }
 
     a {
       color: inherit;
       text-decoration: none;
-      transition: color 0.15s ease, transform 0.15s ease;
+      transition: color 0.15s ease;
     }
 
-    .mono {
-      font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
-    }
-
-    /* Animated Aurora Background Glows */
-    .aura {
-      position: fixed;
-      inset: 0;
-      z-index: -1;
-      overflow: hidden;
-      pointer-events: none;
-    }
-
-    .aura-blob {
-      position: absolute;
-      border-radius: 50%;
-      filter: blur(80px);
-      opacity: 0.35;
-      animation: float-blob 20s infinite alternate ease-in-out;
-    }
-
-    .aura-blob.primary {
-      top: -15%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 900px;
-      height: 700px;
-      background: radial-gradient(circle, rgba(124, 140, 255, 0.45) 0%, rgba(91, 70, 240, 0.15) 50%, transparent 70%);
-    }
-
-    .aura-blob.secondary {
-      top: 40%;
-      right: -10%;
-      width: 600px;
-      height: 600px;
-      background: radial-gradient(circle, rgba(56, 189, 248, 0.25) 0%, rgba(91, 70, 240, 0.05) 50%, transparent 70%);
-      animation-duration: 25s;
-    }
-
-    .aura-blob.tertiary {
-      bottom: 5%;
-      left: -10%;
-      width: 700px;
-      height: 700px;
-      background: radial-gradient(circle, rgba(255, 77, 66, 0.15) 0%, rgba(124, 140, 255, 0.1) 50%, transparent 70%);
-      animation-duration: 30s;
-    }
-
-    @keyframes float-blob {
-      0% { transform: translate(-50%, 0) scale(1); }
-      100% { transform: translate(-48%, 30px) scale(1.08); }
-    }
-
-    /* Top Announcement Banner */
-    .announcement {
-      background: linear-gradient(90deg, rgba(91, 70, 240, 0.25), rgba(124, 140, 255, 0.25), rgba(56, 189, 248, 0.25));
-      border-bottom: 1px solid var(--line-bright);
-      padding: 9px 16px;
-      text-align: center;
-      font-size: 13.5px;
-      font-weight: 500;
-      color: var(--violet-light);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 10px;
-    }
-
-    .announcement-badge {
-      background: rgba(52, 211, 153, 0.15);
-      color: var(--emerald);
-      border: 1px solid rgba(52, 211, 153, 0.35);
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
+    /* Masthead Newspaper Bar */
+    .masthead {
+      border-bottom: 1px double var(--border-bright);
+      padding: 12px 0;
       text-transform: uppercase;
+      font-size: 11.5px;
+      letter-spacing: 2px;
+      color: var(--fg-muted);
+      background: var(--bg);
     }
 
-    /* Navigation Bar */
+    .masthead .wrap {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .masthead-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-gold);
+      font-weight: 700;
+    }
+
+    .masthead-badge .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-gold);
+      box-shadow: 0 0 8px var(--accent-gold);
+    }
+
+    /* Editorial Navigation */
     nav {
       position: sticky;
       top: 0;
       z-index: 50;
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
-      background: rgba(7, 7, 13, 0.78);
-      border-bottom: 1px solid var(--line);
-      transition: border-color 0.2s ease;
+      background: rgba(12, 11, 14, 0.85);
+      border-bottom: 1px solid var(--border);
     }
 
     nav .wrap {
       display: flex;
       align-items: center;
-      gap: 20px;
-      height: 70px;
+      justify-content: space-between;
+      height: 72px;
     }
 
     .brand {
       display: flex;
       align-items: center;
       gap: 12px;
-      font-weight: 800;
-      font-size: 19px;
-      letter-spacing: -0.4px;
-      color: #fff;
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
     }
 
     .brand svg {
-      width: 32px;
-      height: 32px;
-      filter: drop-shadow(0 0 10px rgba(124, 140, 255, 0.6));
-      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      width: 28px;
+      height: 28px;
+      color: var(--accent-gold);
     }
 
-    .brand:hover svg {
-      transform: rotate(15deg) scale(1.08);
+    .brand-subtitle {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+      margin-left: 8px;
+      border-left: 1px solid var(--border);
+      padding-left: 10px;
     }
 
-    .brand .s {
-      background: linear-gradient(135deg, var(--violet-light), var(--cyan));
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
+    @media (max-width: 768px) {
+      .brand-subtitle { display: none; }
     }
 
     .nav-links {
-      margin-left: auto;
       display: flex;
-      gap: 28px;
+      gap: 26px;
       align-items: center;
     }
 
     .nav-links a.nav-item {
-      color: var(--muted);
-      font-size: 14.5px;
+      font-size: 13.5px;
       font-weight: 600;
-      transition: color 0.15s ease;
-      position: relative;
+      color: var(--fg-muted);
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
     }
 
     .nav-links a.nav-item:hover {
-      color: #fff;
-    }
-
-    .nav-links a.nav-item::after {
-      content: "";
-      position: absolute;
-      bottom: -4px;
-      left: 0;
-      width: 0;
-      height: 2px;
-      background: var(--violet);
-      transition: width 0.2s ease;
-    }
-
-    .nav-links a.nav-item:hover::after {
-      width: 100%;
+      color: var(--accent-gold);
     }
 
     /* Buttons */
@@ -242,1384 +177,1230 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 9px;
-      padding: 10px 20px;
-      border-radius: 12px;
-      font-weight: 650;
-      font-size: 14.5px;
-      border: 1px solid transparent;
+      gap: 8px;
+      padding: 11px 22px;
+      border-radius: 4px;
+      font-size: 13.5px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
       cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-      white-space: nowrap;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
       user-select: none;
+      font-family: var(--sans);
     }
 
-    .btn-primary {
-      background: linear-gradient(135deg, var(--violet), var(--deep));
-      color: #fff;
-      box-shadow: 0 6px 24px rgba(91, 70, 240, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    .btn-gold {
+      background: var(--accent-gold);
+      color: #0d0c10;
+      border-color: var(--accent-gold);
+      font-weight: 700;
     }
 
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 10px 32px rgba(91, 70, 240, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    .btn-gold:hover {
+      background: #f0cf8f;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(229, 196, 131, 0.25);
     }
 
-    .btn-primary:active {
-      transform: translateY(0);
-    }
-
-    .btn-ghost {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: var(--line);
+    .btn-editorial {
+      background: transparent;
+      border: 1px solid var(--border-bright);
       color: var(--fg);
     }
 
-    .btn-ghost:hover {
-      background: rgba(255, 255, 255, 0.1);
-      border-color: var(--line-bright);
-      color: #fff;
-    }
-
-    .btn-rblx {
-      background: rgba(255, 77, 66, 0.12);
-      border-color: rgba(255, 77, 66, 0.35);
-      color: #ff857d;
-    }
-
-    .btn-rblx:hover {
-      background: rgba(255, 77, 66, 0.2);
-      border-color: rgba(255, 77, 66, 0.6);
-      color: #fff;
+    .btn-editorial:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
     }
 
     .btn-sm {
-      padding: 6px 12px;
-      font-size: 13px;
-      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
     }
 
-    @media (max-width: 860px) {
+    @media (max-width: 900px) {
       .nav-links a.nav-item { display: none; }
     }
 
-    /* Hero Section */
-    header.hero {
-      padding: 80px 0 60px;
-      text-align: center;
+    /* Editorial Hero Section */
+    .hero {
+      padding: 72px 0 64px;
+      border-bottom: 1px solid var(--border);
       position: relative;
     }
 
-    .portal {
-      width: 140px;
-      height: 140px;
-      margin: 0 auto 34px;
-      position: relative;
+    .hero-grid {
       display: grid;
-      place-items: center;
-    }
-
-    .portal svg {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      z-index: 2;
-      filter: drop-shadow(0 0 28px rgba(124, 140, 255, 0.65));
-    }
-
-    .portal .ring {
-      position: absolute;
-      inset: -12px;
-      border-radius: 50%;
-      border: 2px dashed rgba(124, 140, 255, 0.3);
-      animation: spin 18s linear infinite;
-    }
-
-    .portal .ring:nth-child(2) {
-      inset: -26px;
-      border: 1.5px solid rgba(56, 189, 248, 0.18);
-      animation-duration: 28s;
-      animation-direction: reverse;
-    }
-
-    .portal .ring:nth-child(3) {
-      inset: -40px;
-      border: 1px dotted rgba(124, 140, 255, 0.12);
-      animation-duration: 40s;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
-
-    .badge {
-      display: inline-flex;
+      grid-template-columns: 1.4fr 1fr;
+      gap: 56px;
       align-items: center;
-      gap: 10px;
-      padding: 7px 16px;
-      border-radius: 999px;
-      background: rgba(124, 140, 255, 0.1);
-      border: 1px solid rgba(124, 140, 255, 0.35);
-      color: var(--violet-light);
-      font-size: 13.5px;
-      font-weight: 600;
-      margin-bottom: 24px;
-      box-shadow: 0 4px 20px rgba(124, 140, 255, 0.12);
     }
 
-    .badge .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #34d399;
-      box-shadow: 0 0 12px #34d399;
-      animation: pulse-dot 2s infinite ease-in-out;
+    @media (max-width: 960px) {
+      .hero-grid { grid-template-columns: 1fr; gap: 36px; }
     }
 
-    @keyframes pulse-dot {
-      0%, 100% { transform: scale(1); opacity: 1; }
-      50% { transform: scale(1.3); opacity: 0.6; }
-    }
-
-    h1 {
-      font-size: clamp(40px, 6.5vw, 72px);
-      line-height: 1.05;
-      margin: 0 auto 22px;
-      font-weight: 850;
-      letter-spacing: -2px;
-      max-width: 900px;
-      color: #fff;
-    }
-
-    h1 .grad {
-      background: linear-gradient(135deg, #fff 0%, var(--violet-light) 55%, var(--cyan) 100%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-
-    .sub {
-      font-size: clamp(17px, 2.3vw, 21px);
-      color: var(--muted);
-      max-width: 720px;
-      margin: 0 auto 38px;
-      line-height: 1.6;
-    }
-
-    .sub strong {
-      color: #fff;
-      font-weight: 650;
-    }
-
-    .cta-group {
-      display: flex;
-      gap: 16px;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-bottom: 36px;
-    }
-
-    .cta-group .btn {
-      padding: 14px 28px;
-      font-size: 15.5px;
-    }
-
-    /* Hero stats strip */
-    .hero-stats {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 32px;
-      flex-wrap: wrap;
-      margin-bottom: 50px;
-    }
-
-    .stat-pill {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: var(--muted);
-      font-size: 14px;
-      font-weight: 550;
-    }
-
-    .stat-pill b {
-      color: #fff;
-      font-weight: 700;
-    }
-
-    /* Architecture Pipeline Bar */
-    .flow-card {
-      margin: 0 auto;
-      max-width: 980px;
-      border: 1px solid var(--line-bright);
-      border-radius: 20px;
-      background: linear-gradient(180deg, var(--panel), rgba(19, 19, 32, 0.4));
-      padding: 24px;
-      box-shadow: var(--shadow-lg);
-      position: relative;
-      overflow: hidden;
-    }
-
-    .flow-card::before {
-      content: "";
-      position: absolute;
-      top: 0;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 40%;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--violet), transparent);
-    }
-
-    .flow-title {
+    .hero-edition {
+      font-family: var(--mono);
       font-size: 12px;
-      font-weight: 700;
+      color: var(--accent-gold);
       text-transform: uppercase;
-      letter-spacing: 1.5px;
-      color: var(--dim);
-      margin-bottom: 16px;
-      text-align: center;
-    }
-
-    .flow-nodes {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-
-    .flow-node {
-      padding: 12px 18px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--line);
-      font-size: 14px;
-      font-weight: 650;
+      letter-spacing: 2px;
+      margin-bottom: 18px;
       display: flex;
       align-items: center;
       gap: 10px;
-      transition: all 0.2s ease;
-      cursor: pointer;
     }
 
-    .flow-node:hover {
-      border-color: var(--violet);
-      background: rgba(124, 140, 255, 0.08);
-      transform: translateY(-2px);
+    .hero-edition::before {
+      content: "§";
+      color: var(--accent-violet);
+      font-weight: bold;
+      font-size: 15px;
     }
 
-    .flow-node.hl {
-      background: rgba(124, 140, 255, 0.15);
-      border-color: rgba(124, 140, 255, 0.4);
-      color: var(--violet-light);
-    }
-
-    .flow-node.rblx {
-      background: rgba(255, 77, 66, 0.12);
-      border-color: rgba(255, 77, 66, 0.4);
-      color: #ff857d;
-    }
-
-    .flow-arw {
-      color: var(--dim);
-      font-size: 18px;
+    h1.editorial-headline {
+      font-family: var(--serif);
+      font-size: clamp(40px, 5.2vw, 68px);
       font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 24px;
+      color: var(--fg);
+      letter-spacing: -1px;
     }
 
-    /* Live Interactive Agent Simulation Section */
-    section {
-      padding: 88px 0;
+    h1.editorial-headline i {
+      font-style: italic;
+      font-weight: 400;
+      color: var(--accent-gold);
+    }
+
+    .hero-lead {
+      font-size: 19px;
+      line-height: 1.7;
+      color: var(--fg-muted);
+      margin-bottom: 34px;
+      max-width: 640px;
+      border-left: 2px solid var(--accent-violet);
+      padding-left: 18px;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 40px;
+    }
+
+    /* Hero Editorial Stat Table */
+    .hero-stats-box {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 32px;
+      border-radius: 4px;
       position: relative;
     }
 
-    .section-header {
-      text-align: center;
-      margin-bottom: 56px;
+    .hero-stats-box::before {
+      content: "THE ARCHITECTURAL LEDGER";
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      background: var(--bg-elevated);
+      padding: 0 10px;
+      font-size: 11px;
+      font-family: var(--mono);
+      letter-spacing: 1.5px;
+      color: var(--accent-gold);
     }
 
-    .eyebrow {
-      color: var(--violet-light);
-      font-weight: 750;
-      font-size: 13px;
-      letter-spacing: 2.5px;
-      text-transform: uppercase;
-      margin-bottom: 10px;
+    .stat-row {
       display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 14px 0;
+      border-bottom: 1px dashed var(--border);
+      font-size: 14.5px;
     }
 
-    .eyebrow::before, .eyebrow::after {
-      content: "";
-      width: 24px;
-      height: 2px;
-      background: linear-gradient(90deg, transparent, var(--violet));
+    .stat-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .stat-label {
+      color: var(--fg-muted);
+      font-family: var(--mono);
+      font-size: 13px;
     }
 
-    .eyebrow::after {
-      background: linear-gradient(90deg, var(--violet), transparent);
-    }
-
-    h2 {
-      font-size: clamp(30px, 4.5vw, 44px);
-      margin: 0 0 14px;
-      font-weight: 800;
-      letter-spacing: -1px;
+    .stat-val {
+      font-weight: 700;
       color: #fff;
     }
 
-    .lead {
-      color: var(--muted);
-      max-width: 660px;
-      margin: 0 auto;
-      font-size: 17.5px;
-      line-height: 1.6;
-    }
+    .stat-val.gold { color: var(--accent-gold); font-family: var(--mono); }
 
-    /* INTERACTIVE AGENT SIMULATOR */
-    .sim-container {
-      max-width: var(--maxw);
-      margin: 0 auto;
-      background: var(--bg-elevated);
-      border: 1px solid var(--line-bright);
-      border-radius: 22px;
-      box-shadow: var(--shadow-lg), var(--shadow-glow);
-      overflow: hidden;
+    /* Editorial Chapter Header Pattern */
+    .chapter-heading {
+      margin-bottom: 48px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
       display: flex;
-      flex-direction: column;
-    }
-
-    .sim-topbar {
-      display: flex;
-      align-items: center;
       justify-content: space-between;
-      padding: 14px 24px;
-      background: rgba(255, 255, 255, 0.03);
-      border-bottom: 1px solid var(--line);
+      align-items: flex-end;
       flex-wrap: wrap;
-      gap: 12px;
-    }
-
-    .sim-dots {
-      display: flex;
-      gap: 8px;
-    }
-
-    .sim-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.15);
-    }
-
-    .sim-dot.red { background: #ff5f56; }
-    .sim-dot.yellow { background: #ffbd2e; }
-    .sim-dot.green { background: #27c93f; }
-
-    .sim-status {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13px;
-      color: #34d399;
-      font-weight: 600;
-      background: rgba(52, 211, 153, 0.1);
-      padding: 4px 12px;
-      border-radius: 999px;
-      border: 1px solid rgba(52, 211, 153, 0.25);
-    }
-
-    .sim-prompts {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
-      padding: 16px 24px;
-      background: rgba(0, 0, 0, 0.25);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .sim-prompt-btn {
-      padding: 8px 16px;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--line);
-      color: var(--fg);
-      font-size: 13.5px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .sim-prompt-btn:hover, .sim-prompt-btn.active {
-      background: rgba(124, 140, 255, 0.15);
-      border-color: rgba(124, 140, 255, 0.45);
-      color: var(--violet-light);
-    }
-
-    .sim-body {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1.2fr;
-      min-height: 480px;
-      background: var(--bg-elevated);
-    }
-
-    @media (max-width: 1020px) {
-      .sim-body { grid-template-columns: 1fr; }
-    }
-
-    .sim-col {
-      padding: 22px;
-      border-right: 1px solid var(--line);
-      display: flex;
-      flex-direction: column;
       gap: 16px;
     }
 
-    .sim-col:last-child {
-      border-right: none;
+    .chapter-meta {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
     }
 
-    .sim-col-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-size: 13.5px;
+    .chapter-title {
+      font-family: var(--serif);
+      font-size: clamp(28px, 4vw, 42px);
       font-weight: 700;
-      color: var(--muted);
-      padding-bottom: 10px;
-      border-bottom: 1px solid var(--line);
+      line-height: 1.15;
     }
 
-    .sim-col-header .tag {
+    .chapter-desc {
+      color: var(--fg-muted);
+      font-size: 16px;
+      max-width: 480px;
+      line-height: 1.6;
+    }
+
+    /* Section Spacing */
+    section {
+      padding: 80px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* INTERACTIVE ARCHITECTURE PIPELINE (WORKING NODES!) */
+    .pipeline-container {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 36px;
+      border-radius: 4px;
+      margin-top: 24px;
+    }
+
+    .pipeline-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      position: relative;
+    }
+
+    @media (max-width: 960px) {
+      .pipeline-steps { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 580px) {
+      .pipeline-steps { grid-template-columns: 1fr; }
+    }
+
+    .pipeline-node {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 22px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .pipeline-node:hover, .pipeline-node.active {
+      border-color: var(--accent-gold);
+      background: var(--bg-card-hover);
+      transform: translateY(-3px);
+    }
+
+    .pipeline-node .num {
+      font-family: var(--mono);
       font-size: 11px;
-      padding: 2px 8px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--dim);
+      color: var(--accent-gold);
+      margin-bottom: 12px;
+      display: block;
     }
 
-    /* AI Chat Console in Sim */
-    .chat-msg {
-      padding: 12px 14px;
-      border-radius: 12px;
+    .pipeline-node h4 {
+      font-family: var(--serif);
+      font-size: 18px;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+
+    .pipeline-node p {
       font-size: 13.5px;
+      color: var(--fg-muted);
+      margin-bottom: 16px;
       line-height: 1.5;
     }
 
-    .chat-user {
-      background: rgba(124, 140, 255, 0.14);
-      border: 1px solid rgba(124, 140, 255, 0.3);
-      color: #fff;
-      margin-left: 24px;
-    }
-
-    .chat-ai {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--line);
-      color: var(--fg);
-      margin-right: 16px;
-    }
-
-    .chat-ai .tool-call {
-      margin-top: 10px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      font-family: ui-monospace, monospace;
+    .pipeline-node .action-link {
       font-size: 12px;
-      color: #38bdf8;
+      font-weight: 700;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-
-    /* Bridge Log Column */
-    .log-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      font-family: ui-monospace, monospace;
-      font-size: 12.5px;
-      overflow-y: auto;
-      max-height: 380px;
-    }
-
-    .log-item {
-      padding: 8px 10px;
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.3);
-      border-left: 3px solid var(--dim);
-      color: var(--muted);
-      display: flex;
-      flex-direction: column;
       gap: 4px;
     }
 
-    .log-item.mcp { border-left-color: var(--violet); color: var(--violet-light); }
-    .log-item.success { border-left-color: var(--emerald); color: #34d399; }
-    .log-item.exec { border-left-color: var(--cyan); color: #38bdf8; }
-
-    .log-time {
-      font-size: 10.5px;
-      color: var(--dim);
-    }
-
-    /* Roblox Studio Explorer & Script Editor in Sim */
-    .studio-preview {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      background: #111119;
-      border-radius: 12px;
-      border: 1px solid var(--line);
+    /* INTERACTIVE IDE SIMULATOR (CHAPTER II) */
+    .sim-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 4px;
       overflow: hidden;
     }
 
-    .studio-tabs {
+    .sim-toolbar {
       display: flex;
-      background: #181824;
-      border-bottom: 1px solid var(--line);
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 24px;
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 12px;
     }
 
-    .studio-tab {
-      padding: 8px 16px;
-      font-size: 12.5px;
-      font-weight: 600;
-      color: var(--muted);
-      border-right: 1px solid var(--line);
+    .sim-title {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--fg);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .sim-status {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent-emerald);
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .studio-tab.active {
-      background: #111119;
-      color: #fff;
-      border-top: 2px solid var(--violet);
+    .sim-status .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent-emerald);
+      box-shadow: 0 0 8px var(--accent-emerald);
     }
 
-    .studio-code {
-      padding: 16px;
-      font-family: ui-monospace, monospace;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #d1d1e0;
-      overflow-x: auto;
-    }
-
-    .kwd { color: #f43f5e; font-weight: bold; }
-    .fn { color: #7c8cff; }
-    .str { color: #34d399; }
-    .num { color: #fbbf24; }
-    .com { color: #6c6c80; font-style: italic; }
-
-    /* Features Grid */
-    .grid-6 {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 22px;
-    }
-
-    @media (max-width: 960px) {
-      .grid-6 { grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 640px) {
-      .grid-6 { grid-template-columns: 1fr; }
-    }
-
-    .feature-card {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 30px;
-      transition: all 0.25s ease;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .feature-card:hover {
-      border-color: rgba(124, 140, 255, 0.4);
-      transform: translateY(-4px);
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
-      background: var(--panel-hover);
-    }
-
-    .feature-ico {
-      width: 50px;
-      height: 50px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      font-size: 24px;
-      background: rgba(124, 140, 255, 0.12);
-      border: 1px solid rgba(124, 140, 255, 0.25);
-      margin-bottom: 20px;
-      color: var(--violet-light);
-    }
-
-    .feature-card h3 {
-      margin: 0 0 10px;
-      font-size: 20px;
-      font-weight: 750;
-      color: #fff;
-    }
-
-    .feature-card p {
-      margin: 0 0 20px;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
-      flex-grow: 1;
-    }
-
-    /* Interactive Mini Widget inside Feature Cards */
-    .card-widget {
-      padding: 12px 14px;
-      border-radius: 10px;
-      background: rgba(0, 0, 0, 0.35);
-      border: 1px solid var(--line);
-      font-family: ui-monospace, monospace;
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .card-widget .hdr {
-      display: flex;
-      justify-content: space-between;
-      color: var(--dim);
-      margin-bottom: 6px;
-      font-size: 11px;
-      text-transform: uppercase;
-    }
-
-    /* AI Providers Explorer Section */
-    .ai-section {
-      background: linear-gradient(180deg, transparent, rgba(14, 14, 24, 0.9), transparent);
-      border-top: 1px solid var(--line);
-      border-bottom: 1px solid var(--line);
-    }
-
-    .ai-filter-bar {
-      max-width: 900px;
-      margin: 0 auto 36px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .search-box {
-      position: relative;
-      width: 100%;
-    }
-
-    .search-box input {
-      width: 100%;
-      padding: 14px 20px 14px 44px;
-      border-radius: 14px;
-      background: var(--panel);
-      border: 1px solid var(--line-bright);
-      color: #fff;
-      font-size: 15px;
-      outline: none;
-      transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .search-box input:focus {
-      border-color: var(--violet);
-      box-shadow: 0 0 0 3px rgba(124, 140, 255, 0.2);
-    }
-
-    .search-box svg {
-      position: absolute;
-      left: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 20px;
-      height: 20px;
-      color: var(--dim);
-    }
-
-    .filter-tabs {
+    .sim-task-bar {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
       display: flex;
       gap: 10px;
+      align-items: center;
       flex-wrap: wrap;
-      justify-content: center;
+      background: rgba(0, 0, 0, 0.2);
     }
 
-    .filter-btn {
+    .sim-task-btn {
+      background: transparent;
+      border: 1px solid var(--border);
       padding: 8px 16px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 13.5px;
+      color: var(--fg-muted);
+      font-family: var(--sans);
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.15s ease;
-    }
-
-    .filter-btn:hover, .filter-btn.active {
-      background: rgba(124, 140, 255, 0.15);
-      border-color: rgba(124, 140, 255, 0.4);
-      color: #fff;
-    }
-
-    .ai-groups-container {
-      max-width: 960px;
-      margin: 0 auto;
-    }
-
-    .grp-label {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 32px 0 16px;
-      font-weight: 700;
-      font-size: 15px;
-      color: var(--muted);
-    }
-
-    .grp-label .tag {
-      font-size: 11.5px;
-      font-weight: 750;
-      padding: 3px 10px;
-      border-radius: 999px;
-      letter-spacing: 0.6px;
-    }
-
-    .tag.full {
-      background: rgba(52, 211, 153, 0.15);
-      color: #5eead4;
-      border: 1px solid rgba(52, 211, 153, 0.35);
-    }
-
-    .tag.beta {
-      background: rgba(251, 191, 36, 0.15);
-      color: #fcd34d;
-      border: 1px solid rgba(251, 191, 36, 0.35);
-    }
-
-    .pills {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .pill {
-      padding: 10px 18px;
-      border-radius: 12px;
-      background: var(--panel);
-      border: 1px solid var(--line);
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--fg);
-      cursor: pointer;
-      transition: all 0.2s ease;
       display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .pill:hover {
-      background: rgba(124, 140, 255, 0.15);
-      border-color: rgba(124, 140, 255, 0.45);
+    .sim-task-btn:hover, .sim-task-btn.active {
+      background: var(--bg-card-hover);
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+    }
+
+    .sim-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 10px;
+    }
+
+    .sim-main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1.3fr;
+      min-height: 480px;
+    }
+
+    @media (max-width: 1080px) {
+      .sim-main-grid { grid-template-columns: 1fr; }
+    }
+
+    .sim-col {
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      background: var(--bg-elevated);
+    }
+
+    .sim-col:last-child { border-right: none; }
+
+    .col-title {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--fg-dim);
+      margin-bottom: 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .col-title .tag {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 8px;
+      border-radius: 2px;
+      color: var(--accent-gold);
+    }
+
+    /* AI Chat inside Sim */
+    .chat-bubble {
+      padding: 14px;
+      border-radius: 4px;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 14px;
+    }
+
+    .chat-user {
+      background: rgba(137, 150, 255, 0.12);
+      border-left: 3px solid var(--accent-violet);
       color: #fff;
+    }
+
+    .chat-ai {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--fg);
+    }
+
+    .chat-tool-badge {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: #000;
+      border: 1px solid rgba(229, 196, 131, 0.3);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--accent-gold);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Log Output inside Sim */
+    .log-viewport {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      max-height: 380px;
+    }
+
+    .log-line {
+      padding: 8px 10px;
+      background: rgba(0, 0, 0, 0.35);
+      border-left: 2px solid var(--fg-dim);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .log-line.mcp { border-left-color: var(--accent-violet); color: #cdd4ff; }
+    .log-line.ok { border-left-color: var(--accent-emerald); color: var(--accent-emerald); }
+    .log-line.exec { border-left-color: var(--accent-gold); color: var(--accent-gold); }
+
+    .log-timestamp {
+      font-size: 10.5px;
+      color: var(--fg-dim);
+    }
+
+    /* Code View inside Sim */
+    .studio-box {
+      background: #0b0a0e;
+      border: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    .studio-tabs {
+      display: flex;
+      background: #141318;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .studio-tab {
+      padding: 10px 18px;
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--fg-muted);
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .studio-tab.active {
+      background: #0b0a0e;
+      color: var(--accent-gold);
+      border-top: 2px solid var(--accent-gold);
+    }
+
+    .studio-code {
+      padding: 18px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: #dedee6;
+      overflow-x: auto;
+      flex-grow: 1;
+    }
+
+    .kwd { color: #f43f5e; font-weight: bold; }
+    .fn { color: #8996ff; }
+    .str { color: #34d399; }
+    .com { color: #6c6b78; font-style: italic; }
+
+    /* EDITORIAL CHAPTER III: FEATURE GRID */
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+
+    @media (max-width: 960px) {
+      .feature-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .feature-grid { grid-template-columns: 1fr; }
+    }
+
+    .editorial-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .editorial-card:hover {
+      border-color: var(--accent-gold);
+      background: var(--bg-card);
+      transform: translateY(-4px);
+    }
+
+    .card-meta {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: var(--accent-gold);
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .editorial-card h3 {
+      font-family: var(--serif);
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+
+    .editorial-card p {
+      font-size: 14.5px;
+      color: var(--fg-muted);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .editorial-card-footer {
+      border-top: 1px solid var(--border);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .editorial-card-btn {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .editorial-card-btn:hover { text-decoration: underline; }
+
+    /* EDITORIAL CHAPTER IV: AI REGISTRY (ALL 32 MODELS!) */
+    .registry-filter-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 32px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 16px 24px;
+    }
+
+    .search-editorial {
+      flex: 1;
+      min-width: 260px;
+      position: relative;
+    }
+
+    .search-editorial input {
+      width: 100%;
+      background: #000;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      color: #fff;
+      font-family: var(--sans);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-editorial input:focus { border-color: var(--accent-gold); }
+
+    .registry-tabs {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .reg-tab {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--fg-muted);
+      padding: 8px 16px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .reg-tab:hover, .reg-tab.active {
+      background: var(--accent-gold);
+      color: #000;
+      border-color: var(--accent-gold);
+      font-weight: 700;
+    }
+
+    .model-group-title {
+      font-family: var(--mono);
+      font-size: 13px;
+      letter-spacing: 2px;
+      color: var(--accent-gold);
+      text-transform: uppercase;
+      margin: 32px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .model-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .model-pill {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 14px 18px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .model-pill:hover {
+      border-color: var(--accent-gold);
+      background: var(--bg-card-hover);
       transform: translateY(-2px);
-      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
     }
 
-    .pill .badge-mini {
-      font-size: 10px;
-      padding: 2px 6px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.1);
-      color: var(--muted);
+    .model-pill .m-name {
+      font-weight: 700;
+      font-size: 14.5px;
+      color: #fff;
     }
 
-    /* Modal for AI Provider Details */
-    .modal-backdrop {
+    .model-pill .m-badge {
+      font-family: var(--mono);
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 8px;
+      color: var(--accent-gold);
+      border: 1px solid var(--border);
+    }
+
+    /* EDITORIAL CHAPTER V: SETUP PROTOCOL (OS SWITCHER & WORKING COPY!) */
+    .setup-editorial-box {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 40px;
+      display: grid;
+      grid-template-columns: 1fr 1.6fr;
+      gap: 40px;
+    }
+
+    @media (max-width: 900px) {
+      .setup-editorial-box { grid-template-columns: 1fr; }
+    }
+
+    .os-selector-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .os-card-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      padding: 20px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .os-card-btn:hover, .os-card-btn.active {
+      border-color: var(--accent-gold);
+      background: var(--bg-card-hover);
+    }
+
+    .os-card-btn h4 {
+      font-family: var(--serif);
+      font-size: 20px;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+
+    .os-card-btn p {
+      font-size: 13px;
+      color: var(--fg-muted);
+      margin: 0;
+    }
+
+    .setup-steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .setup-step-row {
+      display: flex;
+      gap: 20px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+
+    .setup-step-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+    .setup-num {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent-gold);
+      line-height: 1;
+      width: 40px;
+    }
+
+    .setup-content h4 {
+      font-family: var(--serif);
+      font-size: 20px;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .setup-content p {
+      color: var(--fg-muted);
+      font-size: 14.5px;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .cmd-box {
+      background: #000;
+      border: 1px solid var(--border);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--mono);
+      font-size: 13.5px;
+      color: var(--accent-emerald);
+    }
+
+    .copy-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 14px;
+      font-family: var(--mono);
+      font-size: 11.5px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .copy-btn:hover {
+      background: var(--accent-gold);
+      color: #000;
+      border-color: var(--accent-gold);
+    }
+
+    /* EDITORIAL CHAPTER VI: FAQ ACCORDION */
+    .faq-editorial-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 860px;
+    }
+
+    .faq-editorial-item {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .faq-editorial-item:hover { border-color: var(--border-bright); }
+
+    .faq-trigger {
+      width: 100%;
+      text-align: left;
+      background: none;
+      border: none;
+      padding: 22px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-family: var(--serif);
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .faq-trigger .icon {
+      font-family: var(--mono);
+      font-size: 18px;
+      color: var(--accent-gold);
+    }
+
+    .faq-editorial-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      padding: 0 28px;
+    }
+
+    .faq-editorial-item.open .faq-editorial-body {
+      padding-bottom: 24px;
+    }
+
+    .faq-editorial-body p {
+      color: var(--fg-muted);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    /* UNIFIED EDITORIAL POPUP MODAL DIALOG SYSTEM (100% FUNCTIONAL) */
+    .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.75);
+      background: rgba(0, 0, 0, 0.82);
       backdrop-filter: blur(8px);
       -webkit-backdrop-filter: blur(8px);
-      z-index: 100;
+      z-index: 1000;
       display: none;
       align-items: center;
       justify-content: center;
       padding: 24px;
     }
 
-    .modal-backdrop.open { display: flex; }
+    .modal-overlay.open { display: flex; }
 
-    .modal-card {
+    .modal-editorial-card {
       background: var(--bg-elevated);
-      border: 1px solid var(--line-bright);
-      border-radius: 20px;
-      max-width: 520px;
+      border: 1px double var(--accent-gold);
+      max-width: 620px;
       width: 100%;
-      padding: 30px;
+      padding: 38px;
       position: relative;
-      box-shadow: var(--shadow-lg);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
-    .modal-close {
+    .modal-close-btn {
       position: absolute;
       top: 20px;
-      right: 20px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid var(--line);
-      color: var(--muted);
+      right: 24px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg-muted);
       width: 32px;
       height: 32px;
-      border-radius: 50%;
       cursor: pointer;
       display: grid;
       place-items: center;
-      font-weight: bold;
-    }
-
-    .modal-close:hover { color: #fff; background: rgba(255, 255, 255, 0.15); }
-
-    /* Setup Section with OS Selector */
-    .setup-container {
-      max-width: 860px;
-      margin: 0 auto;
-      background: var(--panel);
-      border: 1px solid var(--line-bright);
-      border-radius: 22px;
-      padding: 36px;
-      box-shadow: var(--shadow-md);
-    }
-
-    .os-toggle {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-bottom: 32px;
-    }
-
-    .os-btn {
-      padding: 10px 24px;
-      border-radius: 12px;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid var(--line);
-      color: var(--muted);
-      font-size: 14.5px;
-      font-weight: 650;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .os-btn.active {
-      background: var(--violet);
-      color: #fff;
-      border-color: var(--violet-light);
-      box-shadow: 0 4px 16px rgba(124, 140, 255, 0.35);
-    }
-
-    .steps {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .step {
-      display: flex;
-      gap: 22px;
-      padding: 24px 0;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .step:last-child { border-bottom: none; padding-bottom: 0; }
-
-    .step .n {
-      flex: 0 0 44px;
-      height: 44px;
-      border-radius: 14px;
-      display: grid;
-      place-items: center;
-      font-weight: 800;
-      background: linear-gradient(135deg, var(--violet), var(--deep));
-      color: #fff;
-      font-size: 18px;
-      box-shadow: 0 4px 12px rgba(91, 70, 240, 0.3);
-    }
-
-    .step-content { flex-grow: 1; }
-
-    .step h3 {
-      margin: 4px 0 6px;
-      font-size: 18px;
-      font-weight: 750;
-      color: #fff;
-    }
-
-    .step p {
-      margin: 0;
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
-    }
-
-    .step code {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-family: ui-monospace, monospace;
-      font-size: 13.5px;
-      color: #fff;
-    }
-
-    .code-box {
-      margin-top: 12px;
-      padding: 12px 16px;
-      background: rgba(0, 0, 0, 0.4);
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      font-family: ui-monospace, monospace;
-      font-size: 13.5px;
-      color: var(--cyan);
-    }
-
-    .copy-btn {
-      padding: 6px 12px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid var(--line);
-      border-radius: 6px;
-      color: #fff;
-      font-size: 12px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.15s;
-    }
-
-    .copy-btn:hover { background: rgba(255, 255, 255, 0.15); }
-
-    /* Comparison Table Section */
-    .comparison-table-wrap {
-      max-width: 960px;
-      margin: 0 auto;
-      overflow-x: auto;
-      border: 1px solid var(--line-bright);
-      border-radius: 20px;
-      background: var(--panel);
-      box-shadow: var(--shadow-md);
-    }
-
-    .comparison-table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    .comparison-table th, .comparison-table td {
-      padding: 18px 24px;
-      border-bottom: 1px solid var(--line);
-      font-size: 15px;
-    }
-
-    .comparison-table th {
-      background: rgba(0, 0, 0, 0.25);
-      font-weight: 750;
-      color: var(--muted);
-      text-transform: uppercase;
-      font-size: 12.5px;
-      letter-spacing: 1px;
-    }
-
-    .comparison-table tr:last-child td { border-bottom: none; }
-
-    .comparison-table td.vs-col {
-      background: rgba(124, 140, 255, 0.08);
-      font-weight: 700;
-      color: #fff;
-      border-left: 1px solid rgba(124, 140, 255, 0.25);
-      border-right: 1px solid rgba(124, 140, 255, 0.25);
-    }
-
-    .comparison-table th.vs-col {
-      background: rgba(124, 140, 255, 0.15);
-      color: var(--violet-light);
-      border-left: 1px solid rgba(124, 140, 255, 0.25);
-      border-right: 1px solid rgba(124, 140, 255, 0.25);
-    }
-
-    .chk { color: #34d399; font-weight: 800; margin-right: 6px; }
-    .cross { color: #f43f5e; font-weight: 800; margin-right: 6px; }
-
-    /* FAQ Section (Accordion) */
-    .faq-container {
-      max-width: 800px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .faq-item {
-      background: var(--panel);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      overflow: hidden;
-      transition: border-color 0.2s ease;
-    }
-
-    .faq-item:hover { border-color: rgba(124, 140, 255, 0.35); }
-
-    .faq-btn {
-      width: 100%;
-      padding: 20px 24px;
-      background: none;
-      border: none;
-      text-align: left;
-      color: #fff;
-      font-size: 17px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-    }
-
-    .faq-btn svg {
-      width: 20px;
-      height: 20px;
-      color: var(--muted);
-      transition: transform 0.25s ease;
-    }
-
-    .faq-item.open .faq-btn svg { transform: rotate(180deg); color: var(--violet-light); }
-
-    .faq-body {
-      max-height: 0;
-      overflow: hidden;
-      transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-      padding: 0 24px;
-    }
-
-    .faq-item.open .faq-body {
-      padding-bottom: 22px;
-    }
-
-    .faq-body p {
-      color: var(--muted);
-      font-size: 15px;
-      line-height: 1.6;
-      margin: 0;
-    }
-
-    /* CTA Band */
-    .band {
-      margin: 60px auto;
-      max-width: var(--maxw);
-      padding: 0 24px;
-    }
-
-    .band-inner {
-      background: linear-gradient(135deg, rgba(124, 140, 255, 0.18), rgba(91, 70, 240, 0.08), rgba(56, 189, 248, 0.12));
-      border: 1px solid rgba(124, 140, 255, 0.35);
-      border-radius: 26px;
-      padding: 64px 36px;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-      box-shadow: var(--shadow-lg), var(--shadow-glow);
-    }
-
-    .band-inner h2 { margin: 0 0 12px; }
-
-    .warn {
-      color: var(--dim);
-      font-size: 13.5px;
-      max-width: 600px;
-      margin: 24px auto 0;
-      text-align: center;
-      line-height: 1.5;
-    }
-
-    /* Footer */
-    footer {
-      border-top: 1px solid var(--line);
-      padding: 50px 0;
-      color: var(--dim);
+      font-family: var(--mono);
       font-size: 14px;
-      background: rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-close-btn:hover {
+      background: var(--accent-gold);
+      color: #000;
+      border-color: var(--accent-gold);
+    }
+
+    .modal-edition-tag {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent-gold);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .modal-headline {
+      font-family: var(--serif);
+      font-size: 28px;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 16px;
+      line-height: 1.2;
+    }
+
+    .modal-body-text {
+      color: var(--fg-muted);
+      font-size: 15.5px;
+      line-height: 1.7;
+      margin-bottom: 28px;
+    }
+
+    .modal-code-sample {
+      background: #000;
+      border: 1px solid var(--border);
+      padding: 16px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: var(--accent-emerald);
+      margin-bottom: 28px;
+      overflow-x: auto;
+      white-space: pre-wrap;
+    }
+
+    .modal-footer-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    /* Editorial Footer */
+    footer {
+      background: #08070a;
+      border-top: 1px double var(--border-bright);
+      padding: 56px 0 36px;
+      font-size: 13.5px;
+      color: var(--fg-dim);
     }
 
     footer .wrap {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 24px;
       flex-wrap: wrap;
+      gap: 20px;
     }
 
-    footer a { color: var(--muted); }
-    footer a:hover { color: #fff; }
-
-    .foot-links {
-      display: flex;
-      gap: 26px;
-      flex-wrap: wrap;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-      .band-inner { padding: 42px 20px; }
-      .hero-stats { gap: 16px; }
-      .sim-body { min-height: auto; }
-    }
+    footer a { color: var(--fg-muted); }
+    footer a:hover { color: var(--accent-gold); }
   </style>
 </head>
 <body>
-  <div class="aura">
-    <div class="aura-blob primary"></div>
-    <div class="aura-blob secondary"></div>
-    <div class="aura-blob tertiary"></div>
+
+  <!-- Masthead Newspaper Top Bar -->
+  <div class="masthead">
+    <div class="wrap">
+      <div class="masthead-badge">
+        <span class="dot"></span>
+        <span>THE VOIDSCRIPT CHRONICLE</span>
+      </div>
+      <div>VOL. II, ISSUE IV  ·  BRISTOL, ENGLAND  ·  AUGUST 4, 2026</div>
+      <div>GPL-3.0 OPEN-SOURCE MONOGRAPH</div>
+    </div>
   </div>
 
-  <!-- Reusable SVG Symbols -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <defs>
-      <linearGradient id="vsr" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0" stop-color="#a6b2ff"/>
-        <stop offset=".55" stop-color="#7c8cff"/>
-        <stop offset="1" stop-color="#5b46f0"/>
-      </linearGradient>
-      <radialGradient id="vsv" cx=".5" cy=".5" r=".5">
-        <stop offset="0" stop-color="#05050a"/>
-        <stop offset=".7" stop-color="#0c0c16"/>
-        <stop offset="1" stop-color="#1a1730"/>
-      </radialGradient>
-      <symbol id="vs-mark" viewBox="0 0 128 128">
-        <circle cx="64" cy="64" r="33" fill="url(#vsv)"/>
-        <circle cx="64" cy="64" r="33" fill="none" stroke="url(#vsr)" stroke-width="5.5"/>
-        <path d="M64 31 A33 33 0 0 1 95 55" fill="none" stroke="#c7ccff" stroke-width="2" stroke-linecap="round" opacity=".55"/>
-        <g stroke="url(#vsr)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none">
-          <polyline points="55,52 43,64 55,76"/>
-          <polyline points="73,52 85,64 73,76"/>
-          <line x1="68" y1="49" x2="60" y2="79"/>
-        </g>
-      </symbol>
-      <symbol id="ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
-      </symbol>
-      <symbol id="ico-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="6 9 12 15 18 9"/>
-      </symbol>
-    </defs>
-  </svg>
-
-  <!-- Announcement Top Banner -->
-  <div class="announcement">
-    <span class="announcement-badge">v2.4 Live</span>
-    <span>Now running <strong>32+ AI models</strong> with local Studio Explorer memory &amp; zero API keys.</span>
-    <a href="#simulator" style="text-decoration: underline; font-weight: 700;">Try Interactive Demo →</a>
-  </div>
-
-  <!-- Main Navigation -->
+  <!-- Editorial Navigation -->
   <nav>
     <div class="wrap">
       <a class="brand" href="#top">
-        <svg><use href="#vs-mark"/></svg>
-        <span>Void<span class="s">Script</span></span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+        <span>VoidScript</span>
+        <span class="brand-subtitle">Roblox Studio Agent</span>
       </a>
+
       <div class="nav-links">
-        <a class="nav-item" href="#features">Features</a>
-        <a class="nav-item" href="#simulator">Live Demo</a>
-        <a class="nav-item" href="#ais">Supported AIs</a>
-        <a class="nav-item" href="#comparison">Compare</a>
-        <a class="nav-item" href="#setup">Setup</a>
-        <a class="nav-item" href="#faq">FAQ</a>
-        <a class="btn btn-ghost" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub</a>
-        <a class="btn btn-primary" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">⬇ Download</a>
+        <a class="nav-item" href="#architecture">I. Architecture</a>
+        <a class="nav-item" href="#simulator">II. Live Simulator</a>
+        <a class="nav-item" href="#capabilities">III. Capabilities</a>
+        <a class="nav-item" href="#registry">IV. 32 AI Registry</a>
+        <a class="nav-item" href="#protocol">V. Setup Protocol</a>
+        <a class="nav-item" href="#inquiries">VI. FAQ</a>
+        <button class="btn btn-editorial btn-sm" onclick="openArchModal('00. GitHub Source', 'Official Codebase Repository', 'VoidScript is 100% free and open-source under GPL-3.0. View the C++ bridge and TypeScript browser extension code directly on GitHub.', 'git clone https://github.com/cjl26rg2/Void-Script.git')">GitHub Repo</button>
+        <a class="btn btn-gold btn-sm" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">⬇ Download Edition</a>
       </div>
     </div>
   </nav>
 
-  <!-- Hero Section -->
+  <!-- Editorial Hero Section -->
   <header id="top" class="hero">
     <div class="wrap">
-      <div class="portal">
-        <span class="ring"></span>
-        <span class="ring"></span>
-        <span class="ring"></span>
-        <svg><use href="#vs-mark"/></svg>
-      </div>
+      <div class="hero-edition">Monograph No. 04 — Autonomous Game Engine Orchestration</div>
 
-      <div class="badge">
-        <span class="dot"></span>
-        <span>100% Free &amp; Open-Source · Local MCP Server · No API Key Required</span>
-      </div>
+      <div class="hero-grid">
+        <div>
+          <h1 class="editorial-headline">
+            Turn any AI chat into an <i>autonomous</i> Roblox Studio agent.
+          </h1>
 
-      <h1>Turn any AI chat into an autonomous<br><span class="grad">Roblox Studio agent</span></h1>
-      
-      <p class="sub">
-        VoidScript connects <strong>DeepSeek, Gemini, ChatGPT, Grok</strong> and 28+ more directly to Roblox Studio.<br>
-        Describe what you want — it reads and edits scripts, executes Luau, inspects your game tree, and builds your place.
-      </p>
+          <p class="hero-lead">
+            VoidScript connects <strong>DeepSeek, Gemini, ChatGPT, Grok</strong>, and twenty-eight additional intelligence engines directly to Roblox Studio's built-in MCP server. Describe what you wish to create; it reads and edits scripts, executes Luau statements, inspects the game tree, and constructs your place locally—with zero API keys.
+          </p>
 
-      <div class="cta-group">
-        <a class="btn btn-primary" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">
-          ⬇ Download for Free (GPL-3.0)
-        </a>
-        <a class="btn btn-ghost" href="#simulator">
-          ⚡ Try Interactive Simulator
-        </a>
-      </div>
-
-      <div class="hero-stats">
-        <div class="stat-pill"><b>32</b> AI Providers</div>
-        <div class="stat-pill"><b>$0.00</b> Forever Cost</div>
-        <div class="stat-pill"><b>Windows</b> &amp; macOS</div>
-        <div class="stat-pill"><b>Chrome</b> · Edge · Firefox</div>
-      </div>
-
-      <!-- Interactive Flow Pipeline -->
-      <div class="flow-card">
-        <div class="flow-title">The VoidScript Local Data Pipeline — Click Any Layer</div>
-        <div class="flow-nodes">
-          <div class="flow-node hl" onclick="showFlowInfo('chat')">
-            <span>💬 AI Chat Browser</span>
-          </div>
-          <span class="flow-arw">→</span>
-          <div class="flow-node" onclick="showFlowInfo('ext')">
-            <span>🧩 VoidScript Extension</span>
-          </div>
-          <span class="flow-arw">→</span>
-          <div class="flow-node" onclick="showFlowInfo('bridge')">
-            <span>⚡ Local MCP Bridge</span>
-          </div>
-          <span class="flow-arw">→</span>
-          <div class="flow-node rblx" onclick="showFlowInfo('studio')">
-            <span>🟥 Roblox Studio</span>
+          <div class="hero-actions">
+            <a class="btn btn-gold" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">
+              ⬇ Download for Free (GPL-3.0)
+            </a>
+            <button class="btn btn-editorial" onclick="openArchModal('01. Live Demo Guide', 'Interactive Simulator Instructions', 'In Chapter II below, click any task tab to watch VoidScript stream Luau code edits and JSON-RPC tool calls between your browser and Roblox Studio.', 'studio.run_luau(\"print(\'VoidScript Ready\')\")')">
+              ⚡ Try Interactive Demo
+            </button>
+            <button class="btn btn-editorial" onclick="openArchModal('02. Security & Zero API Keys', 'Local Browser Session Architecture', 'Because VoidScript operates via an open-source browser extension, it utilizes the active chat tab you already have open. Zero tokens or API keys are required.', 'localhost:44100 [MCP Protocol WebSocket]')">
+              🔒 How Zero-Key Works
+            </button>
           </div>
         </div>
-        <div id="flow-desc" style="margin-top: 16px; font-size: 13.5px; color: var(--muted); text-align: center; min-height: 22px;">
-          <em>Click any box above to see how VoidScript safely communicates without storing keys or sending code to external servers.</em>
+
+        <div class="hero-stats-box">
+          <div class="stat-row">
+            <span class="stat-label">01 / Supported Models</span>
+            <span class="stat-val gold">32 Providers</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">02 / Financial Cost</span>
+            <span class="stat-val gold">$0.00 Forever</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">03 / Communication Protocol</span>
+            <span class="stat-val">Official MCP Server</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">04 / Operating Systems</span>
+            <span class="stat-val">Windows &amp; macOS</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">05 / Compatible Browsers</span>
+            <span class="stat-val">Chrome · Edge · Firefox</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">06 / Open-Source License</span>
+            <span class="stat-val gold">GNU GPL-3.0</span>
+          </div>
         </div>
       </div>
     </div>
   </header>
 
-  <!-- Interactive AI Agent Simulator -->
-  <section id="simulator" style="background: linear-gradient(180deg, transparent, rgba(14, 14, 24, 0.6), transparent);">
+  <!-- SECTION I: THE ARCHITECTURE (WORKING NODE BUTTONS!) -->
+  <section id="architecture">
     <div class="wrap">
-      <div class="section-header">
-        <div class="eyebrow">Interactive Preview</div>
-        <h2>See VoidScript in Action</h2>
-        <p class="lead">Select a prompt chip below to watch how VoidScript translates natural language into multi-step Roblox Studio MCP commands in real time.</p>
+      <div class="chapter-heading">
+        <div>
+          <div class="chapter-meta">§ 01 / Technical Architecture</div>
+          <h2 class="chapter-title">A Secure Bridge Between Mind and Engine</h2>
+        </div>
+        <div class="chapter-desc">
+          Click any architectural layer below to inspect how data moves safely between your web browser and local Roblox Studio instance without third-party servers.
+        </div>
       </div>
 
-      <div class="sim-container">
-        <!-- Top Toolbar -->
-        <div class="sim-topbar">
-          <div class="sim-dots">
-            <span class="sim-dot red"></span>
-            <span class="sim-dot yellow"></span>
-            <span class="sim-dot green"></span>
+      <div class="pipeline-container">
+        <div class="pipeline-steps">
+          <div class="pipeline-node" onclick="openArchModal('Layer I: Browser Chat', 'AI Chat Interface', 'You use DeepSeek, Google Gemini, ChatGPT, or 29 other chat interfaces in your standard web browser. No proprietary API tokens or paid cloud subscriptions are required.', 'Active Browser Tab <--> Web LLM Endpoint')">
+            <span class="num">LAYER 01</span>
+            <h4>💬 AI Chat Browser</h4>
+            <p>Runs inside your standard browser tab with DeepSeek, Gemini, or ChatGPT.</p>
+            <span class="action-link">Inspect Layer ↗</span>
           </div>
-          <div style="font-size: 14px; font-weight: 700; color: #fff;">
-            VoidScript MCP Workspace — <span class="mono" style="color: var(--violet-light);">ObbyProject.rbxl</span>
+
+          <div class="pipeline-node" onclick="openArchModal('Layer II: Extension', 'VoidScript Browser Extension', 'The open-source browser extension detects code blocks and structured tool calls, routing them securely to your local machine via localhost.', 'chrome.runtime.sendMessage() -> ws://localhost:44100')">
+            <span class="num">LAYER 02</span>
+            <h4>🧩 Browser Extension</h4>
+            <p>Intercepts structured MCP tool calls and code blocks in real time.</p>
+            <span class="action-link">Inspect Layer ↗</span>
+          </div>
+
+          <div class="pipeline-node" onclick="openArchModal('Layer III: Local Bridge', 'Local WebSocket & HTTP Bridge', 'A native lightweight local server (start.bat / MacOS_Start.command) that translates browser messages into Roblox Studio MCP JSON-RPC packets.', 'JSON-RPC 2.0 Over WebSocket (Port 44100)')">
+            <span class="num">LAYER 03</span>
+            <h4>⚡ Local Bridge</h4>
+            <p>Translates commands between the browser and Studio over localhost.</p>
+            <span class="action-link">Inspect Layer ↗</span>
+          </div>
+
+          <div class="pipeline-node" onclick="openArchModal('Layer IV: Roblox Studio', 'Roblox Studio Official MCP Server', 'Studio built-in Assistant MCP server executes script reads/writes, instance creation, and Luau testing safely inside your place file.', 'studio.edit_script() / studio.run_luau()')">
+            <span class="num">LAYER 04</span>
+            <h4>🟥 Roblox Studio</h4>
+            <p>Executes Luau, edits scripts, and reads Explorer tree context live.</p>
+            <span class="action-link">Inspect Layer ↗</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION II: THE IDE SIMULATOR (100% INTERACTIVE WITH RUN/RESET & TABS!) -->
+  <section id="simulator">
+    <div class="wrap">
+      <div class="chapter-heading">
+        <div>
+          <div class="chapter-meta">§ 02 / The IDE Simulator</div>
+          <h2 class="chapter-title">Autonomous Luau Scripting in Action</h2>
+        </div>
+        <div class="chapter-desc">
+          Select a task below, then click "Run Simulation" to watch VoidScript generate, inspect, and execute multi-file Luau scripts in real time.
+        </div>
+      </div>
+
+      <div class="sim-card">
+        <div class="sim-toolbar">
+          <div class="sim-title">
+            <span>VOID_SCRIPT_WORKSPACE</span>
+            <span style="color: var(--fg-dim);">/</span>
+            <span style="color: var(--accent-gold);">ObbyProject_v2.rbxl</span>
           </div>
           <div class="sim-status">
-            <span style="width:7px;height:7px;border-radius:50%;background:#34d399;"></span>
-            Studio MCP Server: Connected (port 44100)
+            <span class="dot"></span>
+            <span>MCP SERVER: ACTIVE (44100)</span>
           </div>
         </div>
 
-        <!-- Prompt Picker -->
-        <div class="sim-prompts">
-          <span style="font-size: 13px; color: var(--dim); align-self: center; margin-right: 6px; font-weight: 600;">Choose a demo task:</span>
-          <button class="sim-prompt-btn active" onclick="runSim(0, this)">
-            ⚡ 1. Spinning Laser Trap
+        <div class="sim-task-bar">
+          <span style="font-family: var(--mono); font-size: 12px; color: var(--fg-dim); margin-right: 8px;">SELECT DEMO TASK:</span>
+          <button class="sim-task-btn active" onclick="switchSimTask(0, this)">
+            ⚡ 01. Spinning Laser Trap
           </button>
-          <button class="sim-prompt-btn" onclick="runSim(1, this)">
-            🌅 2. Day/Night Lighting Cycle
+          <button class="sim-task-btn" onclick="switchSimTask(1, this)">
+            🌅 02. Day/Night Atmospheric Cycle
           </button>
-          <button class="sim-prompt-btn" onclick="runSim(2, this)">
-            🏆 3. Coin Leaderboard Script
+          <button class="sim-task-btn" onclick="switchSimTask(2, this)">
+            🏆 03. Persistent Coin Leaderboard
           </button>
+
+          <div class="sim-actions">
+            <button class="btn btn-editorial btn-sm" onclick="resetSim()">↻ Reset</button>
+            <button class="btn btn-gold btn-sm" onclick="runSimAnimation()">▶ Run Simulation</button>
+          </div>
         </div>
 
-        <!-- 3-Column IDE Layout -->
-        <div class="sim-body">
-          <!-- Column 1: AI Chat -->
+        <div class="sim-main-grid">
+          <!-- Col 1: Chat -->
           <div class="sim-col">
-            <div class="sim-col-header">
-              <span>DeepSeek Chat (VoidScript Mode)</span>
-              <span class="tag">Browser Session</span>
+            <div class="col-title">
+              <span>01. CHAT PROMPT (BROWSER)</span>
+              <span class="tag">DeepSeek-R1</span>
             </div>
-            <div class="chat-msg chat-user" id="sim-user-text">
+            <div class="chat-bubble chat-user" id="sim-user-box">
               "Create a spinning laser obby trap that kills players on contact and plays a sound."
             </div>
-            <div class="chat-msg chat-ai" id="sim-ai-text">
-              I'll create a spinning laser hazard inside the Obby folder and attach a Touched kill script with a sound effect.
-              <div class="tool-call" id="sim-tool-call">
-                <span>⚡ MCP:</span> <code>studio.insert_model()</code> + <code>studio.edit_script()</code>
+            <div class="chat-bubble chat-ai" id="sim-ai-box">
+              I will insert a bright red Neon part inside the Obby folder and attach a Touched kill script with a TweenService spin loop.
+              <div class="chat-tool-badge">
+                <span>⚡ MCP TOOL:</span> <code>studio.write_script()</code>
               </div>
             </div>
           </div>
 
-          <!-- Column 2: Local Bridge Log -->
+          <!-- Col 2: Bridge Log -->
           <div class="sim-col">
-            <div class="sim-col-header">
-              <span>VoidScript Bridge Log</span>
-              <span class="tag">WebSocket JSON-RPC</span>
+            <div class="col-title">
+              <span>02. LOCAL BRIDGE (MCP LOG)</span>
+              <span class="tag">ws://localhost</span>
             </div>
-            <div class="log-list" id="sim-log-list">
-              <div class="log-item mcp">
-                <span>[15:42:01] -> MCP Call: studio.get_hierarchy(parent="Workspace.Obby")</span>
-                <span class="log-time">Status: OK (12 children found)</span>
+            <div class="log-viewport" id="sim-log-box">
+              <div class="log-line mcp">
+                <span>[16:10:01] -> studio.get_hierarchy(parent="Workspace.Obby")</span>
+                <span class="log-timestamp">Status: OK (12 children found)</span>
               </div>
-              <div class="log-item mcp">
-                <span>[15:42:02] -> MCP Call: studio.create_instance("Part", "LaserTrap")</span>
-                <span class="log-time">Properties: Color=Bright red, CanCollide=false</span>
+              <div class="log-line mcp">
+                <span>[16:10:02] -> studio.create_instance("Part", "LaserTrap")</span>
+                <span class="log-timestamp">Properties: Color=Bright red, Neon</span>
               </div>
-              <div class="log-item success">
-                <span>[15:42:03] -> MCP Call: studio.write_script("LaserTrap.KillScript")</span>
-                <span class="log-time">Updated 18 lines of Luau code</span>
+              <div class="log-line ok">
+                <span>[16:10:03] -> studio.write_script("LaserTrap.KillScript")</span>
+                <span class="log-timestamp">Written 18 lines of Luau code</span>
               </div>
-              <div class="log-item exec">
-                <span>[15:42:04] -> MCP Call: studio.run_luau("LaserTrap:Spin(45)")</span>
-                <span class="log-time">Return value: true (spin tween active)</span>
+              <div class="log-line exec">
+                <span>[16:10:04] -> studio.run_luau("LaserTrap:Spin(45)")</span>
+                <span class="log-timestamp">Return value: true (spin tween active)</span>
               </div>
             </div>
           </div>
 
-          <!-- Column 3: Roblox Studio Preview -->
-          <div class="sim-col">
-            <div class="sim-col-header">
-              <span>Roblox Studio Live Preview</span>
-              <span class="tag" style="color: #ff857d; border-color: rgba(255, 77, 66, 0.4);">Explorer + Script</span>
-            </div>
-            <div class="studio-preview">
+          <!-- Col 3: Studio Editor with Clickable Tabs -->
+          <div class="sim-col" style="padding: 0;">
+            <div class="studio-box">
               <div class="studio-tabs">
-                <div class="studio-tab active" id="sim-tab-title">LaserTrap.KillScript (Server)</div>
-                <div class="studio-tab" style="opacity: 0.5;">Workspace.Obby</div>
+                <div class="studio-tab active" id="tab-server" onclick="switchStudioTab('server')">KillScript.server.luau</div>
+                <div class="studio-tab" id="tab-client" onclick="switchStudioTab('client')">LaserClient.client.luau</div>
+                <div class="studio-tab" id="tab-tree" onclick="switchStudioTab('tree')">Workspace.Obby Tree</div>
               </div>
-              <pre class="studio-code" id="sim-code-view"><span class="com">-- Auto-generated by VoidScript (DeepSeek R1)</span>
+              <pre class="studio-code" id="sim-code-box"><span class="com">-- Auto-generated by VoidScript (DeepSeek R1)</span>
 <span class="kwd">local</span> part = <span class="kwd">script</span>.Parent
 part.BrickColor = BrickColor.new(<span class="str">"Bright red"</span>)
 part.Material = Enum.Material.Neon
 
-<span class="com">-- Rotate smoothly using TweenService</span>
+<span class="com">-- Smooth rotation via TweenService</span>
 <span class="kwd">local</span> TweenService = <span class="fn">game:GetService</span>(<span class="str">"TweenService"</span>)
 <span class="kwd">local</span> tween = TweenService:Create(part,
   TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
@@ -1627,7 +1408,7 @@ part.Material = Enum.Material.Neon
 )
 tween:Play()
 
-<span class="com">-- Kill character on touch</span>
+<span class="com">-- Touch kill trigger</span>
 part.Touched:Connect(<span class="kwd">function</span>(hit)
   <span class="kwd">local</span> humanoid = hit.Parent:FindFirstChild(<span class="str">"Humanoid"</span>)
   <span class="kwd">if</span> humanoid <span class="kwd">then</span>
@@ -1641,337 +1422,300 @@ part.Touched:Connect(<span class="kwd">function</span>(hit)
     </div>
   </section>
 
-  <!-- What it does (Features Section) -->
-  <section id="features">
+  <!-- SECTION III: CAPABILITIES & COMPENDIUM (ALL CARDS HAVE WORKING POPUP BUTTONS!) -->
+  <section id="capabilities">
     <div class="wrap">
-      <div class="section-header">
-        <div class="eyebrow">What It Does</div>
-        <h2>Your AI, Hands-On in Roblox Studio</h2>
-        <p class="lead">VoidScript drives Roblox Studio through its official built-in MCP server — zero copy-pasting, zero API keys, zero terminal setup.</p>
+      <div class="chapter-heading">
+        <div>
+          <div class="chapter-meta">§ 03 / Capabilities &amp; Compendium</div>
+          <h2 class="chapter-title">Six Core Competencies of the Local Agent</h2>
+        </div>
+        <div class="chapter-desc">
+          Click "Explore Feature" on any competency below to view specific MCP JSON-RPC specifications and real-world Studio examples.
+        </div>
       </div>
 
-      <div class="grid-6">
-        <div class="feature-card">
-          <div class="feature-ico">📝</div>
-          <h3>Reads &amp; Edits Scripts</h3>
-          <p>The AI opens your Luau scripts, understands full multi-file context, and applies precise diff edits directly inside Roblox Studio.</p>
-          <div class="card-widget">
-            <div class="hdr"><span>MCP Tool</span><span>Status</span></div>
-            <code>studio.edit_script({diff: "+14 lines"})</code>
+      <div class="feature-grid">
+        <div class="editorial-card">
+          <div>
+            <div class="card-meta"><span>COMPETENCY 01</span><span>SCRIPT EDITING</span></div>
+            <h3>Reads &amp; Edits Scripts</h3>
+            <p>The agent reads your Luau scripts, understands full multi-file dependencies, and applies precise diff edits directly inside Studio.</p>
+          </div>
+          <div class="editorial-card-footer">
+            <span style="font-family: var(--mono); font-size: 11px; color: var(--fg-dim);">MCP: studio.edit_script</span>
+            <button class="editorial-card-btn" onclick="openArchModal('Competency I: Script Editing', 'Multi-File Luau Diff Engine', 'VoidScript reads existing scripts and applies line-accurate unified diffs, ensuring that large scripts are updated without overwriting existing game logic.', 'studio.edit_script({ path: \"ServerScriptService.Main\", diff: \"+14 lines\" })')">Explore Feature ↗</button>
           </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-ico">⚡</div>
-          <h3>Runs Luau Live</h3>
-          <p>It executes Luau statements inside your place to build, test, and spawn objects — then reads console outputs to self-correct.</p>
-          <div class="card-widget">
-            <div class="hdr"><span>Console Readback</span><span>Auto-Fix</span></div>
-            <code>studio.run_luau("print('Tested OK')")</code>
+        <div class="editorial-card">
+          <div>
+            <div class="card-meta"><span>COMPETENCY 02</span><span>LIVE LUAU EXECUTION</span></div>
+            <h3>Runs Luau Statements Live</h3>
+            <p>Executes Luau expressions inside your running place to spawn objects, test physics, and read back print() logs to self-correct.</p>
+          </div>
+          <div class="editorial-card-footer">
+            <span style="font-family: var(--mono); font-size: 11px; color: var(--fg-dim);">MCP: studio.run_luau</span>
+            <button class="editorial-card-btn" onclick="openArchModal('Competency II: Live Execution', 'Self-Correcting Console Loop', 'When a script error occurs in Studio output, VoidScript reads the error stack trace automatically and submits a fixed script correction.', 'studio.run_luau(\"print(game.Workspace.CurrentCamera.CFrame)\")')">Explore Feature ↗</button>
           </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-ico">🌲</div>
-          <h3>Inspects the Game Tree</h3>
-          <p>Searches instances, inspects properties, and navigates your exact workspace hierarchy to work with your real game context.</p>
-          <div class="card-widget">
-            <div class="hdr"><span>Explorer View</span><span>Workspace</span></div>
-            <code>game.Workspace.Obby.Checkpoint1</code>
+        <div class="editorial-card">
+          <div>
+            <div class="card-meta"><span>COMPETENCY 03</span><span>EXPLORER INSPECTION</span></div>
+            <h3>Inspects the Game Tree</h3>
+            <p>Searches instances, queries attributes, and traverses your workspace hierarchy so the AI works with your real game context.</p>
+          </div>
+          <div class="editorial-card-footer">
+            <span style="font-family: var(--mono); font-size: 11px; color: var(--fg-dim);">MCP: studio.get_hierarchy</span>
+            <button class="editorial-card-btn" onclick="openArchModal('Competency III: Explorer Tree', 'Deep Workspace Querying', 'VoidScript can scan any folder or service in your place file to discover existing models, scripts, and properties before writing code.', 'studio.get_hierarchy({ parent: \"Workspace\", depth: 3 })')">Explore Feature ↗</button>
           </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-ico">🎨</div>
-          <h3>Generates &amp; Inserts Assets</h3>
-          <p>Creates parts, meshes, lights, and materials, or inserts verified models straight from the Roblox Creator Store.</p>
-          <div class="card-widget">
-            <div class="hdr"><span>Creator Store</span><span>Asset ID</span></div>
-            <code>studio.insert_model(id: 18472910)</code>
+        <div class="editorial-card">
+          <div>
+            <div class="card-meta"><span>COMPETENCY 04</span><span>ASSET INSERTION</span></div>
+            <h3>Generates &amp; Inserts Assets</h3>
+            <p>Creates parts, meshes, and lighting environments, or imports verified assets from the official Creator Store by Asset ID.</p>
+          </div>
+          <div class="editorial-card-footer">
+            <span style="font-family: var(--mono); font-size: 11px; color: var(--fg-dim);">MCP: studio.insert_model</span>
+            <button class="editorial-card-btn" onclick="openArchModal('Competency IV: Asset Insertion', 'Creator Store Integration', 'Need an interactive vehicle or custom sword? VoidScript can insert verified models directly into your workspace by Asset ID.', 'studio.insert_model({ assetId: 18472910, parent: \"Workspace\" })')">Explore Feature ↗</button>
           </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-ico">🧠</div>
-          <h3>Persistent Project Memory</h3>
-          <p>Your project architecture and rules are saved directly inside your place file attributes, keeping memory across sessions.</p>
-          <div class="card-widget">
-            <div class="hdr"><span>Place File</span><span>.rbxl Storage</span></div>
-            <code>_VoidScript_Memory [Saved 12 rules]</code>
+        <div class="editorial-card">
+          <div>
+            <div class="card-meta"><span>COMPETENCY 05</span><span>PERSISTENT MEMORY</span></div>
+            <h3>Persistent Project Memory</h3>
+            <p>Your project architecture, custom conventions, and rules are stored inside `.rbxl` attributes so memory persists across sessions.</p>
+          </div>
+          <div class="editorial-card-footer">
+            <span style="font-family: var(--mono); font-size: 11px; color: var(--fg-dim);">STORAGE: .rbxl Attributes</span>
+            <button class="editorial-card-btn" onclick="openArchModal('Competency V: Persistent Memory', 'Place-Embedded Context', 'Unlike standard chatbots that forget your game after you close the tab, VoidScript stores project rules inside Studio attributes.', 'game:SetAttribute(\"_VoidScript_Memory\", \"Use ModuleScript pattern\")')">Explore Feature ↗</button>
           </div>
         </div>
 
-        <div class="feature-card">
-          <div class="feature-ico">🔒</div>
-          <h3>Free &amp; Open-Source</h3>
-          <p>Licensed under GPL-3.0. No subscription, no sign-in, no paid tier, and zero telemetry. Everything runs on your machine.</p>
-          <div class="card-widget">
-            <div class="hdr"><span>License</span><span>Privacy</span></div>
-            <code>100% Local · Zero External Telemetry</code>
+        <div class="editorial-card">
+          <div>
+            <div class="card-meta"><span>COMPETENCY 06</span><span>100% OPEN SOURCE</span></div>
+            <h3>Free &amp; Open-Source License</h3>
+            <p>Licensed under GNU GPL-3.0. No subscription, no sign-in, no paid tier, and zero external telemetry. Runs entirely on your machine.</p>
+          </div>
+          <div class="editorial-card-footer">
+            <span style="font-family: var(--mono); font-size: 11px; color: var(--fg-dim);">LICENSE: GPL-3.0</span>
+            <button class="editorial-card-btn" onclick="openArchModal('Competency VI: Open Source', 'GNU General Public License', 'You can audit every line of code in the VoidScript repository. Beware of paid copycats that charge subscriptions for free open-source software.', 'License: GNU GPL-3.0 - Free Forever')">Explore Feature ↗</button>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Supported AIs Section -->
-  <section id="ais" class="ai-section">
+  <!-- SECTION IV: THE AI REGISTRY (32 PROVIDERS WITH SEARCH, TABS, AND WORKING POPUPS!) -->
+  <section id="registry">
     <div class="wrap">
-      <div class="section-header">
-        <div class="eyebrow">Bring Your Own AI</div>
-        <h2>32 AI Providers Supported</h2>
-        <p class="lead">Use whichever chat tab you already have open. Seven providers are hand-tuned and rock-solid; 25 more work via our universal adapter.</p>
-      </div>
-
-      <div class="ai-filter-bar">
-        <!-- Interactive Search Box -->
-        <div class="search-box">
-          <svg><use href="#ico-search"/></svg>
-          <input type="text" id="ai-search-input" placeholder="Search AI providers (e.g., DeepSeek, Gemini, ChatGPT, Grok, Qwen, Kimi...)" oninput="filterAIs()" />
+      <div class="chapter-heading">
+        <div>
+          <div class="chapter-meta">§ 04 / The AI Registry</div>
+          <h2 class="chapter-title">Thirty-Two Compatible Intelligence Engines</h2>
         </div>
-
-        <!-- Filter Tabs -->
-        <div class="filter-tabs">
-          <button class="filter-btn active" onclick="setAIFilter('all', this)">All (32)</button>
-          <button class="filter-btn" onclick="setAIFilter('full', this)">Fully Supported (7)</button>
-          <button class="filter-btn" onclick="setAIFilter('beta', this)">Beta Adapter (25)</button>
-          <button class="filter-btn" onclick="setAIFilter('free', this)">Free No-Login</button>
+        <div class="chapter-desc">
+          Click any provider card to inspect its Luau coding benchmarks, pricing tier, and optimal Studio prompt strategy.
         </div>
       </div>
 
-      <div class="ai-groups-container">
-        <!-- Fully Supported Group -->
-        <div class="grp-label" id="label-full">
-          <span class="tag full">FULLY SUPPORTED</span> Hand-tuned, most reliable &amp; recommended for Luau
+      <div class="registry-filter-bar">
+        <div class="search-editorial">
+          <input type="text" id="ai-search" placeholder="Search 32 providers (DeepSeek, Gemini, ChatGPT, Grok, Qwen, Kimi...)" oninput="filterRegistry()" />
         </div>
-        <div class="pills" id="pills-full">
-          <div class="pill" data-name="deepseek" data-cat="full free" onclick="openAIModal('DeepSeek', 'Fully Supported', 'DeepSeek-V3 and DeepSeek-R1 excel at complex Luau syntax and Roblox Studio architecture reasoning. Best overall free experience with zero login required.')">
-            DeepSeek <span class="badge-mini">Top Pick</span>
-          </div>
-          <div class="pill" data-name="google gemini" data-cat="full free" onclick="openAIModal('Google Gemini', 'Fully Supported', 'Gemini 1.5 Pro and Flash provide a massive context window, perfect for reading large Roblox Studio projects with dozens of scripts.')">
-            Google Gemini <span class="badge-mini">2M Context</span>
-          </div>
-          <div class="pill" data-name="kimi" data-cat="full free" onclick="openAIModal('Kimi', 'Fully Supported', 'Moonshot Kimi offers exceptional multi-file reasoning and fast response streaming for Luau game development.')">
-            Kimi <span class="badge-mini">Fast</span>
-          </div>
-          <div class="pill" data-name="glm z.ai" data-cat="full free" onclick="openAIModal('GLM (Z.ai)', 'Fully Supported', 'Zhipu GLM-4 delivers accurate code generation and reliable JSON-RPC MCP tool calling for Roblox Studio.')">
-            GLM (<a href="http://Z.ai" target="_blank" rel="noopener" style="text-decoration: underline;" onclick="event.stopPropagation()">Z.ai</a>)
-          </div>
-          <div class="pill" data-name="qwen" data-cat="full free" onclick="openAIModal('Qwen', 'Fully Supported', 'Alibaba Qwen 2.5 Coder is one of the highest-rated open weights models for coding in Luau and game logic.')">
-            Qwen <span class="badge-mini">Coder Top</span>
-          </div>
-          <div class="pill" data-name="arena" data-cat="full" onclick="openAIModal('Arena', 'Fully Supported', 'LMSYS Arena multi-model testing interface works seamlessly with VoidScript for benchmarking Luau responses.')">
-            Arena
-          </div>
-          <div class="pill" data-name="meta ai" data-cat="full free" onclick="openAIModal('Meta AI', 'Fully Supported', 'Llama 3.3 via Meta AI browser interface. Very quick at generating UI scripts and client-side tweens.')">
-            Meta AI
-          </div>
+        <div class="registry-tabs">
+          <button class="reg-tab active" onclick="setRegTab('all', this)">All (32)</button>
+          <button class="reg-tab" onclick="setRegTab('full', this)">Fully Supported (7)</button>
+          <button class="reg-tab" onclick="setRegTab('beta', this)">Beta Adapter (25)</button>
+          <button class="reg-tab" onclick="setRegTab('free', this)">Free / No-Login</button>
         </div>
+      </div>
 
-        <!-- Beta Group -->
-        <div class="grp-label" id="label-beta">
-          <span class="tag beta">BETA ADAPTER</span> Universal adapter — works with standard web chat UI
+      <!-- Fully Supported Models -->
+      <div class="model-group-title" id="title-full">
+        <span>FULLY SUPPORTED MONOGRAPHS (HAND-TUNED)</span>
+        <span>07 MODELS</span>
+      </div>
+      <div class="model-grid" id="grid-full">
+        <div class="model-pill" data-name="deepseek" data-cat="full free" onclick="openModelModal('DeepSeek', 'Fully Supported · 100% Free', 'DeepSeek-V3 and DeepSeek-R1 excel at complex Luau syntax and Roblox Studio architecture reasoning. Outstanding performance with zero login required.', 'DeepSeek R1 — Top Pick')">
+          <span class="m-name">DeepSeek</span><span class="m-badge">Top Pick</span>
         </div>
-        <div class="pills" id="pills-beta">
-          <div class="pill" data-name="chatgpt" data-cat="beta" onclick="openAIModal('ChatGPT', 'Beta Adapter', 'OpenAI ChatGPT (GPT-4o, o1, o3-mini). Incredible Luau coding accuracy when using the web chat interface.')">
-            ChatGPT <span class="badge-mini">GPT-4o / o1</span>
-          </div>
-          <div class="pill" data-name="grok" data-cat="beta" onclick="openAIModal('Grok', 'Beta Adapter', 'xAI Grok 3 via x.com or grok.com. Highly creative at game mechanics and physics scripts.')">
-            Grok <span class="badge-mini">Grok 3</span>
-          </div>
-          <div class="pill" data-name="perplexity" data-cat="beta" onclick="openAIModal('Perplexity', 'Beta Adapter', 'Great when checking up-to-date Roblox API documentation alongside coding.')">
-            Perplexity
-          </div>
-          <div class="pill" data-name="copilot" data-cat="beta" onclick="openAIModal('Copilot', 'Beta Adapter', 'Microsoft Copilot web interface.')">
-            Copilot
-          </div>
-          <div class="pill" data-name="mistral" data-cat="beta free" onclick="openAIModal('Mistral', 'Beta Adapter', 'Mistral Le Chat web interface with Codestral support.')">
-            Mistral
-          </div>
-          <div class="pill" data-name="poe" data-cat="beta" onclick="openAIModal('Poe', 'Beta Adapter', 'Quora Poe multi-bot platform.')">
-            Poe
-          </div>
-          <div class="pill" data-name="huggingchat" data-cat="beta free" onclick="openAIModal('HuggingChat', 'Beta Adapter', '100% open-source models hosted on Hugging Face.')">
-            HuggingChat
-          </div>
-          <div class="pill" data-name="phind" data-cat="beta free" onclick="openAIModal('Phind', 'Beta Adapter', 'Developer-focused search and coding assistant.')">
-            Phind
-          </div>
-          <div class="pill" data-name="blackbox" data-cat="beta free" onclick="openAIModal('Blackbox', 'Beta Adapter', 'Blackbox AI code generation web tab.')">
-            Blackbox
-          </div>
-          <div class="pill" data-name="you" data-cat="beta" onclick="openAIModal('You', 'Beta Adapter', 'You.com AI search & chat.')">
-            You
-          </div>
-          <div class="pill" data-name="groq" data-cat="beta free" onclick="openAIModal('Groq', 'Beta Adapter', 'Ultra-low latency Llama-3 inference via GroqChat.')">
-            Groq <span class="badge-mini">Ultra Fast</span>
-          </div>
-          <div class="pill" data-name="lmarena" data-cat="beta" onclick="openAIModal('LMArena', 'Beta Adapter', 'LMSYS Chatbot Arena interface.')">
-            LMArena
-          </div>
-          <div class="pill" data-name="doubao" data-cat="beta free" onclick="openAIModal('Doubao', 'Beta Adapter', 'ByteDance Doubao web chat.')">
-            Doubao
-          </div>
-          <div class="pill" data-name="yuanbao" data-cat="beta free" onclick="openAIModal('Yuanbao', 'Beta Adapter', 'Tencent Yuanbao chat.')">
-            Yuanbao
-          </div>
-          <div class="pill" data-name="reka" data-cat="beta" onclick="openAIModal('Reka', 'Beta Adapter', 'Reka AI chat interface.')">
-            Reka
-          </div>
-          <div class="pill" data-name="pi" data-cat="beta free" onclick="openAIModal('Pi', 'Beta Adapter', 'Inflection Pi conversational AI.')">
-            Pi
-          </div>
-          <div class="pill" data-name="coral" data-cat="beta" onclick="openAIModal('Coral', 'Beta Adapter', 'Cohere Coral enterprise interface.')">
-            Coral
-          </div>
-          <div class="pill" data-name="openrouter" data-cat="beta" onclick="openAIModal('OpenRouter', 'Beta Adapter', 'Access hundreds of open and proprietary models via OpenRouter Playground.')">
-            OpenRouter
-          </div>
-          <div class="pill" data-name="v0" data-cat="beta" onclick="openAIModal('v0', 'Beta Adapter', 'Vercel v0 generative interface.')">
-            v0
-          </div>
-          <div class="pill" data-name="genspark" data-cat="beta" onclick="openAIModal('Genspark', 'Beta Adapter', 'Genspark AI agent search.')">
-            Genspark
-          </div>
-          <div class="pill" data-name="lambda chat" data-cat="beta free" onclick="openAIModal('Lambda Chat', 'Beta Adapter', 'Lambda Labs free chat interface.')">
-            Lambda Chat
-          </div>
-          <div class="pill" data-name="ernie" data-cat="beta" onclick="openAIModal('ERNIE', 'Beta Adapter', 'Baidu ERNIE Bot interface.')">
-            ERNIE
-          </div>
-          <div class="pill" data-name="minimax" data-cat="beta" onclick="openAIModal('MiniMax', 'Beta Adapter', 'MiniMax Hailuo AI chat.')">
-            MiniMax
-          </div>
-          <div class="pill" data-name="manus" data-cat="beta" onclick="openAIModal('Manus', 'Beta Adapter', 'Manus autonomous agent UI.')">
-            Manus
-          </div>
-          <div class="pill" data-name="together" data-cat="beta free" onclick="openAIModal('Together', 'Beta Adapter', 'Together AI chat playground.')">
-            Together
-          </div>
+        <div class="model-pill" data-name="google gemini" data-cat="full free" onclick="openModelModal('Google Gemini', 'Fully Supported · Free Tier', 'Gemini 1.5 Pro & Flash provide a massive 2M token context window, ideal for reading large Roblox places with dozens of scripts.', 'Gemini 1.5 — 2M Context')">
+          <span class="m-name">Google Gemini</span><span class="m-badge">2M Context</span>
+        </div>
+        <div class="model-pill" data-name="kimi" data-cat="full free" onclick="openModelModal('Kimi', 'Fully Supported · Free Tier', 'Moonshot Kimi offers fast multi-file reasoning and rapid response streaming for game mechanics and UI scripting.', 'Kimi — Moonshot AI')">
+          <span class="m-name">Kimi</span><span class="m-badge">Fast Luau</span>
+        </div>
+        <div class="model-pill" data-name="glm z.ai" data-cat="full free" onclick="openModelModal('GLM (Z.ai)', 'Fully Supported · Free Tier', 'Zhipu GLM-4 delivers accurate code generation and reliable JSON-RPC MCP tool calling for Roblox Studio.', 'GLM-4 — Z.ai')">
+          <span class="m-name">GLM (Z.ai)</span><span class="m-badge">GLM-4</span>
+        </div>
+        <div class="model-pill" data-name="qwen" data-cat="full free" onclick="openModelModal('Qwen', 'Fully Supported · Free Tier', 'Alibaba Qwen 2.5 Coder is one of the highest-rated open weights models for coding in Luau and game logic.', 'Qwen 2.5 Coder')">
+          <span class="m-name">Qwen</span><span class="m-badge">Coder 2.5</span>
+        </div>
+        <div class="model-pill" data-name="arena" data-cat="full" onclick="openModelModal('Arena', 'Fully Supported · LMSYS', 'LMSYS Arena multi-model testing interface works seamlessly with VoidScript for benchmarking Luau responses across models.', 'LMSYS Chatbot Arena')">
+          <span class="m-name">Arena</span><span class="m-badge">Multi-Model</span>
+        </div>
+        <div class="model-pill" data-name="meta ai" data-cat="full free" onclick="openModelModal('Meta AI', 'Fully Supported · Free Tier', 'Llama 3.3 via Meta AI browser interface. Very quick at generating UI scripts and client-side tweens.', 'Llama 3.3 70B')">
+          <span class="m-name">Meta AI</span><span class="m-badge">Llama 3.3</span>
+        </div>
+      </div>
+
+      <!-- Beta Adapter Models -->
+      <div class="model-group-title" id="title-beta">
+        <span>BETA UNIVERSAL ADAPTER REGISTRY</span>
+        <span>25 MODELS</span>
+      </div>
+      <div class="model-grid" id="grid-beta">
+        <div class="model-pill" data-name="chatgpt" data-cat="beta" onclick="openModelModal('ChatGPT', 'Beta Adapter · OpenAI', 'OpenAI ChatGPT (GPT-4o, o1, o3-mini). Incredible Luau coding accuracy when using the standard web chat interface.', 'OpenAI GPT-4o / o1')">
+          <span class="m-name">ChatGPT</span><span class="m-badge">GPT-4o</span>
+        </div>
+        <div class="model-pill" data-name="grok" data-cat="beta" onclick="openModelModal('Grok', 'Beta Adapter · xAI', 'xAI Grok 3 via x.com or grok.com. Highly creative at game mechanics and physics scripts.', 'xAI Grok 3')">
+          <span class="m-name">Grok</span><span class="m-badge">Grok 3</span>
+        </div>
+        <div class="model-pill" data-name="perplexity" data-cat="beta" onclick="openModelModal('Perplexity', 'Beta Adapter · Web AI', 'Great when checking up-to-date Roblox API documentation alongside coding.', 'Perplexity AI')">
+          <span class="m-name">Perplexity</span><span class="m-badge">Live Docs</span>
+        </div>
+        <div class="model-pill" data-name="copilot" data-cat="beta" onclick="openModelModal('Copilot', 'Beta Adapter · Microsoft', 'Microsoft Copilot web interface with GPT-4 backend.', 'Microsoft Copilot')">
+          <span class="m-name">Copilot</span><span class="m-badge">Microsoft</span>
+        </div>
+        <div class="model-pill" data-name="mistral" data-cat="beta free" onclick="openModelModal('Mistral', 'Beta Adapter · Mistral AI', 'Mistral Le Chat web interface with Codestral support.', 'Mistral Codestral')">
+          <span class="m-name">Mistral</span><span class="m-badge">Codestral</span>
+        </div>
+        <div class="model-pill" data-name="poe" data-cat="beta" onclick="openModelModal('Poe', 'Beta Adapter · Quora', 'Quora Poe multi-bot platform with access to hundreds of AI models.', 'Quora Poe')">
+          <span class="m-name">Poe</span><span class="m-badge">Multi-Bot</span>
+        </div>
+        <div class="model-pill" data-name="huggingchat" data-cat="beta free" onclick="openModelModal('HuggingChat', 'Beta Adapter · Free Open-Source', '100% open-source models hosted on Hugging Face.', 'Hugging Face Open')">
+          <span class="m-name">HuggingChat</span><span class="m-badge">Open Source</span>
+        </div>
+        <div class="model-pill" data-name="phind" data-cat="beta free" onclick="openModelModal('Phind', 'Beta Adapter · Free Tier', 'Developer-focused search and coding assistant.', 'Phind Coder')">
+          <span class="m-name">Phind</span><span class="m-badge">Coder</span>
+        </div>
+        <div class="model-pill" data-name="blackbox" data-cat="beta free" onclick="openModelModal('Blackbox', 'Beta Adapter · Free Tier', 'Blackbox AI code generation web tab.', 'Blackbox AI')">
+          <span class="m-name">Blackbox</span><span class="m-badge">AI Coder</span>
+        </div>
+        <div class="model-pill" data-name="you" data-cat="beta" onclick="openModelModal('You', 'Beta Adapter', 'You.com AI search & chat.', 'You.com AI')">
+          <span class="m-name">You</span><span class="m-badge">Search AI</span>
+        </div>
+        <div class="model-pill" data-name="groq" data-cat="beta free" onclick="openModelModal('Groq', 'Beta Adapter · Free Tier', 'Ultra-low latency Llama-3 inference via GroqChat.', 'Groq Llama-3 Fast')">
+          <span class="m-name">Groq</span><span class="m-badge">Ultra Fast</span>
+        </div>
+        <div class="model-pill" data-name="lmarena" data-cat="beta" onclick="openModelModal('LMArena', 'Beta Adapter', 'LMSYS Chatbot Arena interface.', 'LMArena')">
+          <span class="m-name">LMArena</span><span class="m-badge">LMSYS</span>
+        </div>
+        <div class="model-pill" data-name="doubao" data-cat="beta free" onclick="openModelModal('Doubao', 'Beta Adapter · Free Tier', 'ByteDance Doubao web chat.', 'Doubao AI')">
+          <span class="m-name">Doubao</span><span class="m-badge">Free</span>
+        </div>
+        <div class="model-pill" data-name="yuanbao" data-cat="beta free" onclick="openModelModal('Yuanbao', 'Beta Adapter · Free Tier', 'Tencent Yuanbao chat.', 'Yuanbao AI')">
+          <span class="m-name">Yuanbao</span><span class="m-badge">Free</span>
+        </div>
+        <div class="model-pill" data-name="reka" data-cat="beta" onclick="openModelModal('Reka', 'Beta Adapter', 'Reka AI chat interface.', 'Reka AI')">
+          <span class="m-name">Reka</span><span class="m-badge">Multimodal</span>
+        </div>
+        <div class="model-pill" data-name="pi" data-cat="beta free" onclick="openModelModal('Pi', 'Beta Adapter · Free Tier', 'Inflection Pi conversational AI.', 'Pi AI')">
+          <span class="m-name">Pi</span><span class="m-badge">Conversational</span>
+        </div>
+        <div class="model-pill" data-name="coral" data-cat="beta" onclick="openModelModal('Coral', 'Beta Adapter', 'Cohere Coral enterprise interface.', 'Cohere Coral')">
+          <span class="m-name">Coral</span><span class="m-badge">Cohere</span>
+        </div>
+        <div class="model-pill" data-name="openrouter" data-cat="beta" onclick="openModelModal('OpenRouter', 'Beta Adapter', 'Access hundreds of open and proprietary models via OpenRouter Playground.', 'OpenRouter API')">
+          <span class="m-name">OpenRouter</span><span class="m-badge">All Models</span>
+        </div>
+        <div class="model-pill" data-name="v0" data-cat="beta" onclick="openModelModal('v0', 'Beta Adapter', 'Vercel v0 generative interface.', 'Vercel v0')">
+          <span class="m-name">v0</span><span class="m-badge">Vercel</span>
+        </div>
+        <div class="model-pill" data-name="genspark" data-cat="beta" onclick="openModelModal('Genspark', 'Beta Adapter', 'Genspark AI agent search.', 'Genspark')">
+          <span class="m-name">Genspark</span><span class="m-badge">Agent</span>
+        </div>
+        <div class="model-pill" data-name="lambda chat" data-cat="beta free" onclick="openModelModal('Lambda Chat', 'Beta Adapter · Free Tier', 'Lambda Labs free chat interface.', 'Lambda Labs')">
+          <span class="m-name">Lambda Chat</span><span class="m-badge">Free</span>
+        </div>
+        <div class="model-pill" data-name="ernie" data-cat="beta" onclick="openModelModal('ERNIE', 'Beta Adapter', 'Baidu ERNIE Bot interface.', 'ERNIE Bot')">
+          <span class="m-name">ERNIE</span><span class="m-badge">Baidu</span>
+        </div>
+        <div class="model-pill" data-name="minimax" data-cat="beta" onclick="openModelModal('MiniMax', 'Beta Adapter', 'MiniMax Hailuo AI chat.', 'MiniMax Hailuo')">
+          <span class="m-name">MiniMax</span><span class="m-badge">Hailuo</span>
+        </div>
+        <div class="model-pill" data-name="manus" data-cat="beta" onclick="openModelModal('Manus', 'Beta Adapter', 'Manus autonomous agent UI.', 'Manus AI')">
+          <span class="m-name">Manus</span><span class="m-badge">Agent</span>
+        </div>
+        <div class="model-pill" data-name="together" data-cat="beta free" onclick="openModelModal('Together', 'Beta Adapter · Free Tier', 'Together AI chat playground.', 'Together AI')">
+          <span class="m-name">Together</span><span class="m-badge">Open AI</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Comparison Section: Why VoidScript Dominates -->
-  <section id="comparison">
+  <!-- SECTION V: SETUP PROTOCOL (WORKING OS SWITCHER & COPY COMMANDS!) -->
+  <section id="protocol">
     <div class="wrap">
-      <div class="section-header">
-        <div class="eyebrow">Why VoidScript</div>
-        <h2>How VoidScript Compares</h2>
-        <p class="lead">See why thousands of developers prefer a free local browser MCP bridge over paid plugins and manual copy-pasting.</p>
+      <div class="chapter-heading">
+        <div>
+          <div class="chapter-meta">§ 05 / Setup Protocol</div>
+          <h2 class="chapter-title">Installation in Four Brief Stages</h2>
+        </div>
+        <div class="chapter-desc">
+          Select your operating system below to reveal exact terminal and file execution commands.
+        </div>
       </div>
 
-      <div class="comparison-table-wrap">
-        <table class="comparison-table">
-          <thead>
-            <tr>
-              <th>Feature / Metric</th>
-              <th class="vs-col">🚀 VoidScript</th>
-              <th>Paid Roblox Studio Plugins</th>
-              <th>Manual Copy-Pasting</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Cost &amp; License</strong></td>
-              <td class="vs-col"><span class="chk">✓</span> <strong>$0 Free (GPL-3.0)</strong></td>
-              <td>$15 – $30 / month</td>
-              <td>$0 (Time consuming)</td>
-            </tr>
-            <tr>
-              <td><strong>API Key Required?</strong></td>
-              <td class="vs-col"><span class="chk">✓</span> <strong>No API key needed</strong></td>
-              <td>Yes (OpenAI / Anthropic key)</td>
-              <td>No API key needed</td>
-            </tr>
-            <tr>
-              <td><strong>Supported AI Models</strong></td>
-              <td class="vs-col"><span class="chk">✓</span> <strong>32+ AI Providers</strong></td>
-              <td>1 or 2 locked models</td>
-              <td>Any chat tab</td>
-            </tr>
-            <tr>
-              <td><strong>Live Studio Script Diff Editing</strong></td>
-              <td class="vs-col"><span class="chk">✓</span> <strong>Automatic &amp; Exact</strong></td>
-              <td>Varies by plugin</td>
-              <td><span class="cross">✕</span> Manual copy &amp; replace</td>
-            </tr>
-            <tr>
-              <td><strong>Runs Luau &amp; Reads Console Logs</strong></td>
-              <td class="vs-col"><span class="chk">✓</span> <strong>Yes (Self-Correcting)</strong></td>
-              <td><span class="cross">✕</span> Rare / Limited</td>
-              <td><span class="cross">✕</span> No integration</td>
-            </tr>
-            <tr>
-              <td><strong>Project Memory Saved in Place (.rbxl)</strong></td>
-              <td class="vs-col"><span class="chk">✓</span> <strong>Yes (Persistent)</strong></td>
-              <td><span class="cross">✕</span> External cloud only</td>
-              <td><span class="cross">✕</span> None</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- Setup Section with OS Switcher -->
-  <section id="setup">
-    <div class="wrap">
-      <div class="section-header">
-        <div class="eyebrow">Get Started</div>
-        <h2>Running in 4 Simple Steps</h2>
-        <p class="lead">Takes around 5 minutes, first time only. Once setup, it connects instantly whenever Studio is open.</p>
-      </div>
-
-      <div class="setup-container">
-        <!-- OS Switcher Buttons -->
-        <div class="os-toggle">
-          <button class="os-btn active" onclick="setOS('win', this)">
-            🪟 Windows Setup
-          </button>
-          <button class="os-btn" onclick="setOS('mac', this)">
-            🍎 macOS Setup
-          </button>
+      <div class="setup-editorial-box">
+        <div class="os-selector-stack">
+          <div class="os-card-btn active" id="btn-win" onclick="switchOS('win')">
+            <h4>🪟 Windows Edition</h4>
+            <p>Runs via standard command script (start.bat).</p>
+          </div>
+          <div class="os-card-btn" id="btn-mac" onclick="switchOS('mac')">
+            <h4>🍎 macOS Edition</h4>
+            <p>Runs via terminal shell script (MacOS_Start.command).</p>
+          </div>
+          <div style="margin-top: 18px; padding: 16px; border: 1px dashed var(--border); font-size: 13px; color: var(--fg-muted);">
+            <strong style="color: var(--accent-gold);">100% LOCAL PROCESSING:</strong> All communication happens on <code style="color: #fff;">localhost:44100</code>. No code leaves your computer.
+          </div>
         </div>
 
-        <!-- Setup Steps -->
-        <div class="steps">
-          <div class="step">
-            <div class="n">1</div>
-            <div class="step-content">
-              <h3>Install the VoidScript Extension</h3>
-              <p>Download the GitHub repository, then load <code>voidscript-extension</code> as an unpacked extension in Chrome / Edge (or via <code>about:debugging</code> on Firefox).</p>
-            </div>
-          </div>
-
-          <div class="step">
-            <div class="n">2</div>
-            <div class="step-content">
-              <h3>Enable Built-in MCP in Roblox Studio</h3>
-              <p>Open any Roblox place → click <strong>Assistant</strong> → <strong>Manage MCP Servers</strong> → turn on <strong>Enable Studio as MCP Server</strong>.</p>
-            </div>
-          </div>
-
-          <div class="step">
-            <div class="n">3</div>
-            <div class="step-content">
-              <h3>Run the Local Bridge</h3>
-              <p id="os-step3-text">
-                Double-click <code>start.bat</code> in the repository folder. Keep the lightweight command window running in the background.
-              </p>
-              <div class="code-box">
-                <span id="os-cmd-text">./start.bat</span>
-                <button class="copy-btn" onclick="copyCmd(this)">Copy Command</button>
+        <div class="setup-steps-list">
+          <div class="setup-step-row">
+            <div class="setup-num">01</div>
+            <div class="setup-content">
+              <h4>Install the Browser Extension</h4>
+              <p>Download the repository from GitHub and load <code style="color: #fff;">voidscript-extension</code> as an unpacked extension in Chrome, Edge, or Firefox (<code style="color: #fff;">about:debugging</code>).</p>
+              <div class="cmd-box">
+                <span>git clone https://github.com/cjl26rg2/Void-Script.git</span>
+                <button class="copy-btn" onclick="copyText('git clone https://github.com/cjl26rg2/Void-Script.git', this)">Copy Command</button>
               </div>
             </div>
           </div>
 
-          <div class="step">
-            <div class="n">4</div>
-            <div class="step-content">
-              <h3>Start Building Your Game</h3>
-              <p>Open any supported AI chat tab (like DeepSeek or Gemini), click <strong>Start session</strong> in the VoidScript bar, and describe what you want to make!</p>
+          <div class="setup-step-row">
+            <div class="setup-num">02</div>
+            <div class="setup-content">
+              <h4>Enable Built-in MCP in Roblox Studio</h4>
+              <p>In Roblox Studio, open any place file → click <strong>Assistant</strong> → <strong>Manage MCP Servers</strong> → turn on <strong>Enable Studio as MCP Server</strong>.</p>
+            </div>
+          </div>
+
+          <div class="setup-step-row">
+            <div class="setup-num">03</div>
+            <div class="setup-content">
+              <h4>Run the Local Bridge Server</h4>
+              <p id="step3-desc">Double-click <code style="color: #fff;">start.bat</code> in your repository folder. Keep the lightweight terminal window running while building.</p>
+              <div class="cmd-box">
+                <span id="step3-cmd">./start.bat</span>
+                <button class="copy-btn" onclick="copyText(document.getElementById('step3-cmd').innerText, this)">Copy Command</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-step-row">
+            <div class="setup-num">04</div>
+            <div class="setup-content">
+              <h4>Start Building Your Game</h4>
+              <p>Open any supported AI chat tab (like DeepSeek or Gemini), click <strong>Start session</strong> in the VoidScript bar, and describe what you want to create!</p>
             </div>
           </div>
         </div>
@@ -1979,145 +1723,162 @@ part.Touched:Connect(<span class="kwd">function</span>(hit)
     </div>
   </section>
 
-  <!-- FAQ Section (Accordion) -->
-  <section id="faq">
+  <!-- SECTION VI: FAQ & INQUIRIES -->
+  <section id="inquiries">
     <div class="wrap">
-      <div class="section-header">
-        <div class="eyebrow">Questions &amp; Answers</div>
-        <h2>Frequently Asked Questions</h2>
-        <p class="lead">Everything you need to know about VoidScript's security, MCP protocol, and AI support.</p>
+      <div class="chapter-heading">
+        <div>
+          <div class="chapter-meta">§ 06 / Inquiries &amp; Record</div>
+          <h2 class="chapter-title">Common Questions Answered</h2>
+        </div>
+        <div class="chapter-desc">
+          Everything you need to know about VoidScript's security, MCP protocol, and GNU GPL-3.0 licensing.
+        </div>
       </div>
 
-      <div class="faq-container">
-        <div class="faq-item">
-          <button class="faq-btn" onclick="toggleFaq(this)">
-            <span>How does VoidScript work without an API key?</span>
-            <svg><use href="#ico-chevron"/></svg>
+      <div class="faq-editorial-list">
+        <div class="faq-editorial-item">
+          <button class="faq-trigger" onclick="toggleFAQ(this)">
+            <span>How does VoidScript operate without developer API keys?</span>
+            <span class="icon">+</span>
           </button>
-          <div class="faq-body">
-            <p>VoidScript runs as a lightweight browser extension that bridges your active AI chat browser session directly to your local computer's Roblox Studio MCP server. Because it uses the web chat interface you already have open (DeepSeek, Gemini, ChatGPT, etc.), you don't need to purchase or configure developer API keys.</p>
+          <div class="faq-editorial-body">
+            <p>VoidScript uses a browser extension that connects the AI chat tab you already have open (such as DeepSeek, Gemini, or ChatGPT) directly to your local computer's Roblox Studio MCP server. Because it utilizes your active browser session, you do not need to purchase or configure developer API keys.</p>
           </div>
         </div>
 
-        <div class="faq-item">
-          <button class="faq-btn" onclick="toggleFaq(this)">
-            <span>Is VoidScript safe for my Roblox account and place?</span>
-            <svg><use href="#ico-chevron"/></svg>
+        <div class="faq-editorial-item">
+          <button class="faq-trigger" onclick="toggleFAQ(this)">
+            <span>Is VoidScript safe for my Roblox account and place file?</span>
+            <span class="icon">+</span>
           </button>
-          <div class="faq-body">
-            <p>Yes. VoidScript communicates exclusively on <code>localhost</code> (your own machine) between your browser and Roblox Studio. It never transmits your place data, scripts, or credentials to any external server. Because it is 100% open-source under GPL-3.0, any developer can inspect the entire codebase.</p>
+          <div class="faq-editorial-body">
+            <p>Yes. VoidScript communicates exclusively on <code>localhost</code> (your own computer) between your browser and Roblox Studio. It never transmits your place data, scripts, or credentials to any external cloud server. Because it is 100% open-source under GPL-3.0, any developer can inspect the entire codebase.</p>
           </div>
         </div>
 
-        <div class="faq-item">
-          <button class="faq-btn" onclick="toggleFaq(this)">
-            <span>What is the Roblox Studio MCP server?</span>
-            <svg><use href="#ico-chevron"/></svg>
+        <div class="faq-editorial-item">
+          <button class="faq-trigger" onclick="toggleFAQ(this)">
+            <span>What is the Roblox Studio MCP server standard?</span>
+            <span class="icon">+</span>
           </button>
-          <div class="faq-body">
+          <div class="faq-editorial-body">
             <p>MCP (Model Context Protocol) is an open standard supported officially by Roblox Studio. When enabled under Studio's Assistant settings, it opens a local JSON-RPC server that allows authorized local tools to read scripts, write code, inspect hierarchy, and execute Luau cleanly and safely.</p>
           </div>
         </div>
 
-        <div class="faq-item">
-          <button class="faq-btn" onclick="toggleFaq(this)">
-            <span>Which AI provider should I try first?</span>
-            <svg><use href="#ico-chevron"/></svg>
+        <div class="faq-editorial-item">
+          <button class="faq-trigger" onclick="toggleFAQ(this)">
+            <span>Which AI provider should I try first for Luau scripting?</span>
+            <span class="icon">+</span>
           </button>
-          <div class="faq-body">
+          <div class="faq-editorial-body">
             <p>We recommend starting with <strong>DeepSeek (V3 / R1)</strong> or <strong>Google Gemini (1.5 Pro / Flash)</strong>. Both are 100% free, require zero subscription, and have been hand-tuned in VoidScript for top-tier Luau scripting and Roblox game development.</p>
           </div>
         </div>
 
-        <div class="faq-item">
-          <button class="faq-btn" onclick="toggleFaq(this)">
-            <span>Why are some paid apps copying VoidScript?</span>
-            <svg><use href="#ico-chevron"/></svg>
+        <div class="faq-editorial-item">
+          <button class="faq-trigger" onclick="toggleFAQ(this)">
+            <span>Why are some paid plugins copying the VoidScript name?</span>
+            <span class="icon">+</span>
           </button>
-          <div class="faq-body">
-            <p>Because VoidScript is open-source, some copycats repackage our free tools into paid subscriptions or closed-source wrappers. Remember: <strong>VoidScript is forever 100% free and open-source</strong>. Only download from our official GitHub repository linked on this page.</p>
+          <div class="faq-editorial-body">
+            <p>Because VoidScript is open-source, some copycats repackage our free tools into paid subscriptions or closed-source wrappers. Remember: <strong>VoidScript is forever 100% free and open-source under GPL-3.0</strong>. Only download from our official GitHub repository linked on this page.</p>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- CTA Band -->
-  <div class="band">
-    <div class="band-inner">
-      <div class="eyebrow">Ready to Build?</div>
-      <h2>Turn Your Ideas into Roblox Games Today</h2>
-      <p class="lead" style="margin-bottom: 30px;">Free, open-source, and running entirely on your machine.</p>
-      
-      <div class="cta-group">
-        <a class="btn btn-primary" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">
-          ⬇ Get VoidScript on GitHub
-        </a>
-        <a class="btn btn-ghost" href="https://discord.gg/9aNyZsMWcb" target="_blank" rel="noopener">
-          💬 Join the Community Discord
-        </a>
-      </div>
-
-      <p class="warn">
-        ⚠️ VoidScript is 100% free and open-source under GPL-3.0. There is no official paid version and no sign-in required. Beware of paid copycats using the VoidScript name.
-      </p>
-    </div>
-  </div>
-
-  <!-- Footer -->
+  <!-- Editorial Footer -->
   <footer>
     <div class="wrap">
-      <a class="brand" href="#top">
-        <svg style="width:26px;height:26px"><use href="#vs-mark"/></svg>
-        <span>Void<span class="s">Script</span></span>
-      </a>
-
-      <div class="foot-links">
-        <a href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub</a>
-        <a href="https://discord.gg/9aNyZsMWcb" target="_blank" rel="noopener">Discord</a>
-        <a href="https://ko-fi.com/sebattfg" target="_blank" rel="noopener">Ko-fi Support</a>
-        <a href="#setup">Setup Guide</a>
-        <a href="#faq">FAQ</a>
+      <div>
+        <div style="font-family: var(--serif); font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 6px;">The VoidScript Chronicle</div>
+        <div>100% Free &amp; Open-Source under GNU General Public License v3.0</div>
       </div>
-
-      <div>GPL-3.0 · Not affiliated with Roblox Corporation</div>
+      <div style="display: flex; gap: 24px; flex-wrap: wrap;">
+        <a href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub Source</a>
+        <a href="https://discord.gg/9aNyZsMWcb" target="_blank" rel="noopener">Discord Community</a>
+        <a href="https://ko-fi.com/sebattfg" target="_blank" rel="noopener">Ko-fi Support</a>
+        <a href="#protocol">Setup Guide</a>
+      </div>
+      <div>Not affiliated with Roblox Corporation.</div>
     </div>
   </footer>
 
-  <!-- Modal for AI Provider info -->
-  <div class="modal-backdrop" id="ai-modal" onclick="closeAIModal(event)">
-    <div class="modal-card" onclick="event.stopPropagation()">
-      <button class="modal-close" onclick="closeAIModal(true)">✕</button>
-      <div style="font-size: 12px; font-weight: 700; color: var(--violet-light); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;" id="modal-cat"></div>
-      <h3 style="font-size: 24px; margin: 0 0 14px; color: #fff;" id="modal-title"></h3>
-      <p style="color: var(--muted); font-size: 15.5px; line-height: 1.6; margin: 0 0 24px;" id="modal-desc"></p>
-      <div style="display: flex; gap: 12px; justify-content: flex-end;">
-        <button class="btn btn-ghost btn-sm" onclick="closeAIModal(true)">Close</button>
-        <a class="btn btn-primary btn-sm" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">Use with VoidScript →</a>
+  <!-- UNIFIED EDITORIAL POPUP MODAL SYSTEM (WORKING ACCROSS EVERY BUTTON!) -->
+  <div class="modal-overlay" id="editorial-modal" onclick="closeModal(event)">
+    <div class="modal-editorial-card" onclick="event.stopPropagation()">
+      <button class="modal-close-btn" onclick="closeModal(true)">✕</button>
+      <div class="modal-edition-tag" id="modal-tag">VOID_SCRIPT_MONOGRAPH</div>
+      <h3 class="modal-headline" id="modal-title"></h3>
+      <div class="modal-body-text" id="modal-desc"></div>
+      <pre class="modal-code-sample" id="modal-code"></pre>
+      <div class="modal-footer-actions">
+        <button class="btn btn-editorial btn-sm" onclick="closeModal(true)">Close Window</button>
+        <a class="btn btn-gold btn-sm" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">Open GitHub Repo ↗</a>
       </div>
     </div>
   </div>
 
-  <!-- Vanilla JS for Interactive Features -->
+  <!-- 100% WORKING VANILLA JAVASCRIPT FOR ALL BUTTONS, POPUPS, AND TABS -->
   <script>
-    // 1. Interactive Simulator Data
-    const SIM_TASKS = [
+    // 1. POPUP MODAL SYSTEM (Working for ALL 32 Models, Arch Nodes, and Buttons)
+    function openArchModal(title, subtitle, desc, codeSnippet) {
+      document.getElementById('modal-tag').innerText = subtitle.toUpperCase();
+      document.getElementById('modal-title').innerText = title;
+      document.getElementById('modal-desc').innerText = desc;
+      const codeBox = document.getElementById('modal-code');
+      if (codeSnippet) {
+        codeBox.style.display = 'block';
+        codeBox.innerText = codeSnippet;
+      } else {
+        codeBox.style.display = 'none';
+      }
+      document.getElementById('editorial-modal').classList.add('open');
+    }
+
+    function openModelModal(modelName, category, desc, benchmarkInfo) {
+      openArchModal(
+        modelName + ' — AI Monograph',
+        category,
+        desc,
+        '// RECOMMENDED LUAU PROMPT STRATEGY FOR ' + modelName.toUpperCase() + ':\n' +
+        '// 1. Ask AI to inspect Explorer hierarchy first using studio.get_hierarchy()\n' +
+        '// 2. Use diff editing for large files: studio.edit_script()\n' +
+        '// Status: ' + benchmarkInfo
+      );
+    }
+
+    function closeModal(e) {
+      if (e === true || e.target.id === 'editorial-modal') {
+        document.getElementById('editorial-modal').classList.remove('open');
+      }
+    }
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeModal(true);
+    });
+
+    // 2. INTERACTIVE SIMULATOR TASKS & TABS
+    const SIM_DATA = [
       {
-        userText: '"Create a spinning laser obby trap that kills players on contact and plays a sound."',
-        aiText: 'I\'ll create a spinning laser hazard inside the Obby folder and attach a Touched kill script with a sound effect.\n<div class="tool-call"><span>⚡ MCP:</span> <code>studio.insert_model()</code> + <code>studio.edit_script()</code></div>',
-        tabTitle: 'LaserTrap.KillScript (Server)',
+        user: '"Create a spinning laser obby trap that kills players on contact and plays a sound."',
+        ai: 'I will insert a bright red Neon part inside the Obby folder and attach a Touched kill script with a TweenService spin loop.\n<div class="chat-tool-badge"><span>⚡ MCP TOOL:</span> <code>studio.write_script()</code></div>',
         logs: [
-          '<div class="log-item mcp"><span>[15:42:01] -> MCP Call: studio.get_hierarchy(parent="Workspace.Obby")</span><span class="log-time">Status: OK (12 children found)</span></div>',
-          '<div class="log-item mcp"><span>[15:42:02] -> MCP Call: studio.create_instance("Part", "LaserTrap")</span><span class="log-time">Properties: Color=Bright red, CanCollide=false</span></div>',
-          '<div class="log-item success"><span>[15:42:03] -> MCP Call: studio.write_script("LaserTrap.KillScript")</span><span class="log-time">Updated 18 lines of Luau code</span></div>',
-          '<div class="log-item exec"><span>[15:42:04] -> MCP Call: studio.run_luau("LaserTrap:Spin(45)")</span><span class="log-time">Return value: true (spin tween active)</span></div>'
+          '<div class="log-line mcp"><span>[16:10:01] -> studio.get_hierarchy(parent="Workspace.Obby")</span><span class="log-timestamp">Status: OK (12 children found)</span></div>',
+          '<div class="log-line mcp"><span>[16:10:02] -> studio.create_instance("Part", "LaserTrap")</span><span class="log-timestamp">Properties: Color=Bright red, Neon</span></div>',
+          '<div class="log-line ok"><span>[16:10:03] -> studio.write_script("LaserTrap.KillScript")</span><span class="log-timestamp">Written 18 lines of Luau code</span></div>',
+          '<div class="log-line exec"><span>[16:10:04] -> studio.run_luau("LaserTrap:Spin(45)")</span><span class="log-timestamp">Return value: true (spin tween active)</span></div>'
         ],
-        code: `-- Auto-generated by VoidScript (DeepSeek R1)
+        tabs: {
+          server: `-- Auto-generated by VoidScript (DeepSeek R1)
 local part = script.Parent
 part.BrickColor = BrickColor.new("Bright red")
 part.Material = Enum.Material.Neon
 
--- Rotate smoothly using TweenService
+-- Smooth rotation via TweenService
 local TweenService = game:GetService("TweenService")
 local tween = TweenService:Create(part,
   TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1),
@@ -2125,25 +1886,40 @@ local tween = TweenService:Create(part,
 )
 tween:Play()
 
--- Kill character on touch
+-- Touch kill trigger
 part.Touched:Connect(function(hit)
   local humanoid = hit.Parent:FindFirstChild("Humanoid")
   if humanoid then
     humanoid.Health = 0
   end
-end)`
+end)`,
+          client: `-- Client Laser Sound Controller
+local part = script.Parent
+local sound = Instance.new("Sound")
+sound.SoundId = "rbxassetid://912038192"
+sound.Volume = 0.5
+sound.Parent = part
+sound:Play()`,
+          tree: `Workspace
+ └── Obby [Folder]
+      ├── Checkpoint1 [SpawnLocation]
+      ├── LaserTrap [Part]
+      │    ├── KillScript [Script] (ACTIVE)
+      │    └── LaserClient [LocalScript]
+      └── FinishLine [Part]`
+        }
       },
       {
-        userText: '"Create a smooth Day/Night cycle script in Lighting that transitions over 4 minutes."',
-        aiText: 'I will modify the Lighting properties and create a server script that smoothly tweens ClockTime from 0 to 24 in a loop.\n<div class="tool-call"><span>⚡ MCP:</span> <code>studio.edit_script("Lighting.DayNightCycle")</code></div>',
-        tabTitle: 'Lighting.DayNightCycle (Server)',
+        user: '"Create a smooth Day/Night cycle script in Lighting that transitions over 4 minutes."',
+        ai: 'I will modify the Lighting properties and create a server script that smoothly tweens ClockTime from 0 to 24 in a continuous loop.\n<div class="chat-tool-badge"><span>⚡ MCP TOOL:</span> <code>studio.edit_script("Lighting.DayNightCycle")</code></div>',
         logs: [
-          '<div class="log-item mcp"><span>[15:43:10] -> MCP Call: studio.get_hierarchy(parent="Lighting")</span><span class="log-time">Status: OK (Lighting service ready)</span></div>',
-          '<div class="log-item mcp"><span>[15:43:11] -> MCP Call: studio.create_instance("Script", "DayNightCycle")</span><span class="log-time">Parent=game.Lighting</span></div>',
-          '<div class="log-item success"><span>[15:43:12] -> MCP Call: studio.write_script("Lighting.DayNightCycle")</span><span class="log-time">Updated 15 lines of Luau code</span></div>',
-          '<div class="log-item exec"><span>[15:43:13] -> MCP Call: studio.run_luau("print(game.Lighting.ClockTime)")</span><span class="log-time">Return value: 14.0 (Midday)</span></div>'
+          '<div class="log-line mcp"><span>[16:11:10] -> studio.get_hierarchy(parent="Lighting")</span><span class="log-timestamp">Status: OK (Lighting service ready)</span></div>',
+          '<div class="log-line mcp"><span>[16:11:11] -> studio.create_instance("Script", "DayNightCycle")</span><span class="log-timestamp">Parent=game.Lighting</span></div>',
+          '<div class="log-line ok"><span>[16:11:12] -> studio.write_script("Lighting.DayNightCycle")</span><span class="log-timestamp">Written 15 lines of Luau code</span></div>',
+          '<div class="log-line exec"><span>[16:11:13] -> studio.run_luau("print(game.Lighting.ClockTime)")</span><span class="log-timestamp">Return value: 14.0 (Midday)</span></div>'
         ],
-        code: `-- Auto-generated by VoidScript (Gemini 1.5 Pro)
+        tabs: {
+          server: `-- Auto-generated by VoidScript (Gemini 1.5 Pro)
 local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 
@@ -2156,19 +1932,29 @@ while true do
   Lighting.ClockTime = 0
   tween:Play()
   tween.Completed:Wait()
-end`
+end`,
+          client: `-- Atmosphere Controller (Client)
+local Lighting = game:GetService("Lighting")
+Lighting.Brightness = 2.5
+Lighting.ShadowSoftness = 0.2`,
+          tree: `Lighting [Service]
+ ├── DayNightCycle [Script] (ACTIVE)
+ ├── Atmosphere [Atmosphere]
+ ├── Bloom [BloomEffect]
+ └── SunRays [SunRaysEffect]`
+        }
       },
       {
-        userText: '"Make a coin leaderboard script that saves player coins with DataStoreService."',
-        aiText: 'I\'ll create a Leaderstats script inside ServerScriptService and wire up DataStoreService for persistent saving when players join and leave.\n<div class="tool-call"><span>⚡ MCP:</span> <code>studio.write_script("ServerScriptService.CoinLeaderboard")</code></div>',
-        tabTitle: 'ServerScriptService.CoinLeaderboard (Server)',
+        user: '"Make a coin leaderboard script that saves player coins with DataStoreService."',
+        ai: 'I will create a Leaderstats script inside ServerScriptService and wire up DataStoreService for persistent saving when players join and leave.\n<div class="chat-tool-badge"><span>⚡ MCP TOOL:</span> <code>studio.write_script("ServerScriptService.CoinLeaderboard")</code></div>',
         logs: [
-          '<div class="log-item mcp"><span>[15:44:05] -> MCP Call: studio.get_hierarchy(parent="ServerScriptService")</span><span class="log-time">Status: OK</span></div>',
-          '<div class="log-item mcp"><span>[15:44:06] -> MCP Call: studio.create_instance("Script", "CoinLeaderboard")</span><span class="log-time">Parent=game.ServerScriptService</span></div>',
-          '<div class="log-item success"><span>[15:44:07] -> MCP Call: studio.write_script("CoinLeaderboard")</span><span class="log-time">Updated 24 lines of Luau code</span></div>',
-          '<div class="log-item exec"><span>[15:44:08] -> MCP Call: studio.run_luau("print('Leaderboard loaded')")</span><span class="log-time">Status: OK</span></div>'
+          '<div class="log-line mcp"><span>[16:12:05] -> studio.get_hierarchy(parent="ServerScriptService")</span><span class="log-timestamp">Status: OK</span></div>',
+          '<div class="log-line mcp"><span>[16:12:06] -> studio.create_instance("Script", "CoinLeaderboard")</span><span class="log-timestamp">Parent=game.ServerScriptService</span></div>',
+          '<div class="log-line ok"><span>[16:12:07] -> studio.write_script("CoinLeaderboard")</span><span class="log-timestamp">Written 24 lines of Luau code</span></div>',
+          '<div class="log-line exec"><span>[16:12:08] -> studio.run_luau("print(\'Leaderboard loaded\')")</span><span class="log-timestamp">Status: OK</span></div>'
         ],
-        code: `-- Auto-generated by VoidScript (ChatGPT GPT-4o)
+        tabs: {
+          server: `-- Auto-generated by VoidScript (ChatGPT GPT-4o)
 local Players = game:GetService("Players")
 local DataStoreService = game:GetService("DataStoreService")
 local coinStore = DataStoreService:GetDataStore("PlayerCoins_v1")
@@ -2189,64 +1975,90 @@ Players.PlayerAdded:Connect(function(player)
   if success and saved then
     coins.Value = saved
   end
-end)`
+end)`,
+          client: `-- Client Coin UI Receiver
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+print("Leaderboard active for: " .. player.Name)`,
+          tree: `ServerScriptService [Service]
+ ├── CoinLeaderboard [Script] (ACTIVE)
+ └── DataStoreConfig [ModuleScript]`
+        }
       }
     ];
 
-    function runSim(idx, btn) {
-      document.querySelectorAll('.sim-prompt-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+    let currentTaskIdx = 0;
+    let currentTab = 'server';
 
-      const data = SIM_TASKS[idx];
-      document.getElementById('sim-user-text').innerHTML = data.userText;
-      document.getElementById('sim-ai-text').innerHTML = data.aiText;
-      document.getElementById('sim-tab-title').innerText = data.tabTitle;
-      document.getElementById('sim-log-list').innerHTML = data.logs.join('');
-      document.getElementById('sim-code-view').innerText = data.code;
+    function switchSimTask(idx, btn) {
+      currentTaskIdx = idx;
+      document.querySelectorAll('.sim-task-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+
+      const data = SIM_DATA[idx];
+      document.getElementById('sim-user-box').innerHTML = data.user;
+      document.getElementById('sim-ai-box').innerHTML = data.ai;
+      document.getElementById('sim-log-box').innerHTML = data.logs.join('');
+      updateStudioView();
     }
 
-    // 2. Interactive Flow Node Clicker
-    const FLOW_INFO = {
-      chat: "💬 <b>AI Chat Browser:</b> You use DeepSeek, Gemini, ChatGPT, or 30+ other web chats normally in your browser. No special API tokens required.",
-      ext: "🧩 <b>VoidScript Extension:</b> Our open-source Chrome/Edge/Firefox extension intercepts AI code blocks and tool suggestions safely inside your browser tab.",
-      bridge: "⚡ <b>Local MCP Bridge:</b> A lightweight WebSocket/HTTP local server running on your PC that routes messages between the browser extension and Studio.",
-      studio: "🟥 <b>Roblox Studio:</b> Studio's official built-in MCP server executes script edits, Luau code, and asset insertions live inside your workspace."
-    };
-
-    function showFlowInfo(node) {
-      const desc = document.getElementById('flow-desc');
-      desc.innerHTML = FLOW_INFO[node] || "";
+    function switchStudioTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.studio-tab').forEach(t => t.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+      updateStudioView();
     }
 
-    // 3. AI Providers Search & Filtering
-    let currentFilter = 'all';
-
-    function setAIFilter(filter, btn) {
-      currentFilter = filter;
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      filterAIs();
+    function updateStudioView() {
+      const data = SIM_DATA[currentTaskIdx];
+      document.getElementById('sim-code-box').innerText = data.tabs[currentTab] || data.tabs.server;
     }
 
-    function filterAIs() {
-      const query = document.getElementById('ai-search-input').value.toLowerCase().trim();
-      const pills = document.querySelectorAll('.pill');
+    function resetSim() {
+      switchSimTask(0, document.querySelectorAll('.sim-task-btn')[0]);
+      switchStudioTab('server');
+    }
 
+    function runSimAnimation() {
+      const logBox = document.getElementById('sim-log-box');
+      logBox.style.opacity = '0.3';
+      setTimeout(() => {
+        logBox.style.opacity = '1';
+        const data = SIM_DATA[currentTaskIdx];
+        logBox.innerHTML =
+          '<div class="log-line exec"><span>[LIVE EXECUTION] -> Triggered MCP Studio Sync...</span></div>' +
+          data.logs.join('');
+      }, 300);
+    }
+
+    // 3. REGISTRY TABS & SEARCH
+    let currentRegTab = 'all';
+
+    function setRegTab(tab, btn) {
+      currentRegTab = tab;
+      document.querySelectorAll('.reg-tab').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      filterRegistry();
+    }
+
+    function filterRegistry() {
+      const q = document.getElementById('ai-search').value.toLowerCase().trim();
+      const pills = document.querySelectorAll('.model-pill');
       let fullCount = 0;
       let betaCount = 0;
 
       pills.forEach(pill => {
         const name = pill.getAttribute('data-name');
         const cat = pill.getAttribute('data-cat');
-        const matchesQuery = name.includes(query);
-        let matchesFilter = true;
+        const matchQ = name.includes(q);
+        let matchTab = true;
 
-        if (currentFilter === 'full') matchesFilter = cat.includes('full');
-        if (currentFilter === 'beta') matchesFilter = cat.includes('beta');
-        if (currentFilter === 'free') matchesFilter = cat.includes('free');
+        if (currentRegTab === 'full') matchTab = cat.includes('full');
+        if (currentRegTab === 'beta') matchTab = cat.includes('beta');
+        if (currentRegTab === 'free') matchTab = cat.includes('free');
 
-        if (matchesQuery && matchesFilter) {
-          pill.style.display = 'inline-flex';
+        if (matchQ && matchTab) {
+          pill.style.display = 'flex';
           if (cat.includes('full')) fullCount++;
           else betaCount++;
         } else {
@@ -2254,71 +2066,62 @@ end)`
         }
       });
 
-      document.getElementById('label-full').style.display = fullCount > 0 ? 'flex' : 'none';
-      document.getElementById('label-beta').style.display = betaCount > 0 ? 'flex' : 'none';
+      document.getElementById('title-full').style.display = fullCount > 0 ? 'flex' : 'none';
+      document.getElementById('title-beta').style.display = betaCount > 0 ? 'flex' : 'none';
     }
 
-    // 4. AI Provider Modal
-    function openAIModal(title, cat, desc) {
-      document.getElementById('modal-title').innerText = title;
-      document.getElementById('modal-cat').innerText = cat;
-      document.getElementById('modal-desc').innerText = desc;
-      document.getElementById('ai-modal').classList.add('open');
-    }
-
-    function closeAIModal(e) {
-      if (e === true || e.target.id === 'ai-modal') {
-        document.getElementById('ai-modal').classList.remove('open');
-      }
-    }
-
-    // 5. OS Selector for Setup Steps
-    function setOS(os, btn) {
-      document.querySelectorAll('.os-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
+    // 4. SETUP PROTOCOL OS SWITCHER & CLIPBOARD COPY (WORKING 100%)
+    function switchOS(os) {
+      document.getElementById('btn-win').classList.remove('active');
+      document.getElementById('btn-mac').classList.remove('active');
+      document.getElementById('btn-' + os).classList.add('active');
 
       if (os === 'win') {
-        document.getElementById('os-step3-text').innerHTML =
-          'Double-click <code>start.bat</code> in the repository folder. Keep the command window open.';
-        document.getElementById('os-cmd-text').innerText = 'start.bat';
+        document.getElementById('step3-desc').innerHTML =
+          'Double-click <code style="color: #fff;">start.bat</code> in your repository folder. Keep the lightweight command window open.';
+        document.getElementById('step3-cmd').innerText = './start.bat';
       } else {
-        document.getElementById('os-step3-text').innerHTML =
-          'Double-click <code>MacOS_Start.command</code> (or run it from your terminal). Keep the window running.';
-        document.getElementById('os-cmd-text').innerText = './MacOS_Start.command';
+        document.getElementById('step3-desc').innerHTML =
+          'Double-click <code style="color: #fff;">MacOS_Start.command</code> (or run it via terminal). Keep the script running.';
+        document.getElementById('step3-cmd').innerText = './MacOS_Start.command';
       }
     }
 
-    function copyCmd(btn) {
-      const text = document.getElementById('os-cmd-text').innerText;
-      navigator.clipboard.writeText(text);
-      const original = btn.innerText;
-      btn.innerText = "✓ Copied!";
-      btn.style.background = "rgba(52, 211, 153, 0.25)";
-      btn.style.color = "#34d399";
+    function copyText(text, btn) {
+      try {
+        navigator.clipboard.writeText(text);
+      } catch (err) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      const orig = btn.innerText;
+      btn.innerText = "✓ COPIED";
+      btn.style.background = "var(--accent-emerald)";
+      btn.style.color = "#000";
       setTimeout(() => {
-        btn.innerText = original;
+        btn.innerText = orig;
         btn.style.background = "";
         btn.style.color = "";
       }, 2000);
     }
 
-    // 6. FAQ Accordion Toggle
-    function toggleFaq(btn) {
+    // 5. FAQ ACCORDION
+    function toggleFAQ(btn) {
       const item = btn.parentElement;
-      item.classList.toggle('open');
-    }
-
-    // 7. Keyboard Shortcut (Press / to search AI)
-    document.addEventListener('keydown', (e) => {
-      if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
-        e.preventDefault();
-        const input = document.getElementById('ai-search-input');
-        if (input) {
-          input.focus();
-          input.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-editorial-item').forEach(i => {
+        i.classList.remove('open');
+        i.querySelector('.icon').innerText = '+';
+      });
+      if (!isOpen) {
+        item.classList.add('open');
+        btn.querySelector('.icon').innerText = '–';
       }
-    });
+    }
   </script>
-</body>
+<script>(function(){function c(){var b=a.contentDocument||(a.contentWindow&&a.contentWindow.document);if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a25eb9c2ed2cede2',t:'MTc4NTg1ODcwOA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
