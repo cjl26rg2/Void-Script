@@ -33,6 +33,9 @@ All notable changes to VoidScript Free are documented here.
   (`ZS`, `ZSProvider`, `zs-` CSS) are unchanged. GitHub links now point to
   `cjl26rg2/Void-Script`; a **Website** button in the popup opens
   `https://void-script.vercel.app/`.
+- **New VoidScript logo** — a glowing "void" portal ring with a `</>` script
+  glyph. Source SVGs in `assets/` (`icon.svg`, `banner.svg`); the extension
+  toolbar icon (`icon.png`) and `assets/banner.png` were regenerated from them.
 
 ## [1.5.0] - 2026-07-30
 

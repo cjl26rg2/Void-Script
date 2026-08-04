@@ -1,0 +1,38 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="VoidScript icon">
+  <defs>
+    <linearGradient id="vs-bg" x1="0" y1="0" x2="128" y2="128" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#20202c"/>
+      <stop offset="1" stop-color="#0a0a10"/>
+    </linearGradient>
+    <linearGradient id="vs-ring" x1="30" y1="26" x2="98" y2="102" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9aa8ff"/>
+      <stop offset="0.55" stop-color="#7c8cff"/>
+      <stop offset="1" stop-color="#5b46f0"/>
+    </linearGradient>
+    <radialGradient id="vs-void" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#05050a"/>
+      <stop offset="0.7" stop-color="#0c0c16"/>
+      <stop offset="1" stop-color="#1a1730"/>
+    </radialGradient>
+    <filter id="vs-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.2" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- app tile -->
+  <rect x="2" y="2" width="124" height="124" rx="28" fill="url(#vs-bg)" stroke="#2c2c3a" stroke-width="1.5"/>
+
+  <!-- the void: portal ring + dark core -->
+  <circle cx="64" cy="64" r="33" fill="url(#vs-void)"/>
+  <circle cx="64" cy="64" r="33" fill="none" stroke="url(#vs-ring)" stroke-width="5.5" filter="url(#vs-glow)"/>
+  <!-- faint orbit highlight -->
+  <path d="M64 31 A33 33 0 0 1 95 55" fill="none" stroke="#c7ccff" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- script glyph: &lt;/&gt; -->
+  <g stroke="url(#vs-ring)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#vs-glow)">
+    <polyline points="55,52 43,64 55,76"/>
+    <polyline points="73,52 85,64 73,76"/>
+    <line x1="68" y1="49" x2="60" y2="79"/>
+  </g>
+</svg>

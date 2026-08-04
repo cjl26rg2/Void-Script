@@ -1,52 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+<svg width="640" height="160" viewBox="0 0 640 160" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="VoidScript logo">
   <defs>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap');
-      .disp{ font-family:'Space Grotesk','Segoe UI',Arial,sans-serif; }
-      .mono{ font-family:'JetBrains Mono','Consolas',monospace; }
-    </style>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="#20222a" stroke-width="1"/>
-    </pattern>
-    <radialGradient id="fade" cx="0.5" cy="0.42" r="0.65">
-      <stop offset="0" stop-color="#fff" stop-opacity="1"/>
-      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    <linearGradient id="l-bg" x1="0" y1="0" x2="640" y2="160" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#16161e"/>
+      <stop offset="1" stop-color="#0a0a10"/>
+    </linearGradient>
+    <linearGradient id="l-ring" x1="24" y1="34" x2="120" y2="126" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9aa8ff"/>
+      <stop offset="0.55" stop-color="#7c8cff"/>
+      <stop offset="1" stop-color="#5b46f0"/>
+    </linearGradient>
+    <radialGradient id="l-void" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#05050a"/>
+      <stop offset="0.7" stop-color="#0c0c16"/>
+      <stop offset="1" stop-color="#1a1730"/>
     </radialGradient>
-    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6">
-      <stop offset="0" stop-color="#4d6bfe" stop-opacity="0.16"/>
-      <stop offset="1" stop-color="#4d6bfe" stop-opacity="0"/>
-    </radialGradient>
-    <mask id="gridmask"><rect width="1280" height="640" fill="url(#fade)"/></mask>
-    <clipPath id="logoclip"><rect width="46" height="46" rx="10"/></clipPath>
+    <linearGradient id="l-script" x1="352" y1="52" x2="600" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#9aa8ff"/>
+      <stop offset="1" stop-color="#6b5cff"/>
+    </linearGradient>
+    <filter id="l-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
   </defs>
 
-  <!-- backdrop -->
-  <rect width="1280" height="640" fill="#0a0a0b"/>
-  <rect width="1280" height="640" fill="url(#grid)" mask="url(#gridmask)" opacity="0.9"/>
-  <rect width="1280" height="640" fill="url(#glow)"/>
+  <rect x="0" y="0" width="640" height="160" rx="24" fill="url(#l-bg)"/>
 
-  <!-- logo -->
-  <g transform="translate(64,52)">
-    <image width="46" height="46" href="favicon.png" clip-path="url(#logoclip)"/>
-    <text class="disp" x="60" y="32" font-size="28" font-weight="700" fill="#f5f5f2">VoidScript</text>
+  <!-- icon mark -->
+  <g transform="translate(16,16)">
+    <circle cx="64" cy="64" r="33" fill="url(#l-void)"/>
+    <circle cx="64" cy="64" r="33" fill="none" stroke="url(#l-ring)" stroke-width="5.5" filter="url(#l-glow)"/>
+    <path d="M64 31 A33 33 0 0 1 95 55" fill="none" stroke="#c7ccff" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+    <g stroke="url(#l-ring)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" filter="url(#l-glow)">
+      <polyline points="55,52 43,64 55,76"/>
+      <polyline points="73,52 85,64 73,76"/>
+      <line x1="68" y1="49" x2="60" y2="79"/>
+    </g>
   </g>
 
-  <!-- giant brackets -->
-  <path d="M168 272 L120 360 L168 448" fill="none" stroke="#f5f5f2" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
-  <path d="M1112 272 L1160 360 L1112 448" fill="none" stroke="#f5f5f2" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
-
-  <!-- eyebrow -->
-  <text class="mono" x="640" y="242" font-size="19" font-weight="500" letter-spacing="3" text-anchor="middle" fill="#8a8b83"><tspan fill="#6d84ff" font-weight="700">&lt;</tspan>  OPEN SOURCE   /   FREE FOREVER  <tspan fill="#6d84ff" font-weight="700">&gt;</tspan></text>
-
-  <!-- headline -->
-  <g class="disp" font-weight="700" text-anchor="middle">
-    <text x="640" y="328" font-size="62" fill="#f5f5f2">Chat your Roblox game</text>
-    <text x="640" y="398" font-size="62" fill="#f5f5f2">into existence. <tspan fill="#6d84ff">Free.</tspan></text>
+  <!-- wordmark -->
+  <g font-family="'Segoe UI', system-ui, -apple-system, sans-serif" font-weight="700" font-size="58" letter-spacing="-1">
+    <text x="150" y="98" fill="#f2f2f7">Void</text>
+    <text x="286" y="98" fill="url(#l-script)">Script</text>
   </g>
-
-  <!-- subtitle -->
-  <text class="disp" x="640" y="462" font-size="24" font-weight="500" text-anchor="middle" fill="#8a8b83">Genuinely free and unlimited - no API key, no credits, no subscription.</text>
-
-  <!-- ticker -->
-  <text class="mono" x="640" y="566" font-size="18" font-weight="500" text-anchor="middle" fill="#6f7068">unlimited prompts   ·   no API key   ·   no credits   ·   7 AI models   ·   open source</text>
+  <text x="152" y="128" font-family="ui-monospace, 'Cascadia Code', Consolas, monospace" font-size="17" letter-spacing="3.5" fill="#8b8b9a">AI · ROBLOX STUDIO AGENT</text>
 </svg>
