@@ -156,5 +156,6 @@ note if desired (optional once nothing is derivative).
 - [x] Phase 5 — Overlay UI + CSS — **built & previewed** (`rebuild/overlay.css` +
   `rebuild/overlay.js`).
 - [x] Phase 6 — Agent core — **built & mock-tested** (`rebuild/core.js`, 18/18).
-- [ ] Phase 7 — Providers (interface already ours; needs the content-script entry)
-- [ ] Phase 8 — Cutover & relicense
+- [x] Phase 7 — Entry / providers — **entry built & wiring-tested** (`rebuild/entry.js`,
+  8/8); provider interface already ours.
+- [ ] Phase 8 — Cutover & relicense — needs a live browser run to validate.

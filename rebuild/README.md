@@ -76,10 +76,21 @@ it is built from the documented protocols (MCP spec, our own WS/command format).
   `18/18` (command run, void-luau, parse-error feedback, unknown tool, bridge
   offline, idle finalize, no re-processing).
 
-## Next
-- Phase 7 — providers: the interface is already ours (`../voidscript-extension/
-  providers/_generic.js` + the 25 beta providers). Remaining is a content-script
-  **entry** that builds the real provider + overlay, wires `callTool`/`getTools`
-  to the background relay, mounts the bar, and hooks Start/Stop.
-- Phase 8 — cutover: point `manifest.json` at the rebuilt files (add `"alarms"`),
-  remove the GPL-derived core, relicense. **Needs a live browser run to validate.**
+## Phase 7 — Entry / providers ✅ (wiring mock-tested)
+
+- **`entry.js`** — the content-script seam: builds the overlay + agent, points
+  `callTool`/`getTools` at the background relay (`vs-call`/`vs-tools`), mounts the
+  bar near the composer, hooks Start/Stop, and reflects bridge/Studio status.
+- **`test_entry.js`** — loads it with mocked globals + the real core/parser/
+  config: `8/8` (mount, status, Start→prompt+tools, Stop).
+- Provider interface is already ours (`../voidscript-extension/providers/
+  _generic.js` + 25 beta providers). The 7 hand-tuned providers stay GPL for now;
+  at cutover they can be dropped in favour of generic-tuned adapters (a Phase 8
+  decision).
+
+## Next — Phase 8 (cutover & relicense)
+- Point `manifest.json` at the rebuilt files (config/parser/overlay/core/entry),
+  add `"alarms"` to permissions, swap `background.js` and `bridge.py`.
+- Decide the 7 tuned providers (keep GPL, or replace with generic adapters).
+- Remove the GPL-derived files, set VoidScript's own license.
+- **Requires a live browser run on a real AI site + Studio to validate.**
