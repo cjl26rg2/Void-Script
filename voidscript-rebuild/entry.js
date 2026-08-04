@@ -42,28 +42,19 @@
   });
   const agent = new VoidAgent({ provider, overlay, parse: VoidParse, config: VoidConfig, callTool, getTools, diag });
 
-  // ── mount the bar near the composer (SPA: retry until it exists) ──
-  function anchorEl() {
-    const a =
-      (provider.barAnchor && provider.barAnchor()) ||
-      (provider.barMount && provider.barMount()) ||
-      (provider.composerFrame && provider.composerFrame());
-    if (!a) return null;
-    if (a.nodeType === 1) return a; // an element
-    if (a.parent && a.parent.nodeType === 1) return a.parent; // {parent, before} shape
-    return null;
-  }
-  function tryMount() {
-    if (document.getElementById("void-root")) return true;
-    const el = anchorEl();
-    if (!el) return false;
-    overlay.mount(el, "before");
+  // ── mount the bar ──
+  // We attach to <body> (not next to the composer) and keep it there. AI sites
+  // are SPAs that re-render their own subtree and would reconcile away a node we
+  // inject inside it — that is the "bar appears then disappears" bug. A fixed
+  // element parented to <body> lives outside the app's render root and survives.
+  // A light re-mount guard restores it if the page ever clears it (full nav).
+  function mountBar() {
+    if (document.getElementById("void-root")) return;
+    (document.body || document.documentElement).appendChild(overlay.root);
     diag("mounted", {});
-    return true;
   }
-  if (!tryMount()) {
-    const t = setInterval(() => { if (tryMount()) clearInterval(t); }, 800);
-  }
+  mountBar();
+  setInterval(mountBar, 1500);
 
   // ── reflect bridge/Studio status on the bar while idle ──
   function paintIdleStatus(s) {

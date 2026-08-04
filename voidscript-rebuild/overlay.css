@@ -5,6 +5,13 @@
  * site's styles. Colours match the VoidScript logo/popup (violet + Roblox red).
  */
 #void-root {
+  /* Floating, parented to <body> so SPA re-renders can't remove it. Bottom-right
+     keeps it clear of the site's centered composer. */
+  position: fixed;
+  right: 16px;
+  bottom: 96px;
+  z-index: 2147483000;
+  max-width: min(560px, 92vw);
   --v-violet: #7c8cff;
   --v-violet2: #9aa8ff;
   --v-deep: #5b46f0;

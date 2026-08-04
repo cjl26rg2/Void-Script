@@ -18,7 +18,7 @@ globalThis.VoidParse = require("./parser.js");
 globalThis.VoidConfig = require("./config.js");
 
 class MockOverlay {
-  constructor(opts) { this.onToggle = (opts && opts.onToggle) || (() => {}); this.calls = { mount: [], status: [], running: [] }; }
+  constructor(opts) { this.onToggle = (opts && opts.onToggle) || (() => {}); this.calls = { mount: [], status: [], running: [] }; this.root = { nodeType: 1 }; }
   mount(el, where) { this.calls.mount.push([el, where]); }
   setStatus(t, s) { this.calls.status.push([t, s]); }
   setRunning(b) { this.calls.running.push(b); }
@@ -55,7 +55,8 @@ globalThis.chrome = {
     },
   },
 };
-globalThis.document = { getElementById: () => null };
+const bodyAppends = [];
+globalThis.document = { getElementById: () => null, body: { appendChild: (n) => bodyAppends.push(n) }, documentElement: {} };
 
 // load entry.js (its IIFE runs immediately)
 vm.runInThisContext(fs.readFileSync(path.join(__dirname, "entry.js"), "utf8"));
@@ -63,7 +64,7 @@ vm.runInThisContext(fs.readFileSync(path.join(__dirname, "entry.js"), "utf8"));
 (async () => {
   const V = globalThis.__void;
   ok(!!V, "entry ran and wired the modules");
-  ok(V.overlay.calls.mount.length === 1, "mounted the bar near the composer");
+  ok(bodyAppends.length >= 1 && bodyAppends[0] === V.overlay.root, "mounted the bar onto <body> (survives SPA re-renders)");
   ok(chromeMsgs.includes("status"), "requested bridge status on load");
   ok(V.overlay.calls.status.some((s) => s[1] === "ok"), "painted idle status from a connected bridge");
 
