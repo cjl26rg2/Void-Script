@@ -48,6 +48,14 @@ it is built from the documented protocols (MCP spec, our own WS/command format).
   `ok` / `none` / `partial` / `multi` / `error{reason}`.
 - **`test_parser.js`** — 11 cases. Run: `node rebuild/test_parser.js` → `11/11`.
 
+## Phase 4 — Prompt & config ✅ (unit-tested)
+
+- **`config.js`** (`VoidConfig`) — our own system prompt (teaches the ` ```void `
+  format + tool list), the feedback strings keyed to the parser's outcomes
+  (`malformed`/`envelope`/`empty`/`multi`/unknown-tool/offline), tool-list
+  formatting, the ` ```void-result ` builder, and the tool→chip category map.
+- **`test_config.js`** — 17 cases. Run: `node rebuild/test_config.js` → `17/17`.
+
 ## Next
-- Phase 4 — prompt & config (our system prompt teaching the ` ```void ` format),
-  then the overlay UI and the agent core. See `../REBUILD.md`.
+- Phase 5 — overlay UI + CSS (bar, chips, command masking), then the agent core
+  (Phase 6) that wires bridge + relay + parser + config + UI together.
