@@ -151,7 +151,7 @@ note if desired (optional once nothing is derivative).
   checks); pending live validation against Roblox Studio's MCP server.
 - [~] Phase 2 — Background relay — **built & mock-tested** (`rebuild/background.js`,
   10/10). Cutover needs `"alarms"` added to manifest permissions.
-- [ ] Phase 3 — Parser
+- [x] Phase 3 — Parser — **built & unit-tested** (`rebuild/parser.js`, 11/11).
 - [ ] Phase 4 — Prompt & config
 - [ ] Phase 5 — Overlay UI + CSS
 - [ ] Phase 6 — Agent core

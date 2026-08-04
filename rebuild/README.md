@@ -40,6 +40,14 @@ it is built from the documented protocols (MCP spec, our own WS/command format).
 > **Cutover note:** the real `manifest.json` needs `"alarms"` added to
 > `permissions` when this replaces the shipping `background.js`.
 
+## Phase 3 — Command parser ✅ (unit-tested)
+
+- **`parser.js`** — pure string logic (`VoidParse.parse(text)`): extracts our
+  ` ```void ` / ` ```void-luau ` blocks, tolerates streaming (`partial`), flags
+  `multi`, and ignores our own ` ```void-result ` feedback. Returns
+  `ok` / `none` / `partial` / `multi` / `error{reason}`.
+- **`test_parser.js`** — 11 cases. Run: `node rebuild/test_parser.js` → `11/11`.
+
 ## Next
-- Phase 3 — command parser (our ` ```void ` format), then prompt/config, UI,
-  and the agent core. See `../REBUILD.md`.
+- Phase 4 — prompt & config (our system prompt teaching the ` ```void ` format),
+  then the overlay UI and the agent core. See `../REBUILD.md`.
