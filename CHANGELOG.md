@@ -36,6 +36,13 @@ All notable changes to VoidScript Free are documented here.
 - **New VoidScript logo** — a glowing "void" portal ring with a `</>` script
   glyph. Source SVGs in `assets/` (`icon.svg`, `banner.svg`); the extension
   toolbar icon (`icon.png`) and `assets/banner.png` were regenerated from them.
+- **Landing page (`index.html`)** — a self-contained VoidScript site (void/violet
+  + Roblox-red theme, all 32 providers, setup steps) served at the repo root so
+  the connected Vercel project deploys it instead of returning 404.
+- **Roblox-themed `start.bat`** — an ASCII "brick" banner with 24-bit ANSI colour
+  (red/violet), colour-coded steps and a red "keep this window open" box. ASCII
+  art is used deliberately: colour codes + Unicode box glyphs break cmd's parser
+  under chcp 65001. Python-detection/winget/port logic is unchanged.
 
 ## [1.5.0] - 2026-07-30
 

@@ -2,8 +2,24 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title VoidScript Bridge
+title VoidScript Bridge  -  Roblox Studio agent
 cd /d "%~dp0"
+
+REM --- ANSI colour setup (Windows 10 1607+ / Windows 11) ----------------------
+REM Grab the raw ESC control character, then define 24-bit truecolor codes. If a
+REM very old console ignores VT sequences the worst case is a few stray codes in
+REM the banner - the launch itself never depends on colour.
+for /f %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
+set "R=%ESC%[0m"
+set "B=%ESC%[1m"
+set "RED=%ESC%[38;2;226;35;26m"
+set "RBLX=%ESC%[38;2;255;90;82m"
+set "VIO=%ESC%[38;2;124;140;255m"
+set "VIO2=%ESC%[38;2;154;168;255m"
+set "WHT=%ESC%[38;2;236;236;242m"
+set "DIM=%ESC%[38;2;120;120;140m"
+set "GRN=%ESC%[38;2;52;211;153m"
+set "YEL=%ESC%[38;2;251;191;36m"
 
 if not exist "%~dp0logs" mkdir "%~dp0logs" >nul 2>nul
 set "LOGFILE=%~dp0logs\start.log"
@@ -13,11 +29,17 @@ REM single terminal screenshot, so anything that identifies the machine's
 REM environment must be either ON SCREEN or in this log.
 for /f "tokens=*" %%v in ('ver') do call :log "%%v"
 
+REM Banner is deliberately ASCII-only: mixing ANSI colour codes with Unicode
+REM block/box-drawing glyphs breaks cmd's tokenizer under chcp 65001 (the glyph
+REM lines get parsed as commands). ASCII art + truecolor is robust everywhere.
 echo.
-echo   ╔══════════════════════════════════════════╗
-echo   ║            VoidScript Bridge             ║
-echo   ║        Void-Script × Roblox Studio       ║
-echo   ╚══════════════════════════════════════════╝
+echo   %RBLX%    _______%R%
+echo   %RBLX%   /\      \%R%      %B%%WHT%VOID%VIO%SCRIPT%R%   %VIO%^</^>%R%
+echo   %RBLX%  /  \______\%R%     %DIM%AI agent  %RBLX%x%DIM%  ROBLOX STUDIO%R%
+echo   %RBLX%  \  /      /%R%     %DIM%local bridge%R%
+echo   %RBLX%   \/______/%R%
+echo.
+echo   %VIO%==============================================%R%
 echo.
 
 REM Refuse to run from inside a ZIP preview: Explorer extracts start.bat alone
@@ -37,7 +59,7 @@ if not exist "%~dp0bridge.py" (
 )
 
 REM --- 1. Find Python ---------------------------------------------------------
-echo   [1/3] Looking for Python...
+echo   %VIO%[1/3]%R% %B%Looking for Python...%R%
 set "PY="
 
 REM Prefer the py launcher - it never resolves to the Microsoft Store stub.
@@ -139,13 +161,13 @@ call :log "FATAL: no usable Python found even after winget install."
 pause
 exit /b 1
 :ready
-echo         Python ready!
+echo         %GRN%Python ready!%R%
 call :log "Python ready after winget install: %PY%"
 
 :install_deps
 REM --- 2. Install websockets --------------------------------------------------
 echo.
-echo   [2/3] Checking websockets library...
+echo   %VIO%[2/3]%R% %B%Checking websockets library...%R%
 %PY% -c "import websockets" >nul 2>nul
 if errorlevel 1 (
     echo         Installing websockets - first time only...
@@ -163,12 +185,12 @@ if errorlevel 1 (
         exit /b 1
     )
 )
-echo         OK
+echo         %GRN%OK%R%
 call :log "websockets library OK"
 
 REM --- 3. Run the bridge ------------------------------------------------------
 echo.
-echo   [3/3] Starting bridge...
+echo   %VIO%[3/3]%R% %B%Starting bridge...%R%
 
 REM If a previous bridge is already listening on 17613, say so instead of
 REM silently killing it - a double-launch is easy to do by mistake (e.g.
@@ -200,14 +222,14 @@ if defined OLDPID (
 )
 
 echo.
-echo  ┌────────────────────────────────────────────────────────┐
-echo  │                                                        │
-echo  │   KEEP THIS TERMINAL OPEN — DO NOT CLOSE THIS WINDOW    │
-echo  │                                                        │
-echo  │   VoidScript stops working if you close it. Just       │
-echo  │   minimize this window and leave it running.           │
-echo  │                                                        │
-echo  └────────────────────────────────────────────────────────┘
+echo  %RBLX%##############################################################%R%
+echo  %RBLX%##%R%                                                          %RBLX%##%R%
+echo  %RBLX%##%R%   %B%%WHT%KEEP THIS TERMINAL OPEN%R% %DIM%-%R% %RBLX%DO NOT CLOSE THIS WINDOW%R%   %RBLX%##%R%
+echo  %RBLX%##%R%                                                          %RBLX%##%R%
+echo  %RBLX%##%R%   %DIM%VoidScript stops working if you close it. Just%R%         %RBLX%##%R%
+echo  %RBLX%##%R%   %DIM%minimize this window and leave it running.%R%             %RBLX%##%R%
+echo  %RBLX%##%R%                                                          %RBLX%##%R%
+echo  %RBLX%##############################################################%R%
 echo.
 call :log "Launching bridge.py with %PY%"
 %PY% "%~dp0bridge.py"
