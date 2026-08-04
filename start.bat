@@ -2,7 +2,7 @@
 @echo off
 setlocal enabledelayedexpansion
 chcp 65001 >nul
-title ZeroScript Bridge
+title VoidScript Bridge
 cd /d "%~dp0"
 
 if not exist "%~dp0logs" mkdir "%~dp0logs" >nul 2>nul
@@ -15,7 +15,7 @@ for /f "tokens=*" %%v in ('ver') do call :log "%%v"
 
 echo.
 echo   ╔══════════════════════════════════════════╗
-echo   ║            ZeroScript Bridge             ║
+echo   ║            VoidScript Bridge             ║
 echo   ║        Void-Script × Roblox Studio       ║
 echo   ╚══════════════════════════════════════════╝
 echo.
@@ -204,7 +204,7 @@ echo  ┌───────────────────────�
 echo  │                                                        │
 echo  │   KEEP THIS TERMINAL OPEN — DO NOT CLOSE THIS WINDOW    │
 echo  │                                                        │
-echo  │   ZeroScript stops working if you close it. Just       │
+echo  │   VoidScript stops working if you close it. Just       │
 echo  │   minimize this window and leave it running.           │
 echo  │                                                        │
 echo  └────────────────────────────────────────────────────────┘

@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # MacOS_Start.command
 # ---------------------------------------------------------------------------
-#  Self-contained macOS/Linux launcher for the ZeroScript bridge.
+#  Self-contained macOS/Linux launcher for the VoidScript bridge.
 #  Double-clickable in Finder (that is why it is a .command, not a .sh: a .sh
 #  opens in an editor instead of running). It has NO dependency on start.py -
 #  it finds Python, ensures the one required library is installed, frees a
@@ -35,7 +35,7 @@ pause_and_exit() {
 }
 
 echo
-echo "  === ZeroScript Bridge ==="
+echo "  === VoidScript Bridge ==="
 echo
 log "===== MacOS_Start.command launched ====="
 
@@ -122,7 +122,7 @@ fi
 echo
 echo "  ############################################################"
 echo "  ##   KEEP THIS WINDOW OPEN - DO NOT CLOSE IT              ##"
-echo "  ##   ZeroScript stops working if you close it. Just       ##"
+echo "  ##   VoidScript stops working if you close it. Just       ##"
 echo "  ##   minimize this window and leave it running.           ##"
 echo "  ############################################################"
 echo

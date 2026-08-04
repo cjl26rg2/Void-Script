@@ -1,7 +1,7 @@
 # # SPDX-License-Identifier: GPL-3.0-or-later
 # bridge.py
 # ──────────────────────────────────────────────────────────────────────────
-#  ZeroScript Bridge
+#  VoidScript Bridge
 #  Local WebSocket <-> Roblox Studio MCP server.
 #  The browser extension talks to this over ws://127.0.0.1:<PORT>.
 #
@@ -72,7 +72,7 @@ def _enable_ansi_colors():
 
 
 HOST = "127.0.0.1"
-# Keep in sync with zeroscript-extension/manifest.json "version" - printed at
+# Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
 BRIDGE_VERSION = "1.5.0"
 PORT = int(os.environ.get("ZS_BRIDGE_PORT", "17613"))
@@ -80,7 +80,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
 
 # The primary server. It is always present, added by the installer, and can
-# never be edited/removed through the extension (it is what ZeroScript is FOR).
+# never be edited/removed through the extension (it is what VoidScript is FOR).
 PRIMARY_SERVER_ID = "roblox"
 
 if _enable_ansi_colors():
@@ -473,9 +473,9 @@ def _reclaim_bridge_port():
     cmdline = _process_cmdline(pid_i)
     if "bridge.py" not in cmdline.lower():
         log(f"port {PORT} is held by pid {pid_i} ('{name}') but it does not look "
-            f"like a ZeroScript bridge - leaving it alone.", "yl")
+            f"like a VoidScript bridge - leaving it alone.", "yl")
         return False
-    log(f"port {PORT} is held by a leftover ZeroScript bridge (pid {pid_i}) from a "
+    log(f"port {PORT} is held by a leftover VoidScript bridge (pid {pid_i}) from a "
         "previous session - killing it so this one can start.", "yl")
     try:
         subprocess.run(["taskkill", "/F", "/PID", str(pid_i)],
@@ -857,7 +857,7 @@ class MCPClient:
                 self._request("initialize", {
                     "protocolVersion": "2024-11-05",
                     "capabilities": {},
-                    "clientInfo": {"name": "zeroscript-bridge", "version": "1.0"},
+                    "clientInfo": {"name": "voidscript-bridge", "version": "1.0"},
                 }, timeout=30)
                 self._notify("notifications/initialized")
                 # Some MCP servers (notably Roblox's StudioMCP) advertise 0 tools at
@@ -1792,7 +1792,7 @@ async def _supervised(name, coro_factory):
 
 
 async def main():
-    print(f"\n{C['cy']}  ZeroScript Bridge v{BRIDGE_VERSION}{C['reset']}  {C['dim']}- Roblox Studio - ws://{HOST}:{PORT}{C['reset']}\n")
+    print(f"\n{C['cy']}  VoidScript Bridge v{BRIDGE_VERSION}{C['reset']}  {C['dim']}- Roblox Studio - ws://{HOST}:{PORT}{C['reset']}\n")
     log(f"===== BRIDGE START  v{BRIDGE_VERSION}  pid={os.getpid()}  log={LOG_PATH} =====", "cy")
     await asyncio.to_thread(_kill_orphan_studio_mcp)
     killed_squatter = await asyncio.to_thread(check_studio_port)

@@ -46,7 +46,7 @@ const ZSProvider = (() => {
     // as the FIRST child div of `.chat-user`, BEFORE the message text. Its
     // filename text would otherwise prefix the turn's classifyText - which broke
     // the result-chip: the core anchors on /^Output of '/ (isInjectedFeedback),
-    // so "zeroscript_….jpg JPG 179 KB Output of 'screen_capture'…" failed to match
+    // so "voidscript_….jpg JPG 179 KB Output of 'screen_capture'…" failed to match
     // and the screen_capture feedback turn stayed un-chipped (visible raw output,
     // unlike Kimi). Strip it from every text read. Precise: only the child holding
     // the attachment image, never the sibling text block.
@@ -119,7 +119,7 @@ const ZSProvider = (() => {
   const assistantItems = () => [...document.querySelectorAll(S.assistantItem)];
   const assistantCount = () => assistantItems().length;
   const userCount = () => document.querySelectorAll(S.userItem).length;
-  // Scope to the SITE's composer only: skip ZeroScript's own injected UI (the
+  // Scope to the SITE's composer only: skip VoidScript's own injected UI (the
   // settings textarea #zs-set-text in #zs-root). On login/OAuth pages with no
   // site editor this returns null, keeping the "not on a chat page" guard in
   // the send hooks intact (otherwise our own textarea would defeat it and the
@@ -410,7 +410,7 @@ const ZSProvider = (() => {
     const arr = new Uint8Array(bin.length);
     for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
     const ext = mime.includes("png") ? "png" : "jpg";
-    return new File([arr], `zeroscript_${Date.now()}_${i}.${ext}`, { type: mime });
+    return new File([arr], `voidscript_${Date.now()}_${i}.${ext}`, { type: mime });
   }
   // The PENDING attachment chip. z.ai mounts each staged upload as a
   // `.chip-scroll > button` inside the composer card (barAnchor). A SENT image

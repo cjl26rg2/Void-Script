@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ZeroScript Free × Roblox Studio Agent",
+  "name": "VoidScript Free × Roblox Studio Agent",
   "version": "1.5.0",
   "description": "Turn DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot or Mistral into a Roblox Studio agent that drives Studio through a local bridge.",
   "permissions": ["storage"],
@@ -22,6 +22,16 @@
     "https://perplexity.ai/*",
     "https://copilot.microsoft.com/*",
     "https://chat.mistral.ai/*",
+    "https://poe.com/*",
+    "https://huggingface.co/chat/*",
+    "https://www.phind.com/*",
+    "https://www.blackbox.ai/*",
+    "https://you.com/*",
+    "https://groq.com/*",
+    "https://lmarena.ai/*",
+    "https://www.doubao.com/*",
+    "https://yuanbao.tencent.com/*",
+    "https://chat.reka.ai/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*"
   ],
@@ -30,7 +40,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "zeroscript@voidscript.local",
+      "id": "voidscript@voidscript.local",
       "strict_min_version": "121.0"
     }
   },
@@ -41,7 +51,7 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "ZeroScript Free",
+    "default_title": "VoidScript Free",
     "default_icon": {
       "16": "icon.png",
       "48": "icon.png",
@@ -124,6 +134,66 @@
     {
       "matches": ["https://chat.mistral.ai/*"],
       "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/mistral.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://poe.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/poe.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://huggingface.co/chat/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/huggingchat.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.phind.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/phind.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.blackbox.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/blackbox.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://you.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/you.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://groq.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/groq.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lmarena.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/lmarena.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.doubao.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/doubao.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://yuanbao.tencent.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/yuanbao.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.reka.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/reka.js", "core/main.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
     }

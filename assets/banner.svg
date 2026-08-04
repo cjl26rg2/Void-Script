@@ -28,7 +28,7 @@
   <!-- logo -->
   <g transform="translate(64,52)">
     <image width="46" height="46" href="favicon.png" clip-path="url(#logoclip)"/>
-    <text class="disp" x="60" y="32" font-size="28" font-weight="700" fill="#f5f5f2">ZeroScript</text>
+    <text class="disp" x="60" y="32" font-size="28" font-weight="700" fill="#f5f5f2">VoidScript</text>
   </g>
 
   <!-- giant brackets -->

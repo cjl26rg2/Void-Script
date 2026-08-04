@@ -1,17 +1,20 @@
 # Changelog
 
-All notable changes to ZeroScript Free are documented here.
+All notable changes to VoidScript Free are documented here.
 
 ## [Unreleased]
 
 ### Added
-- **5 new beta AI providers: ChatGPT, Grok, Perplexity, Copilot, Mistral.**
+- **15 new beta AI providers: ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe,
+  HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka.**
   These run on a new selector-driven adapter factory (`providers/_generic.js`,
   `ZSGeneric(cfg)`) that implements the full `ZSProvider` interface with
   framework-neutral defaults (textarea *and* contenteditable composers, stop-
   button-or-quiescence generation detection, best-effort image attach). Each new
   provider is a thin config of CSS selectors. They are marked **BETA** in the
-  panel and may need per-site tuning; the hand-tuned providers remain preferred.
+  panel; selectors were written from documented/common patterns rather than
+  validated live, so some will need per-site tuning. The hand-tuned providers
+  remain preferred.
 - **Firefox support (121+).** Added `browser_specific_settings.gecko` to the
   manifest and documented the `about:debugging` load flow. Chromium browsers
   (Chrome, Edge, Brave, Opera, Vivaldi) already work. README now documents the
@@ -120,7 +123,7 @@ All notable changes to ZeroScript Free are documented here.
   painted a green check. The dedupe now keys on Qwen's stable per-turn id
   (`chat-response-message-<uuid>`, exposed as `itemKey`) instead of the index, so
   the collision cannot happen.
-- **Qwen: the ZeroScript bar covered the "Expand more models" submenu.** That
+- **Qwen: the VoidScript bar covered the "Expand more models" submenu.** That
   fly-out is a separate body-portalled `.ant-dropdown` at a low z-index, not the
   main model dropdown, so the bar drew on top of it. Raised just that dropdown
   above the bar (scoped so other Ant menus and tooltips are untouched).
@@ -144,7 +147,7 @@ All notable changes to ZeroScript Free are documented here.
 ## [1.4.6] - 2026-07-19
 
 ### Fixed
-- **Kimi's login and "priority queue" popups were covered by the ZeroScript
+- **Kimi's login and "priority queue" popups were covered by the VoidScript
   bar**: both render as full-screen fixed masks (`.login-modal-mask` and
   `.modal-mask`) rather than a standard `[role="dialog"]`, so the generic
   overlay probe used by other providers never caught them. The anchored bar
@@ -216,7 +219,7 @@ Adds a seventh AI provider (Meta AI) and fixes a Qwen tool-turn regression, plus
 further Studio-port recovery hardening and a friendlier system prompt.
 
 ### Added
-- **Meta AI (www.meta.ai) as a provider**: full ZeroScript support on Meta AI -
+- **Meta AI (www.meta.ai) as a provider**: full VoidScript support on Meta AI -
   new `providers/meta.js`, manifest content script + host permissions, and the
   provider switcher entry. Handles Meta's React DOM: reasoning ("Réflexion")
   chain-of-thought is excluded from the read text, the interactive JSON viewer
@@ -297,7 +300,7 @@ third-party app silently hijacking Studio's MCP port.
   the process tree can't be read, nothing is killed (a healthy connection is
   never put at risk).
 - The extension now tells non-technical users to "Run start.bat" instead of
-  "Run python bridge.py" / "Run the ZeroScript bridge" in the offline panel,
+  "Run python bridge.py" / "Run the VoidScript bridge" in the offline panel,
   popup, and startup banner, matching the one-click launcher the README ships.
 
 ## [1.4.1] - 2026-07-11
@@ -410,7 +413,7 @@ stale-pipe disconnects, MCP toggle turning off after a Studio update).
   into the visible reply when nested inside a paragraph. An image filename
   could corrupt result-chip detection.
 - Kimi: added detection of Kimi's own native "Agent" mode, which conflicts
-  with ZeroScript's command protocol; Start is disabled with a warning until
+  with VoidScript's command protocol; Start is disabled with a warning until
   it's turned off. Fixed the hidden file-upload input not existing until the
   "+" menu is opened, raw command text leaking when nested/oversized, and
   normal model prose containing "try again" being misread as a site error.
@@ -426,12 +429,12 @@ stale-pipe disconnects, MCP toggle turning off after a Studio update).
   neutral "not run" state instead.
 - A tool's own in-body error (e.g. "Output of '...': Error executing code...")
   now settles the chip red instead of green, even when the tool didn't use
-  ZeroScript's own ERROR wrapper.
+  VoidScript's own ERROR wrapper.
 - Regenerating a stopped command no longer briefly re-shows the old call's
   chip before the new one streams in.
 
 ### Changed
-- The version number next to the ZeroScript name in the panel is now small,
+- The version number next to the VoidScript name in the panel is now small,
   plain text instead of a bordered green badge.
 - System prompt updated to cover multiple MCP servers: the model must call
   `list_mcp_servers` before assuming something outside Roblox is unsupported,
@@ -455,7 +458,7 @@ stale-pipe disconnects, MCP toggle turning off after a Studio update).
   MCP server / bridge offline).
 - Cross-provider: DeepSeek, Gemini, Kimi, GLM and Qwen composer menus, model
   pickers and tooltips (including GLM's search hover card and Kimi's model
-  popover) no longer render clipped or hidden behind ZeroScript's own
+  popover) no longer render clipped or hidden behind VoidScript's own
   bar/pill/cover.
 - Cross-provider: a thinking model quoting command JSON in its own reasoning
   area no longer makes the tool chip flap between done/run/done (Gemini, Kimi,
@@ -504,7 +507,7 @@ stale-pipe disconnects, MCP toggle turning off after a Studio update).
 ## [1.0.0] - 2026-06-09
 
 ### Added
-- Initial public release of ZeroScript Free
+- Initial public release of VoidScript Free
 - Browser extension for Chrome and Edge (DeepSeek chat integration)
 - Local Python bridge (`bridge.py` + `start.bat`) for Roblox Studio communication
 - Built-in MCP server support (no plugin required - activate directly in Roblox Studio)

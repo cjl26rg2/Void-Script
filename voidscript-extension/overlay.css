@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* overlay.css - ZeroScript Free in-page UI. Scoped under #zs-root / .zs-* */
+/* overlay.css - VoidScript Free in-page UI. Scoped under #zs-root / .zs-* */
 
 #zs-root {
   position: fixed;
@@ -350,7 +350,7 @@ button.zs-site-opt:hover .zs-site-go { opacity: 1; transform: translateX(0); }
 .zs-mcp-health-off { background: #f87171; }
 .zs-mcp-health-unknown { background: #6b7280; }
 /* Roblox: always first, greyed out - no health dot (own status lives in the
-   main ZeroScript dot) and no remove button (protected bridge-side too). */
+   main VoidScript dot) and no remove button (protected bridge-side too). */
 .zs-mcp-item-primary { opacity: 0.55; background: rgba(255, 255, 255, 0.02); }
 .zs-mcp-item-primary .zs-mcp-name { font-weight: 500; }
 .zs-mcp-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -502,7 +502,7 @@ html.zs-site-meta .zs-hidden > .zs-chip {
 /* Qwen (Ant Design) renders its model / thinking-mode select popup AND the
    composer "+" attachment menu (Upload attachment / Deep Research / Create
    image / Web Dev / Slides / More) at z-index 1050-1150 - far below #zs-root
-   (2147483600) - so the ZeroScript bar covered the bottom of whichever menu was
+   (2147483600) - so the VoidScript bar covered the bottom of whichever menu was
    open (reported live: the "+" menu's "More" row and the bar's own "Tools"
    toggle drew on top of each other). Both popups are portalled to <body>, so
    raising their z-index above the bar lifts them back on top. Inert when a
@@ -512,7 +512,7 @@ html.zs-site-meta .zs-hidden > .zs-chip {
 
 /* Qwen's model list has an "Expand more models" fly-out submenu (the Qwen3.6
    family etc.) rendered as a SEPARATE body-portalled `.ant-dropdown` at z-index
-   1050 - NOT the `.qwen-select-dropdown` above - so the ZeroScript bar drew on
+   1050 - NOT the `.qwen-select-dropdown` above - so the VoidScript bar drew on
    top of it (reported live: the bar's "Start Roblox agent" row covered the
    Qwen3.6-Max-Preview description). Scoped with :has() to the dropdown that
    actually holds model rows, so unrelated Ant dropdowns/tooltips are untouched. */
@@ -523,7 +523,7 @@ html.zs-site-meta .zs-hidden > .zs-chip {
    photos / Presets / Plugins / Skills / Web search), and that same button's
    OWN hover tooltip ("Add files & photos…") - into a
    .v-binder-follower-container at z-index ~20-2001, far below #zs-root
-   (2147483600) - so the ZeroScript bar/pill covered the open menu/tooltip
+   (2147483600) - so the VoidScript bar/pill covered the open menu/tooltip
    (reported live: opening "+", or just hovering it, while the agent was
    working drew the "unstable" pill and composer cover through it). Lift the
    container above the bar. :has scopes this to those known popovers
@@ -545,7 +545,7 @@ html.zs-site-meta .zs-hidden > .zs-chip {
 /* GLM / Z.ai (bits-ui floating library) portals its composer-toolbar popovers -
    the Search / Advanced Search hover card, and similar tooltips/dropdowns - into
    a [data-bits-floating-content-wrapper] at z-index ~9999, far below #zs-root
-   (2147483600), so the ZeroScript bar sat in front of them (the popover appeared
+   (2147483600), so the VoidScript bar sat in front of them (the popover appeared
    "behind" the bar on hover). The wrapper is the positioned/stacking element, so
    lifting it above the bar fixes every bits-ui popover anchored near the bar. */
 [data-bits-floating-content-wrapper] { z-index: 2147483646 !important; }
@@ -553,10 +553,10 @@ html.zs-site-meta .zs-hidden > .zs-chip {
 /* Gemini (Angular Material) portals its composer "+" menu (Import files /
    Create image / Canvas / Deep Research…) and its other dialogs into a single
    body-level .cdk-overlay-container at z-index 1000 - far below #zs-root
-   (2147483600) / #zs-unstable (2147483601). The ZeroScript bar and its
+   (2147483600) / #zs-unstable (2147483601). The VoidScript bar and its
    floating "unstable" pill sat OVER the open menu (reported live: opening "+"
    while the agent was working drew the pill straight through the menu).
-   Lift the whole overlay container above every ZeroScript surface. */
+   Lift the whole overlay container above every VoidScript surface. */
 .cdk-overlay-container { z-index: 2147483646 !important; }
 
 /* DeepSeek (its own "ds-" design system) portals tooltips and popovers - e.g.
@@ -566,7 +566,7 @@ html.zs-site-meta .zs-hidden > .zs-chip {
    over the input during agent activity, it visually covered the tooltip
    (reported live: hovering DeepThink while the agent was working showed the
    tooltip clipped/behind the bar). Lift every DeepSeek floating portal above
-   ZeroScript's own overlays. */
+   VoidScript's own overlays. */
 .ds-floating-container { z-index: 2147483646 !important; }
 
 /* Arena (Radix UI) portals its header dropdowns - the model picker and the
@@ -804,7 +804,7 @@ ol.flex-col-reverse > div.w-full:not(.mx-auto) > .zs-chip {
 }
 #zs-setup-dismiss:hover { background: rgba(255, 255, 255, 0.06); }
 
-/* ── capture preview popup (left-hand, ZeroScript style) ─────── */
+/* ── capture preview popup (left-hand, VoidScript style) ─────── */
 .zs-shot {
   position: fixed; left: 18px; top: 72px; width: 300px; max-width: 32vw;
   background: #161618; color: #ececee;

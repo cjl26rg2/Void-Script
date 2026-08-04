@@ -6,6 +6,8 @@ const SUPPORTED_HOSTS = [
   // Beta providers (generic adapter — see providers/_generic.js).
   "chatgpt.com", "chat.openai.com", "grok.com", "www.perplexity.ai", "perplexity.ai",
   "copilot.microsoft.com", "chat.mistral.ai",
+  "poe.com", "huggingface.co", "www.phind.com", "www.blackbox.ai", "you.com",
+  "groq.com", "lmarena.ai", "www.doubao.com", "yuanbao.tencent.com", "chat.reka.ai",
 ];
 const DEFAULT_AI_URL = "https://chat.deepseek.com/";
 
@@ -20,6 +22,10 @@ const HOST_LABELS = [
   [/chatgpt\.com|openai\.com/, "ChatGPT"], [/grok\.com/, "Grok"],
   [/perplexity\.ai/, "Perplexity"], [/copilot\.microsoft\.com/, "Copilot"],
   [/mistral\.ai/, "Mistral"],
+  [/poe\.com/, "Poe"], [/huggingface\.co/, "HuggingChat"], [/phind\.com/, "Phind"],
+  [/blackbox\.ai/, "Blackbox"], [/you\.com/, "You"], [/groq\.com/, "Groq"],
+  [/lmarena\.ai/, "LMArena"], [/doubao\.com/, "Doubao"],
+  [/yuanbao\.tencent\.com/, "Yuanbao"], [/reka\.ai/, "Reka"],
 ];
 function setProviderLabel() {
   const el = document.getElementById("prov");

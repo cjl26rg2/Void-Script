@@ -1,32 +1,32 @@
-# ZeroScript - Free AI Agent for Roblox Studio
+# VoidScript - Free AI Agent for Roblox Studio
 
-![GitHub stars](https://img.shields.io/github/stars/sebattfg/ZeroScript-Free?style=social)
+![GitHub stars](https://img.shields.io/github/stars/cjl26rg2/Void-Script?style=social)
 ![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS-lightgrey)
 ![License](https://img.shields.io/badge/license-GPL--3.0-blue)
 
-**ZeroScript** is a free browser extension that turns DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot or Mistral into a Roblox Studio AI agent.
+**VoidScript** is a free browser extension that turns DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot or Mistral into a Roblox Studio AI agent.
 Control Roblox Studio with AI directly from your browser - read/edit scripts, run Luau, generate assets, all from a normal AI chat. No API key, no terminal, no coding needed.
 
-> 🌐 **Website: [zeroscript-five.vercel.app](https://zeroscript-five.vercel.app)** the free Lemonade.gg / Luamotion alternative for building Roblox games with AI.
+> 🌐 **Website: [voidscript-five.vercel.app](https://voidscript-five.vercel.app)** the free Lemonade.gg / Luamotion alternative for building Roblox games with AI.
 
-**Seven fully-supported (hand-tuned) providers:** **DeepSeek** (chat.deepseek.com, recommended), **Google Gemini** (gemini.google.com), **Kimi** (kimi.com, Moonshot AI), **GLM** (chat.z.ai, Z.ai), **Qwen** (chat.qwen.ai), **Arena** (arena.ai, a multi-model playground) and **Meta AI** (meta.ai). Gemini and Kimi can be unstable: Gemini tends to stop using the Roblox tools in long sessions, and Kimi sometimes uses its own native tools instead of the Roblox commands. On Arena, use **Direct** mode (ZeroScript only supports Direct; it blocks Start in Battle / Side-by-Side / Agent modes). DeepSeek is the recommended provider.
+**Seven fully-supported (hand-tuned) providers:** **DeepSeek** (chat.deepseek.com, recommended), **Google Gemini** (gemini.google.com), **Kimi** (kimi.com, Moonshot AI), **GLM** (chat.z.ai, Z.ai), **Qwen** (chat.qwen.ai), **Arena** (arena.ai, a multi-model playground) and **Meta AI** (meta.ai). Gemini and Kimi can be unstable: Gemini tends to stop using the Roblox tools in long sessions, and Kimi sometimes uses its own native tools instead of the Roblox commands. On Arena, use **Direct** mode (VoidScript only supports Direct; it blocks Start in Battle / Side-by-Side / Agent modes). DeepSeek is the recommended provider.
 
-**Five beta providers (generic adapter):** **ChatGPT** (chatgpt.com), **Grok** (grok.com), **Perplexity** (perplexity.ai), **Copilot** (copilot.microsoft.com) and **Mistral** (chat.mistral.ai). These run on a shared selector-driven adapter rather than a hand-tuned provider, so they load and drive the site but may need per-site tuning — timing or the send handshake can be off if the site changed its layout. They show a **BETA** notice in the panel; prefer a fully-supported provider for important work.
+**Beta providers (generic adapter):** **ChatGPT** (chatgpt.com), **Grok** (grok.com), **Perplexity** (perplexity.ai), **Copilot** (copilot.microsoft.com), **Mistral** (chat.mistral.ai), **Poe** (poe.com), **HuggingChat** (huggingface.co/chat), **Phind** (phind.com), **Blackbox** (blackbox.ai), **You** (you.com), **Groq** (groq.com), **LMArena** (lmarena.ai — use direct chat, not battle), **Doubao** (doubao.com), **Yuanbao** (yuanbao.tencent.com) and **Reka** (chat.reka.ai). These run on a shared selector-driven adapter (`providers/_generic.js`) rather than a hand-tuned provider, so they load and drive the site but may need per-site tuning — timing or the send handshake can be off if the site changed its layout, and the selectors were written from documented patterns rather than validated against each live site. They show a **BETA** notice in the panel; prefer a fully-supported provider for important work, and report any that misbehave so a dedicated provider can be written.
 
 > 💬 **Stuck? Join the [Discord community](https://discord.gg/9aNyZsMWcb)** get help, share feedback, and follow updates.
 
-> *Also known as: ZeroScript Roblox, ZeroScript free download, Roblox DeepSeek agent, Roblox Gemini agent, Roblox Kimi agent, Roblox GLM agent, Roblox Qwen agent, Roblox Arena agent, Roblox Meta AI agent, Roblox Studio AI automation, Luau AI, MCP Roblox, lemonade alternative free, lemonade.gg alternative, free Roblox AI agent, free lemonade roblox alternative*
+> *Also known as: VoidScript Roblox, VoidScript free download, Roblox DeepSeek agent, Roblox Gemini agent, Roblox Kimi agent, Roblox GLM agent, Roblox Qwen agent, Roblox Arena agent, Roblox Meta AI agent, Roblox Studio AI automation, Luau AI, MCP Roblox, lemonade alternative free, lemonade.gg alternative, free Roblox AI agent, free lemonade roblox alternative*
 
-## ⚠️ ZeroScript is Free Beware of Paid Copycats
+## ⚠️ VoidScript is Free Beware of Paid Copycats
 
-ZeroScript is 100% free and open-source. It always has been, and it always will be. There is no official paid version, no subscription, and no sign-in required to use the extension.
+VoidScript is 100% free and open-source. It always has been, and it always will be. There is no official paid version, no subscription, and no sign-in required to use the extension.
 
-If you come across a site or extension using the ZeroScript name that asks for payment or account creation, it is **not** this project. The only official links are the ones listed at the top of this README.
+If you come across a site or extension using the VoidScript name that asks for payment or account creation, it is **not** this project. The only official links are the ones listed at the top of this README.
 
 ## How it works
 
 ```
-AI chat (DeepSeek / Gemini / Kimi / GLM / Qwen / Arena / Meta AI, in your browser) -> ZeroScript Extension -> Bridge (your PC) -> Roblox Studio
+AI chat (DeepSeek / Gemini / Kimi / GLM / Qwen / Arena / Meta AI, in your browser) -> VoidScript Extension -> Bridge (your PC) -> Roblox Studio
 ```
 
 The extension runs inside the chat page (DeepSeek, Gemini, Kimi, GLM, Qwen, Arena or Meta AI). When you type a request, it sends commands to the Bridge running on your PC, which drives Roblox Studio through the built-in MCP server.
@@ -45,14 +45,14 @@ To load the extension:
 - Go to `chrome://extensions` (or `edge://extensions`, `brave://extensions`, …)
 - Enable **Developer mode** (top right toggle)
 - Click **Load unpacked**
-- Select the `zeroscript-extension` folder from the extracted zip
+- Select the `voidscript-extension` folder from the extracted zip
 
 **Firefox (121+):**
 - Go to `about:debugging#/runtime/this-firefox`
-- Click **Load Temporary Add-on…** and pick `manifest.json` inside `zeroscript-extension`
+- Click **Load Temporary Add-on…** and pick `manifest.json` inside `voidscript-extension`
 - (Temporary add-ons clear on restart; reload the same way each session.)
 
-**Safari** is not supported out of the box — it needs a one-time Xcode conversion on a Mac (`xcrun safari-web-extension-converter zeroscript-extension`).
+**Safari** is not supported out of the box — it needs a one-time Xcode conversion on a Mac (`xcrun safari-web-extension-converter voidscript-extension`).
 
 ### 2. Start Roblox Studio and enable MCP
 
@@ -74,13 +74,13 @@ A small window opens, that means the Bridge is running.
 
 ### 4. Start a session
 
-Go to a supported AI and open a new chat. The ZeroScript bar appears above the input box. Click **Start session**. Type what you want to build.
+Go to a supported AI and open a new chat. The VoidScript bar appears above the input box. Click **Start session**. Type what you want to build.
 
 - **Fully supported:** https://chat.deepseek.com (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, https://www.meta.ai
-- **Beta:** https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai
+- **Beta:** https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai, https://poe.com, https://huggingface.co/chat, https://www.phind.com, https://www.blackbox.ai, https://you.com, https://groq.com, https://lmarena.ai, https://www.doubao.com, https://yuanbao.tencent.com, https://chat.reka.ai
 
 > Only works on the exact addresses listed above - it will not work on any other site.
-> On Arena, keep the mode dropdown on **Direct** - ZeroScript blocks Start in Battle / Side-by-Side / Agent modes (it only drives a single Direct reply).
+> On Arena, keep the mode dropdown on **Direct** - VoidScript blocks Start in Battle / Side-by-Side / Agent modes (it only drives a single Direct reply).
 > Gemini and Kimi can be unstable (model behavior, not the extension): Gemini may stop using the Roblox tools after a while, and Kimi may use its own native tools instead. If the AI starts answering in plain text instead of acting, remind it to use the commands or start a new session.
 ### 5. Watch the setup tutorial
 
@@ -141,7 +141,7 @@ See [CHANGELOG.md](CHANGELOG.md) for older releases.
 
 ## Support
 
-ZeroScript is free. If it saves you time: [Ko-fi](https://ko-fi.com/sebattfg) - Robux tip passes available in the extension panel
+VoidScript is free. If it saves you time: [Ko-fi](https://ko-fi.com/sebattfg) - Robux tip passes available in the extension panel
 
 ---
 

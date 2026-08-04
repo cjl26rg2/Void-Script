@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// core/parser.js - ZeroScript command parsing. PURE string logic, zero DOM:
+// core/parser.js - VoidScript command parsing. PURE string logic, zero DOM:
 // the provider extracts a turn's text from the site's DOM; everything here
 // operates on that text. The command formats (###LUA### blocks, {"command":…}
 // JSON) are defined by OUR system prompt, so they are the same on every AI site
@@ -93,7 +93,7 @@ const ZSParse = (() => {
   }
 
   // Normalise a parsed JSON object into { tool, arguments }, accepting both the
-  // new ZeroScript schema ("command"/"params") and the legacy/function-calling
+  // new VoidScript schema ("command"/"params") and the legacy/function-calling
   // schema ("tool"/"arguments"/"name"/"args"). Returns null if not a valid call.
   function normalizeCall(o) {
     if (!o || typeof o !== "object") return null;
@@ -338,7 +338,7 @@ const ZSParse = (() => {
            /^\s*\(System note:/.test(txt);
   }
 
-  // The assistant emitted a ZeroScript command (JSON or a ###LUA### block).
+  // The assistant emitted a VoidScript command (JSON or a ###LUA### block).
   function hasCommandShape(txt) {
     return txt.includes(START_M) ||
            LUA_START_RE.test(txt) ||

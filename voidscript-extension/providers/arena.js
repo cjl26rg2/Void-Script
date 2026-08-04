@@ -16,7 +16,7 @@
 //    and its header reads "Response provided by <vendor>" ABOVE the .prose body
 //    (we read ONLY .prose, so that header never counts as model output).
 //  - Fenced code is a REAL <pre> (textContent preserves newlines - no
-//    CodeMirror/Monaco), wrapped in a <div class="not-prose">. ZeroScript's
+//    CodeMirror/Monaco), wrapped in a <div class="not-prose">. VoidScript's
 //    command markers/JSON survive intact in textContent.
 //  - The composer is a real <textarea> inside a <form> (the ONLY form textarea;
 //    other page textareas are recaptcha/aria-hidden). We set its .value via the
@@ -225,7 +225,7 @@ const ZSProvider = (() => {
   const userCount = () => allItems().filter(isUserItem).length;
 
   // The composer textarea = the ONLY <textarea> inside a <form> (other page
-  // textareas are recaptcha/aria-hidden). Scope away ZeroScript's own settings
+  // textareas are recaptcha/aria-hidden). Scope away VoidScript's own settings
   // textarea (#zs-root) so the send hooks' "not on a chat page" guard holds on
   // login/OAuth pages that have no site composer.
   const getEditor = () => {
@@ -406,7 +406,7 @@ const ZSProvider = (() => {
     if (!text || text.length <= SEND_CAP) return text;
     const omitted = text.length - SEND_MAX;
     const marker =
-      `\n\n[…ZeroScript: result truncated to fit Arena's input limit - ` +
+      `\n\n[…VoidScript: result truncated to fit Arena's input limit - ` +
       `${omitted} of ${text.length} characters omitted…]\n\n`;
     const budget = SEND_MAX - marker.length;
     const headLen = Math.floor(budget * 0.85);
@@ -514,7 +514,7 @@ const ZSProvider = (() => {
   // Arena has four chat modes (the conversation-mode dropdown): Direct (1 model),
   // Battle Mode (2 anonymous models → always an A/B comparison), Side by Side
   // (2 chosen models → also A/B), and Agent Mode (autonomous, single model).
-  // ZeroScript only supports DIRECT. Battle / Side by Side force a fresh A/B
+  // VoidScript only supports DIRECT. Battle / Side by Side force a fresh A/B
   // comparison on EVERY turn. Agent Mode is a SEPARATE app (route /agent, a
   // TipTap/ProseMirror contenteditable composer with NO <form>, and NO <ol>
   // message list) on which every DOM assumption here breaks - getEditor() returns
@@ -572,7 +572,7 @@ const ZSProvider = (() => {
 
   // ── One-shot: restore Direct on page load ──────────────────────────────────
   // Arena sometimes reloads into Battle mode (e.g. after a login/OAuth round-trip
-  // bounces the tab), which ZeroScript can't drive. We nudge the mode dropdown
+  // bounces the tab), which VoidScript can't drive. We nudge the mode dropdown
   // back to Direct ONCE per page load - never on a sweep, so a user who later
   // deliberately picks another mode is not fought (the mode guard/warning still
   // covers that case). We only touch the plain chat route and only when the
@@ -603,7 +603,7 @@ const ZSProvider = (() => {
     if (!ok && combo.getAttribute("aria-expanded") === "true") { try { combo.click(); } catch {} } // reclose on failure
   }
 
-  // Visible mode guard for the ZeroScript bar (core renderBar reads this every
+  // Visible mode guard for the VoidScript bar (core renderBar reads this every
   // sweep). Returns a warning string while an unsupported mode (Battle / Side by
   // Side / Agent) is selected, "" when Direct (or mode unknown → fail open so a
   // DOM reskin never nags on the supported default). The core turns this into a
@@ -612,18 +612,18 @@ const ZSProvider = (() => {
     const um = activeUnsupportedMode();
     if (um)
       return `Turn off <b>${um.label}</b> (${um.tip} in the composer) - ` +
-        `ZeroScript only works in plain chat. ${um.label} mode uses a different ` +
+        `VoidScript only works in plain chat. ${um.label} mode uses a different ` +
         `output surface and breaks the agent loop.`;
     if (isSupportedMode()) return "";
     const m = currentMode();
     const name = m ? m.charAt(0).toUpperCase() + m.slice(1) : "another mode";
-    return `Switch the mode dropdown to <b>Direct</b> - ZeroScript only works in ` +
+    return `Switch the mode dropdown to <b>Direct</b> - VoidScript only works in ` +
       `Direct mode (current: <b>${name}</b>).`;
   }
 
   // A bot-check challenge is on screen (Cloudflare Turnstile / hCaptcha /
   // reCAPTCHA). We NEVER interact with it: the core reads this only to move the
-  // ZeroScript bar out of the way: the anchored bar is transparent but still a
+  // VoidScript bar out of the way: the anchored bar is transparent but still a
   // real, full-width element over the composer's top edge, so it silently eats
   // clicks on the challenge's "Valider" button even though nothing is visible.
   const CAPTCHA_SEL =
@@ -654,7 +654,7 @@ const ZSProvider = (() => {
 
   // A modal dialog (login / create-account / consent) is open over the page.
   // Arena renders these as Radix dialogs = a visible [role="dialog"]. While one is
-  // up, the anchored ZeroScript bar (a real, full-width element hugging the
+  // up, the anchored VoidScript bar (a real, full-width element hugging the
   // composer's top edge) sits ON TOP of the modal and silently intercepts clicks
   // on its buttons - e.g. "Continue with Google" at sign-in. The core hides the
   // bar whenever this is true (same get-out-of-the-way path as captchaPresent).
@@ -717,7 +717,7 @@ const ZSProvider = (() => {
     const arr = new Uint8Array(bin.length);
     for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
     const ext = mime.includes("png") ? "png" : mime.includes("webp") ? "webp" : "jpg";
-    return new File([arr], `zeroscript_${Date.now()}_${i}.${ext}`, { type: mime });
+    return new File([arr], `voidscript_${Date.now()}_${i}.${ext}`, { type: mime });
   }
   // The PENDING preview: each staged image mounts as
   // `.flex.flex-wrap.gap-2 > div.group > img` (alt = filename, blob: src) INSIDE

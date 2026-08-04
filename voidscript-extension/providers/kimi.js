@@ -145,7 +145,7 @@ const ZSProvider = (() => {
   const assistantItems = () => [...document.querySelectorAll(S.assistantItem)];
   const assistantCount = () => assistantItems().length;
   const userCount = () => document.querySelectorAll(S.userItem).length;
-  // Scope to the SITE's composer only: skip ZeroScript's own injected UI (the
+  // Scope to the SITE's composer only: skip VoidScript's own injected UI (the
   // settings textarea #zs-set-text in #zs-root). On login/OAuth pages with no
   // site editor this returns null, keeping the "not on a chat page" guard in
   // the send hooks intact (otherwise our own textarea would defeat it and the
@@ -157,7 +157,7 @@ const ZSProvider = (() => {
     // Prefer the bottom composer over the inline message-EDIT box. Editing a turn
     // mounts a second .chat-input-editor up in the message list; it precedes the
     // composer in DOM order, so the old "first editor" pick returned it - and
-    // barAnchor() then hugged the fixed ZeroScript bar over the editor. The real
+    // barAnchor() then hugged the fixed VoidScript bar over the editor. The real
     // composer lives inside the `.chat-editor` card; the edit box does not.
     return site.find((e) => e.closest(".chat-editor")) || site[0] || null;
   };
@@ -446,22 +446,22 @@ const ZSProvider = (() => {
   }
 
   // Kimi's own agentic mode (see S.currentModelName above) makes the model favor
-  // its built-in tools over the ZeroScript command protocol. On K3 the only
+  // its built-in tools over the VoidScript command protocol. On K3 the only
   // remaining signal is the model-selector label.
   function nativeAgentModeOn() {
     const m = document.querySelector(S.currentModelName);
     // "K3 Swarm" (current) or "…Agent" (older builds). Both make Kimi reach for
-    // its own tooling instead of emitting ZeroScript command blocks.
+    // its own tooling instead of emitting VoidScript command blocks.
     return !!(m && /swarm|agent/i.test(m.textContent || ""));
   }
-  // Visible mode guard for the ZeroScript bar (core renderBar reads this every
+  // Visible mode guard for the VoidScript bar (core renderBar reads this every
   // sweep, same mechanism as arena.js's modeWarning). Returns a warning string
   // while Kimi's native Agent mode is on, "" otherwise. The core turns this
   // into a red warning state and disables Start until the user switches it off.
   function modeWarning() {
     if (nativeAgentModeOn())
       return `Switch the model picker off <b>K3 Swarm</b> (pick <b>K3</b> or <b>Instantané</b>) - ` +
-        `Kimi's own agentic mode replaces the ZeroScript commands with its native tools and breaks the agent loop.`;
+        `Kimi's own agentic mode replaces the VoidScript commands with its native tools and breaks the agent loop.`;
     return "";
   }
 
@@ -490,7 +490,7 @@ const ZSProvider = (() => {
   }
 
   // ── Default the model on a fresh chat ─────────────────────────────────────
-  // Pick a model that actually speaks the ZeroScript command protocol, ONCE,
+  // Pick a model that actually speaks the VoidScript command protocol, ONCE,
   // whenever we arrive on an empty chat (page load OR "New Chat"). Not enforced
   // every sweep: if the user deliberately switches afterwards on that same empty
   // chat, we leave it - we only re-arm on a transition INTO a new empty chat.
@@ -588,7 +588,7 @@ const ZSProvider = (() => {
     const arr = new Uint8Array(bin.length);
     for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j);
     const ext = mime.includes("png") ? "png" : "jpg";
-    return new File([arr], `zeroscript_${Date.now()}_${i}.${ext}`, { type: mime });
+    return new File([arr], `voidscript_${Date.now()}_${i}.${ext}`, { type: mime });
   }
   // The PENDING upload's thumbnail (`.image-thumbnail`, in the composer's
   // `.carousel-scroll`). Kimi ALSO keeps every SENT image's `.image-thumbnail`
@@ -764,7 +764,7 @@ const ZSProvider = (() => {
     // Confirmed live: Kimi (K2.6) reads attached images - it correctly described
     // a test screenshot's content. So screen_capture is exposed here (see main.js
     // BLOCKED_TOOLS gate); attachImages uploads via the toolkit file input, and
-    // the capture is shown in the core's left-hand ZeroScript popup (ui.showImages).
+    // the capture is shown in the core's left-hand VoidScript popup (ui.showImages).
     supportsVision: true,
     timings,
     // Reasoning-area selector, exported so the CORE's raw-command-visible probes
@@ -788,13 +788,13 @@ const ZSProvider = (() => {
     // Turns accumulate and are not virtualized for normal lengths, so
     // assistantCount() reliably increases for every reply.
     reliableCounts: true,
-    // Shown as a permanent, non-intrusive notice in the ZeroScript panel.
+    // Shown as a permanent, non-intrusive notice in the VoidScript panel.
     // Kimi sometimes reaches for its OWN built-in/native tools (web search, code
-    // runner, etc.) instead of emitting the ZeroScript command blocks that drive
+    // runner, etc.) instead of emitting the VoidScript command blocks that drive
     // Roblox Studio - model behavior, not something the prompt fully prevents.
     unstableWarning:
       "Kimi sometimes uses its own native tools instead of the Roblox commands (model behavior, not the extension). " +
-      "If it stops acting in Roblox Studio and answers in plain text or runs its own tools, remind it to use the ZeroScript commands - or start a new session.",
+      "If it stops acting in Roblox Studio and answers in plain text or runs its own tools, remind it to use the VoidScript commands - or start a new session.",
     init({ diag: d } = {}) { if (d) diag = d; },
     // turns
     allItems, isUserItem, isAssistantItem, itemText, classifyText,

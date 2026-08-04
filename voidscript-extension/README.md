@@ -1,12 +1,12 @@
-# ZeroScript Free - AI Roblox Studio Agent (DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot, Mistral)
+# VoidScript Free - AI Roblox Studio Agent (DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot, Mistral)
 
-Control Roblox Studio with AI, for free. ZeroScript turns a normal AI chat into an agent that builds and scripts your Roblox game for you: just describe what you want, and it reads/edits scripts, runs Luau, inspects the game tree, and generates assets directly in Roblox Studio. No API key, no terminal, no coding required.
+Control Roblox Studio with AI, for free. VoidScript turns a normal AI chat into an agent that builds and scripts your Roblox game for you: just describe what you want, and it reads/edits scripts, runs Luau, inspects the game tree, and generates assets directly in Roblox Studio. No API key, no terminal, no coding required.
 
 It's a browser extension plus a small local bridge that connects the chat to Roblox Studio through the official MCP server. **DeepSeek is the recommended provider.**
 
-**Fully supported (hand-tuned providers):** DeepSeek, Google Gemini, Kimi, GLM, Qwen, Arena, Meta AI. These can each vary in stability: Gemini tends to stop using the Roblox tools in long sessions, Kimi sometimes reaches for its own native tools, and on Arena you must keep the mode dropdown on **Direct** (ZeroScript only supports Direct mode).
+**Fully supported (hand-tuned providers):** DeepSeek, Google Gemini, Kimi, GLM, Qwen, Arena, Meta AI. These can each vary in stability: Gemini tends to stop using the Roblox tools in long sessions, Kimi sometimes reaches for its own native tools, and on Arena you must keep the mode dropdown on **Direct** (VoidScript only supports Direct mode).
 
-**Beta (generic adapter):** ChatGPT, Grok, Perplexity, Copilot, Mistral. These run on a shared, selector-driven adapter (`providers/_generic.js`) instead of a hand-tuned provider, so they load and drive the site but may need per-site tuning — completion timing or the send handshake can be off if the site changed its DOM. If a beta provider stalls or never detects that the reply finished, that's expected roughness; report it so a dedicated provider can be written. The ZeroScript panel shows a "BETA" notice on these sites.
+**Beta (generic adapter):** ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe, HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka. These run on a shared, selector-driven adapter (`providers/_generic.js`) instead of a hand-tuned provider, so they load and drive the site but may need per-site tuning — completion timing or the send handshake can be off if the site changed its DOM. The selectors were written from documented/common patterns, **not** validated against each live site, so expect some to need a tweak. If a beta provider stalls or never detects that the reply finished, that's expected roughness; report it so a dedicated provider can be written. The VoidScript panel shows a "BETA" notice on these sites.
 
 ## Setup
 
@@ -14,13 +14,13 @@ It's a browser extension plus a small local bridge that connects the chat to Rob
 1. Go to `chrome://extensions` (or `edge://extensions`, `brave://extensions`, etc.)
 2. Enable **Developer mode** (top right toggle)
 3. Click **Load unpacked**
-4. Select the `zeroscript-extension` folder
+4. Select the `voidscript-extension` folder
 5. The extension is now active
 
 **Load the extension on Firefox (121+):**
 1. Go to `about:debugging#/runtime/this-firefox`
 2. Click **Load Temporary Add-on…**
-3. Select the `manifest.json` inside the `zeroscript-extension` folder
+3. Select the `manifest.json` inside the `voidscript-extension` folder
 4. The extension loads until Firefox restarts (temporary add-ons are cleared on
    restart — reload it the same way, or package/sign it via `about:addons` for a
    permanent install). The manifest already declares the required
@@ -28,17 +28,17 @@ It's a browser extension plus a small local bridge that connects the chat to Rob
 
 **Safari:** Safari does not load unpacked WebExtensions. It needs a one-time
 conversion into an Xcode project on a Mac using Apple's converter
-(`xcrun safari-web-extension-converter zeroscript-extension`), then a build in
+(`xcrun safari-web-extension-converter voidscript-extension`), then a build in
 Xcode. This can't be done from the repo alone — it requires macOS + Xcode — so
 Safari is not supported out of the box.
 
 **Then set up the Bridge:**
-1. **Download the Bridge** from the [GitHub releases page](https://github.com/sebattfg/ZeroScript-Free)
+1. **Download the Bridge** from the [GitHub releases page](https://github.com/cjl26rg2/Void-Script)
 2. **Open Roblox Studio** and load a Place
 3. **Enable the MCP server in Roblox Studio** (first time only): click **Assistant AI** in the top bar, then **...** > **Manage MCP Servers** > **Enable Studio as MCP Server**
 4. **Run the Bridge** - double-click `start.bat` (Windows) or `MacOS_Start.command` (macOS); a small window opens, the Bridge is running. On macOS, the first launch shows a Gatekeeper warning (normal for any downloaded script): click **Done**, then **System Settings > Privacy & Security**, scroll down, and click **Open Anyway**.
-5. **Go to https://chat.deepseek.com** (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, or https://www.meta.ai — or a **beta** site: https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai. Open a new chat (only works on these exact addresses; on Arena use Direct mode)
-6. Click **Start session** in the ZeroScript panel
+5. **Go to https://chat.deepseek.com** (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, or https://www.meta.ai — or a **beta** site: https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai, https://poe.com, https://huggingface.co/chat, https://www.phind.com, https://www.blackbox.ai, https://you.com, https://groq.com, https://lmarena.ai, https://www.doubao.com, https://yuanbao.tencent.com, https://chat.reka.ai. Open a new chat (only works on these exact addresses; on Arena use Direct mode)
+6. Click **Start session** in the VoidScript panel
 7. Type what you want to build
 
 📺 [Watch the setup tutorial](https://youtu.be/kPKiZLZ9_Ps)
@@ -49,7 +49,7 @@ The extension is split between a provider-agnostic core and per-AI-site provider
 
 ```
 core/config.js        system prompt, feedback strings, tool categories (global ZS)
-core/parser.js        ZeroScript command parsing - pure string logic   (global ZSParse)
+core/parser.js        VoidScript command parsing - pure string logic   (global ZSParse)
 core/main.js          agentic loop, UI, camouflage, session state      (uses ZSProvider)
 providers/deepseek.js everything DeepSeek-specific: DOM selectors, generation
                       detection, send mechanics, composer modes…       (global ZSProvider)
@@ -73,6 +73,9 @@ providers/grok.js     BETA: thin config on ZSGeneric for Grok         (global ZS
 providers/perplexity.js BETA: thin config on ZSGeneric for Perplexity (global ZSProvider)
 providers/copilot.js  BETA: thin config on ZSGeneric for Copilot      (global ZSProvider)
 providers/mistral.js  BETA: thin config on ZSGeneric for Mistral      (global ZSProvider)
+providers/poe.js, huggingchat.js, phind.js, blackbox.js, you.js, groq.js,
+providers/lmarena.js, doubao.js, yuanbao.js, reka.js
+                      BETA: thin ZSGeneric configs for more chat sites (global ZSProvider)
 background.js         WebSocket to the local bridge (provider-agnostic)
 ```
 

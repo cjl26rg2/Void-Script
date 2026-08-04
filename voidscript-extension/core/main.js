@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // core/main.js - the provider-agnostic agentic loop, UI and session state.
 // Drives any AI chat site through the ZSProvider interface (providers/*.js):
-// waits for the model's reply, parses ZeroScript commands (ZSParse), asks the
+// waits for the model's reply, parses VoidScript commands (ZSParse), asks the
 // background worker to execute them on the Roblox MCP bridge, and feeds the
 // result back. Camouflages the system prompt ("Starting Up") and tool JSON
 // behind animated chips, masks injected input, and exposes a Stop button.
@@ -16,7 +16,7 @@
   const P = ZSProvider;
   const T = P.timings;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-  const log = (...a) => console.log("[zeroscript]", ...a);
+  const log = (...a) => console.log("[voidscript]", ...a);
 
   // ── Anti-bot mitigation (EXPERIMENTAL) ──────────────────────────────────
   // Suspected contributor to Arena's captcha: the agentic loop sends turns
@@ -81,7 +81,7 @@
   // Ko-fi tip link.
   const KOFI_URL = "https://ko-fi.com/sebattfg";
   // GitHub releases page - where users download the Bridge + start.bat.
-  const GITHUB_URL = "https://github.com/sebattfg/ZeroScript-Free";
+  const GITHUB_URL = "https://github.com/cjl26rg2/Void-Script";
   // Shown in the panel instead of a static "Free" label, so a user's screenshot
   // alone tells us which build they're on for debugging. Pulled from
   // manifest.json (single source of truth) rather than duplicated here.
@@ -90,7 +90,7 @@
   const VIDEO_URL = "https://youtu.be/kPKiZLZ9_Ps";
   // Work.ink locked link - free "watch an ad" support option. Set once the
   // locker is created at https://work.ink; the button is hidden until then.
-  const WORKINK_URL = "https://work.ink/2JXi/zeroscript-free-roblox-ai-coding-tool";
+  const WORKINK_URL = "https://work.ink/2JXi/voidscript-free-roblox-ai-coding-tool";
   // Roblox "tip" Game Passes - the native currency for the audience.
   const ROBUX_PASSES = [
     { robux: 30, id: 1865342947 },
@@ -99,7 +99,7 @@
     { robux: 1000, id: 1865192973 },
   ];
   const passUrl = (id) => `https://www.roblox.com/game-pass/${id}`;
-  // AI chat sites ZeroScript works on. Keep in sync with manifest.json
+  // AI chat sites VoidScript works on. Keep in sync with manifest.json
   // content_scripts and background.js PROVIDER_URLS when adding a provider.
   const AI_SITES = [
     { name: "DeepSeek", url: "https://chat.deepseek.com/" },
@@ -841,7 +841,7 @@
       }
       return `ERROR: the '${bareName}' command timed out and is unavailable in this environment. Do NOT call it again - complete the task yourself using the other commands (execute_luau, multi_edit, etc.).`;
     }
-    // Virtual command: list the MCP server(s) ZeroScript is currently connected
+    // Virtual command: list the MCP server(s) VoidScript is currently connected
     // to, with each one's REAL per-server health (from the bridge, never the
     // merged tool count - a dead server must not borrow another's numbers).
     if (name === "list_mcp_servers") {
@@ -998,7 +998,7 @@
         return `ERROR: '${bareName}' returned an image, but this assistant cannot see images. Do NOT call it again. Use a different command to get the information as text instead.`;
       }
       if (r.images && r.images.length) {
-        // Show the capture in a left-hand ZeroScript popup (from the in-memory
+        // Show the capture in a left-hand VoidScript popup (from the in-memory
         // base64 - simple and reliable on every site; no DOM-embedded preview).
         ui.showImages(r.images, name);
         // Do NOT attach the image here: submitAndGetBase/typeAndSend types the
@@ -1865,7 +1865,7 @@
       }
 
       // 3. Assistant command turns → live loading while streaming, ✓ when done.
-      // ONLY in a real ZeroScript session (started or bootstrapping). Without
+      // ONLY in a real VoidScript session (started or bootstrapping). Without
       // this gate, a plain never-started chat where the model merely EXPLAINS
       // the command format (a {"command":...} example in its answer) got the
       // example MASKED behind a tool chip - hiding genuine content the user
@@ -2178,13 +2178,13 @@
       root.innerHTML = `
         <div id="zs-bar">
           <span id="zs-dot" class="off" title=""></span>
-          <span id="zs-brand">ZeroScript <span class="zs-free">v${EXT_VERSION}</span></span>
+          <span id="zs-brand">VoidScript <span class="zs-free">v${EXT_VERSION}</span></span>
           <span id="zs-state"></span>
           <button id="zs-action"></button>
           <button id="zs-stop" hidden>■ Stop</button>
           <a id="zs-discord" href="https://discord.gg/D5G2HAzX8z" target="_blank" rel="noopener" title="Need help? Join our Discord"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></a>
           <button id="zs-switch" aria-label="Switch AI and options" title="Switch AI, custom prompt, support"><span id="zs-switch-name"></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
-          <button id="zs-support" aria-label="Support ZeroScript" title="Support ZeroScript"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+          <button id="zs-support" aria-label="Support VoidScript" title="Support VoidScript"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
         </div>
         <div id="zs-menu" hidden></div>
         ${P.unstableWarning ? `<button id="zs-unstable" aria-label="Provider may be unstable" hidden>⚠ unstable</button>` : ""}
@@ -2388,7 +2388,7 @@
       const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const mergedServers = mergedMcpServers();
       // Roblox always heads the list - greyed out, no health dot (its own status
-      // is already the main ZeroScript dot elsewhere) and no remove button (it's
+      // is already the main VoidScript dot elsewhere) and no remove button (it's
       // the primary server, protected bridge-side too).
       let mcpList =
         `<div class="zs-mcp-item zs-mcp-item-primary"><div class="zs-mcp-info"><span class="zs-mcp-name">Roblox Studio</span><span class="zs-mcp-url">primary - always connected</span></div></div>`;
@@ -2400,7 +2400,7 @@
         mcpList += `<div class="zs-mcp-item"><span class="zs-mcp-health zs-mcp-health-${healthClass}" title="${healthTitle}"></span><div class="zs-mcp-info"><span class="zs-mcp-name">${esc(s.name)}</span><span class="zs-mcp-url">${esc(s.command || s.id)}</span></div><button class="zs-mcp-remove" data-id="${esc(s.id)}" title="Remove">✕</button></div>`;
       });
       menuEl.innerHTML =
-        `<div class="zs-menu-head"><span class="zs-menu-logo">ZeroScript</span><span class="zs-menu-tag">v${EXT_VERSION}</span></div>
+        `<div class="zs-menu-head"><span class="zs-menu-logo">VoidScript</span><span class="zs-menu-tag">v${EXT_VERSION}</span></div>
          <section class="zs-menu-sec">
            <div class="zs-sec-label"><span>Switch AI</span></div>
            ${sites}
@@ -2522,7 +2522,7 @@
         ? `<a id="zs-setup-video" href="${VIDEO_URL}" target="_blank" rel="noopener">▶ Watch tutorial</a>`
         : "";
       setupCard.innerHTML =
-        `<div id="zs-setup-head"><span id="zs-setup-logo">ZeroScript</span><span id="zs-setup-tag">Setup</span></div>` +
+        `<div id="zs-setup-head"><span id="zs-setup-logo">VoidScript</span><span id="zs-setup-tag">Setup</span></div>` +
         `<div id="zs-setup-sub">The <b>Bridge</b> is what connects this chat to Roblox Studio. Three steps and you're running.</div>` +
         `<ol id="zs-setup-steps">` +
           `<li>Download the Bridge from GitHub</li>` +
@@ -2575,7 +2575,7 @@
     function refreshSetup(bridgeConnected) {
       if (setupSeen || bridgeConnected) { hideSetup(); return; }
       // Bridge is down, but if the user is just READING an existing
-      // conversation with no ZeroScript session (the "No agent here" state),
+      // conversation with no VoidScript session (the "No agent here" state),
       // a "bridge down" onboarding popup is pure noise - they may not want an
       // agent here at all (user request). Keep it for the states where the
       // bridge actually matters: a fresh/empty chat (the Start affordance is
@@ -2759,7 +2759,7 @@
       A.bridge = s;
       if (!dot) return;
       const servers = s.servers || [];
-      // ZeroScript status tracks ONLY the primary Roblox MCP server. Every other
+      // VoidScript status tracks ONLY the primary Roblox MCP server. Every other
       // server is an addon and must NEVER make the dot/gate look connected while
       // Roblox itself is down. Old bridges don't send per-server health, so fall
       // back to the aggregate signals they do send (mcpAlive / total tools).
@@ -2845,8 +2845,8 @@
       const videoLink = VIDEO_URL
         ? `<a class="zs-banner-video" href="${VIDEO_URL}" target="_blank" rel="noopener">▶ Watch setup tutorial</a>`
         : "";
-      b.innerHTML = `<div class="zs-banner-t">⚠ Lost connection to ZeroScript</div>
-        <div class="zs-banner-m">The ZeroScript bridge stopped on your PC. Restart it (run start.bat and keep Roblox Studio open): the agent will reconnect automatically as soon as it is detected again.</div>
+      b.innerHTML = `<div class="zs-banner-t">⚠ Lost connection to VoidScript</div>
+        <div class="zs-banner-m">The VoidScript bridge stopped on your PC. Restart it (run start.bat and keep Roblox Studio open): the agent will reconnect automatically as soon as it is detected again.</div>
         <div class="zs-banner-acts">${videoLink}<button class="zs-banner-x">Close</button></div>`;
       b.querySelector(".zs-banner-x").addEventListener("click", () => { b.remove(); if (bridgeBannerEl === b) bridgeBannerEl = null; });
       root.appendChild(b);
@@ -3299,7 +3299,7 @@
       root.appendChild(b);
     }
 
-    // Left-hand ZeroScript popup showing the latest screen_capture. Fed from the
+    // Left-hand VoidScript popup showing the latest screen_capture. Fed from the
     // in-memory base64 (a data: URL always renders), so it works identically on
     // every provider and never touches the site's DOM. Only the most recent
     // capture is kept - a new one replaces the old.
@@ -3377,7 +3377,7 @@
   }
 
   // Timestamp of the user's last REAL click on the site (trusted event, outside
-  // ZeroScript's own UI). A genuine "regenerate ↻" is always such a click;
+  // VoidScript's own UI). A genuine "regenerate ↻" is always such a click;
   // DeepSeek's post-stop phantom generations and stop-button re-mount flickers
   // never are - this is what tells them apart (seen live: two false regenResume
   // fired 8s/2s after a Stop with no user action, un-stopping the halted turn).
@@ -3508,7 +3508,7 @@
     // - stopLoop both halts our loop AND clicks the site's native stop - and the
     // site's native stop likewise halts our loop via onNativeStop, so either one
     // fully stops everything. Two stop buttons at once is fine.
-    // The bare isHardGenerating() term is gated on a live ZeroScript session: on
+    // The bare isHardGenerating() term is gated on a live VoidScript session: on
     // a plain chat with no session, a user's own message makes the site generate,
     // and we must NOT briefly flash our Stop button over that.
     // Self-heal a stuck "Stopping…": if we flagged stopping but nothing is
@@ -3620,9 +3620,9 @@
       }
     });
   } catch {}
-  // A conversation IS a ZeroScript session if any rendered turn carries a
+  // A conversation IS a VoidScript session if any rendered turn carries a
   // telltale artefact: the system-prompt marker, an injected tool-result /
-  // system-note turn, or a ZeroScript command an assistant wrote. Works even
+  // system-note turn, or a VoidScript command an assistant wrote. Works even
   // after a full cold start and regardless of scroll position.
   function domHasZsSignal() {
     for (const it of P.allItems()) {
@@ -3672,7 +3672,7 @@
       }
     }
     // Same idea for a RUNNING loop: if the user opens a NEW, empty conversation
-    // via the SITE's own new-chat (not ZeroScript's button), the loop is bound to
+    // via the SITE's own new-chat (not VoidScript's button), the loop is bound to
     // a chat the user left, so abandon it. Otherwise A.running keeps this function
     // early-returning below and the stale "Agent active" / Stop button lingers on
     // the fresh chat instead of "Start Roblox agent". The "/app" → "/app/<id>" id
@@ -3893,5 +3893,5 @@
     agentLoop(P.assistantCount() - 1);
   }, 1000);
 
-  log(`ZeroScript content script ready (provider: ${P.id})`);
+  log(`VoidScript content script ready (provider: ${P.id})`);
 })();
