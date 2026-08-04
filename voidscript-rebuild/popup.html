@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{
+    --bg:#14141c; --card:#1c1c26; --line:rgba(255,255,255,.09);
+    --fg:#ececf2; --muted:#9a9aa8; --dim:#6a6a78;
+    --violet:#7c8cff; --violet2:#9aa8ff; --deep:#5b46f0;
+    --ok:#34d399; --warn:#fbbf24; --rose:#ff8fa3;
+  }
+  *{box-sizing:border-box}
+  body{
+    width:270px; margin:0; color:var(--fg);
+    font-family:"Segoe UI",system-ui,sans-serif; -webkit-font-smoothing:antialiased;
+    background:radial-gradient(130% 80% at 50% -10%, #23232f 0%, var(--bg) 55%);
+  }
+  .pad{padding:15px}
+  header{display:flex; align-items:center; gap:10px; margin-bottom:13px}
+  header .mark{width:26px; height:26px; flex:0 0 auto;
+    filter:drop-shadow(0 0 6px rgba(124,140,255,.5))}
+  .title{font-weight:750; font-size:16px; letter-spacing:-.2px; flex:1}
+  .title .s{background:linear-gradient(90deg,var(--violet2),var(--deep));
+    -webkit-background-clip:text; background-clip:text; color:transparent}
+  #version{font-size:10px; color:var(--dim); font-weight:600}
+  #provider-tag{font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+    color:var(--violet2); background:rgba(124,140,255,.14); padding:3px 7px; border-radius:999px}
+
+  .status{display:flex; align-items:center; gap:9px; background:var(--card);
+    border:1px solid var(--line); border-radius:11px; padding:11px 13px; margin-bottom:11px}
+  #status-dot{width:10px; height:10px; border-radius:50%; background:#5b5b6b; flex:0 0 auto;
+    transition:background .25s, box-shadow .25s}
+  #status-dot.up{background:var(--ok); box-shadow:0 0 9px var(--ok)}
+  #status-dot.mid{background:var(--warn); box-shadow:0 0 9px var(--warn)}
+  .status .lines{min-width:0}
+  #status-text{font-size:12.5px; font-weight:600; line-height:1.35}
+  #tool-count{font-size:11px; color:var(--muted)}
+  #server-list{font-size:11px; color:var(--dim); white-space:pre-line;
+    font-family:ui-monospace,monospace; margin-top:6px}
+  #server-list:empty{display:none}
+
+  button{width:100%; margin-top:7px; padding:9px 12px; border-radius:9px; cursor:pointer;
+    font-size:12px; font-weight:600; color:var(--fg); border:1px solid var(--line);
+    background:rgba(255,255,255,.05); text-align:left;
+    transition:background .15s, transform .05s, border-color .15s; display:flex; align-items:center; gap:9px}
+  button:hover{background:rgba(255,255,255,.11)}
+  button:active{transform:translateY(1px)}
+  button .g{opacity:.85}
+  #btn-kofi{color:var(--rose); background:rgba(255,105,135,.14); border-color:rgba(255,105,135,.4)}
+  #btn-kofi:hover{background:rgba(255,105,135,.24)}
+
+  .hint{margin-top:13px; font-size:11px; line-height:1.5; color:var(--dim)}
+  .hint code{background:rgba(255,255,255,.08); padding:1px 5px; border-radius:4px;
+    font-family:ui-monospace,monospace}
+</style>
+</head>
+<body>
+<div class="pad">
+  <header>
+    <svg class="mark" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <linearGradient id="r" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#9aa8ff"/><stop offset=".55" stop-color="#7c8cff"/><stop offset="1" stop-color="#5b46f0"/>
+        </linearGradient>
+        <radialGradient id="v" cx=".5" cy=".5" r=".5">
+          <stop offset="0" stop-color="#05050a"/><stop offset=".7" stop-color="#0c0c16"/><stop offset="1" stop-color="#1a1730"/>
+        </radialGradient>
+      </defs>
+      <circle cx="64" cy="64" r="33" fill="url(#v)"/>
+      <circle cx="64" cy="64" r="33" fill="none" stroke="url(#r)" stroke-width="6"/>
+      <g stroke="url(#r)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+        <polyline points="55,52 43,64 55,76"/><polyline points="73,52 85,64 73,76"/><line x1="68" y1="49" x2="60" y2="79"/>
+      </g>
+    </svg>
+    <span class="title">Void<span class="s">Script</span> <span id="version"></span></span>
+    <span id="provider-tag">Ready</span>
+  </header>
+
+  <div class="status">
+    <span id="status-dot"></span>
+    <div class="lines">
+      <div id="status-text">Checking bridge…</div>
+      <div id="tool-count"></div>
+      <div id="server-list"></div>
+    </div>
+  </div>
+
+  <button id="btn-reconnect"><span class="g">↻</span> Reconnect bridge</button>
+  <button id="btn-restart"><span class="g">⟳</span> Restart Roblox server</button>
+  <button id="btn-settings"><span class="g">⚙</span> Settings &amp; switch AI</button>
+  <button id="btn-site"><span class="g">🌐</span> Open the VoidScript website</button>
+  <button id="btn-kofi"><span class="g">♥</span> Tip the developer on Ko-fi</button>
+
+  <p class="hint">Run <code>start.bat</code>, open <b>Roblox Studio</b>, then head to a supported AI and press <b>Start session</b>.</p>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

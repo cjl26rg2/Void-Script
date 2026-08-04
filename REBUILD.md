@@ -158,4 +158,7 @@ note if desired (optional once nothing is derivative).
 - [x] Phase 6 — Agent core — **built & mock-tested** (`rebuild/core.js`, 18/18).
 - [x] Phase 7 — Entry / providers — **entry built & wiring-tested** (`rebuild/entry.js`,
   8/8); provider interface already ours.
-- [ ] Phase 8 — Cutover & relicense — needs a live browser run to validate.
+- [~] Phase 8 — Cutover & relicense — **testable build ready** (`voidscript-rebuild/`,
+  a loadable extension running only the self-made engine; 40 JS files valid).
+  Awaiting a **live browser run** on a real AI + Studio. The irreversible steps
+  (delete GPL core, relicense, swap shipping files) come only after that passes.
