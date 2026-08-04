@@ -65,6 +65,21 @@ it is built from the documented protocols (MCP spec, our own WS/command format).
   ` ```void ` block. Design-heavy, so verified with a rendered preview rather than
   a unit test (syntax passes `node --check`).
 
+## Phase 6 — Agent core ✅ (mock-tested)
+
+- **`core.js`** (`VoidAgent`) — the run loop. Dependency-injected (provider,
+  overlay, parse, config, callTool, getTools) so it is fully unit-testable and
+  the content script just wires in the real pieces. Handles the whole cycle:
+  prompt → read reply → parse → run tool / feedback / finalize, with masking +
+  chips + bridge-offline handling.
+- **`test_core.js`** — drives the loop with mocks + the real parser/config:
+  `18/18` (command run, void-luau, parse-error feedback, unknown tool, bridge
+  offline, idle finalize, no re-processing).
+
 ## Next
-- Phase 6 — the agent core: wires bridge + relay + parser + config + UI + the
-  provider contract into the run loop. The big one.
+- Phase 7 — providers: the interface is already ours (`../voidscript-extension/
+  providers/_generic.js` + the 25 beta providers). Remaining is a content-script
+  **entry** that builds the real provider + overlay, wires `callTool`/`getTools`
+  to the background relay, mounts the bar, and hooks Start/Stop.
+- Phase 8 — cutover: point `manifest.json` at the rebuilt files (add `"alarms"`),
+  remove the GPL-derived core, relicense. **Needs a live browser run to validate.**

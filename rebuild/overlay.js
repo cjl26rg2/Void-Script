@@ -95,6 +95,13 @@
       return chip;
     }
 
+    /** Build a chip and attach it to a turn element; returns the chip. */
+    attachChip(target, o) {
+      const chip = this.makeChip(o);
+      if (target && target.appendChild) target.appendChild(chip);
+      return chip;
+    }
+
     /** Update an existing chip in place (e.g. running -> done). */
     updateChip(chip, o) {
       if (!chip) return;
