@@ -3,10 +3,34 @@ const KOFI_URL = "https://ko-fi.com/sebattfg";
 const SUPPORTED_HOSTS = [
   "chat.deepseek.com", "deepseek.com", "gemini.google.com", "www.kimi.com", "kimi.com",
   "chat.z.ai", "chat.qwen.ai", "arena.ai", "www.meta.ai", "meta.ai",
+  // Beta providers (generic adapter — see providers/_generic.js).
+  "chatgpt.com", "chat.openai.com", "grok.com", "www.perplexity.ai", "perplexity.ai",
+  "copilot.microsoft.com", "chat.mistral.ai",
 ];
 const DEFAULT_AI_URL = "https://chat.deepseek.com/";
 
 document.getElementById("ver").textContent = `v${chrome.runtime.getManifest().version}`;
+
+// Map a supported host to its display name for the header pill, so the popup
+// reflects whichever AI the user is actually on instead of a hardcoded label.
+const HOST_LABELS = [
+  [/deepseek\.com/, "DeepSeek"], [/gemini\.google\.com/, "Gemini"],
+  [/kimi\.com/, "Kimi"], [/z\.ai/, "GLM"], [/qwen\.ai/, "Qwen"],
+  [/arena\.ai/, "Arena"], [/meta\.ai/, "Meta AI"],
+  [/chatgpt\.com|openai\.com/, "ChatGPT"], [/grok\.com/, "Grok"],
+  [/perplexity\.ai/, "Perplexity"], [/copilot\.microsoft\.com/, "Copilot"],
+  [/mistral\.ai/, "Mistral"],
+];
+function setProviderLabel() {
+  const el = document.getElementById("prov");
+  if (!el) return;
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const url = (tabs && tabs[0] && tabs[0].url) || "";
+    const hit = HOST_LABELS.find(([re]) => re.test(url));
+    el.textContent = hit ? hit[1] : "Ready";
+  });
+}
+setProviderLabel();
 
 function render(s) {
   const dot = document.getElementById("dot");

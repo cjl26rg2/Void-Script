@@ -2,6 +2,29 @@
 
 All notable changes to ZeroScript Free are documented here.
 
+## [Unreleased]
+
+### Added
+- **5 new beta AI providers: ChatGPT, Grok, Perplexity, Copilot, Mistral.**
+  These run on a new selector-driven adapter factory (`providers/_generic.js`,
+  `ZSGeneric(cfg)`) that implements the full `ZSProvider` interface with
+  framework-neutral defaults (textarea *and* contenteditable composers, stop-
+  button-or-quiescence generation detection, best-effort image attach). Each new
+  provider is a thin config of CSS selectors. They are marked **BETA** in the
+  panel and may need per-site tuning; the hand-tuned providers remain preferred.
+- **Firefox support (121+).** Added `browser_specific_settings.gecko` to the
+  manifest and documented the `about:debugging` load flow. Chromium browsers
+  (Chrome, Edge, Brave, Opera, Vivaldi) already work. README now documents the
+  Safari path (one-time Xcode conversion on macOS; not supported out of the box).
+
+### Changed
+- **Popup UI refresh.** Elevated status card, softer palette, hover/press
+  feedback on buttons, and a header pill that now shows whichever AI you're on
+  (was a hardcoded "DeepSeek" label). The popup's supported-host list now
+  includes the beta sites so **Settings** works there too.
+- **`start.bat` banners** redrawn with box-drawing characters for a cleaner
+  console (launch/Python-detection logic unchanged).
+
 ## [1.5.0] - 2026-07-30
 
 ### Fixed

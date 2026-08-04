@@ -3,33 +3,86 @@
 <head>
   <meta charset="utf-8" />
   <style>
-    body { width: 248px; margin: 0; font-family: "Segoe UI", sans-serif; background: #16161a; color: #e8e8ec; }
-    .wrap { padding: 14px; }
-    h1 { font-size: 14px; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
-    .ver { font-size: 9.5px; font-weight: 500; letter-spacing: 0.2px;
-           color: rgba(255,255,255,0.55); background: none; border: none;
-           padding: 0; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; background: #6b7280; }
+    :root {
+      --bg: #16161a;
+      --bg-elev: #1e1e24;
+      --fg: #e8e8ec;
+      --muted: rgba(255, 255, 255, 0.55);
+      --line: rgba(255, 255, 255, 0.08);
+      --accent: #7c8cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      width: 262px; margin: 0; color: var(--fg);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      background: radial-gradient(120% 90% at 50% 0%, #20202a 0%, var(--bg) 60%);
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap { padding: 15px; }
+    h1 {
+      font-size: 14px; font-weight: 650; margin: 0 0 12px;
+      display: flex; align-items: center; gap: 8px; letter-spacing: 0.2px;
+    }
+    .brand { flex: 1; }
+    .ver {
+      font-size: 9.5px; font-weight: 500; letter-spacing: 0.3px;
+      color: var(--muted); border: none; padding: 0;
+    }
+    .prov {
+      font-size: 9px; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase;
+      color: var(--accent); background: rgba(124, 140, 255, 0.14);
+      padding: 2px 6px; border-radius: 999px;
+    }
+    .dot {
+      width: 9px; height: 9px; border-radius: 50%; background: #6b7280;
+      flex: 0 0 auto; transition: background 0.25s ease, box-shadow 0.25s ease;
+    }
     .dot.on { background: #34d399; box-shadow: 0 0 8px #34d399; }
     .dot.warn { background: #fbbf24; box-shadow: 0 0 8px #fbbf24; }
-    .row { font-size: 12px; opacity: 0.85; margin: 6px 0; }
-    button { width: 100%; margin-top: 8px; padding: 8px; border: 0; border-radius: 8px; cursor: pointer; font-size: 12px; }
-    .ghost { background: rgba(255,255,255,0.08); color: #e8e8ec; }
-    .kofi { background: rgba(255,105,135,.16); color: #ff8fa3; border: 1px solid rgba(255,105,135,.4) !important; font-weight: 700; }
-    code { background: rgba(255,255,255,0.08); padding: 1px 5px; border-radius: 4px; }
+    .card {
+      background: var(--bg-elev); border: 1px solid var(--line);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 10px;
+    }
+    .row { font-size: 12px; opacity: 0.9; margin: 5px 0; line-height: 1.4; }
+    .row:first-child { margin-top: 0; }
+    .row:last-child { margin-bottom: 0; }
+    button {
+      width: 100%; margin-top: 8px; padding: 9px; border: 1px solid transparent;
+      border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 550;
+      color: var(--fg); transition: background 0.15s ease, transform 0.05s ease, border-color 0.15s ease;
+    }
+    button:hover { background: rgba(255, 255, 255, 0.14); }
+    button:active { transform: translateY(1px); }
+    .ghost { background: rgba(255, 255, 255, 0.07); border-color: var(--line); }
+    .kofi {
+      background: rgba(255, 105, 135, 0.16); color: #ff8fa3;
+      border-color: rgba(255, 105, 135, 0.4) !important; font-weight: 700;
+    }
+    .kofi:hover { background: rgba(255, 105, 135, 0.26); }
+    code {
+      background: rgba(255, 255, 255, 0.08); padding: 1px 5px; border-radius: 4px;
+      font-family: ui-monospace, monospace;
+    }
+    .hint { margin-top: 12px; opacity: 0.6; font-size: 11px; line-height: 1.5; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1><span id="dot" class="dot"></span> ZeroScript <span id="ver" class="ver"></span> <span style="font-size:9px;opacity:.6">DeepSeek</span></h1>
-    <div class="row" id="state">Bridge: …</div>
-    <div class="row" id="tools"></div>
-    <div class="row" id="servers" style="white-space:pre-line; font-family:ui-monospace,monospace; opacity:0.75"></div>
+    <h1>
+      <span id="dot" class="dot"></span>
+      <span class="brand">ZeroScript <span id="ver" class="ver"></span></span>
+      <span id="prov" class="prov">Ready</span>
+    </h1>
+    <div class="card">
+      <div class="row" id="state">Bridge: …</div>
+      <div class="row" id="tools"></div>
+      <div class="row" id="servers" style="white-space:pre-line; font-family:ui-monospace,monospace; opacity:0.75"></div>
+    </div>
     <button class="ghost" id="reconnect">↻ Reconnect bridge</button>
     <button class="ghost" id="restart">⟳ Restart Roblox server</button>
     <button class="ghost" id="settings">⚙ Settings</button>
     <button class="kofi" id="kofi">♥ Tip the developer on Ko-fi</button>
-    <div class="row" style="margin-top:10px; opacity:0.6">
+    <div class="hint">
       Run <code>start.bat</code> and open <b>Roblox Studio</b>, then go to a supported AI.
     </div>
   </div>

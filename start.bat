@@ -14,7 +14,10 @@ REM environment must be either ON SCREEN or in this log.
 for /f "tokens=*" %%v in ('ver') do call :log "%%v"
 
 echo.
-echo   === ZeroScript Bridge ===
+echo   ╔══════════════════════════════════════════╗
+echo   ║            ZeroScript Bridge             ║
+echo   ║        Void-Script × Roblox Studio       ║
+echo   ╚══════════════════════════════════════════╝
 echo.
 
 REM Refuse to run from inside a ZIP preview: Explorer extracts start.bat alone
@@ -197,14 +200,14 @@ if defined OLDPID (
 )
 
 echo.
-echo  ############################################################
-echo  ##                                                        ##
-echo  ##   KEEP THIS TERMINAL OPEN - DO NOT CLOSE THIS WINDOW   ##
-echo  ##                                                        ##
-echo  ##   ZeroScript stops working if you close it. Just       ##
-echo  ##   minimize this window and leave it running.           ##
-echo  ##                                                        ##
-echo  ############################################################
+echo  ┌────────────────────────────────────────────────────────┐
+echo  │                                                        │
+echo  │   KEEP THIS TERMINAL OPEN — DO NOT CLOSE THIS WINDOW    │
+echo  │                                                        │
+echo  │   ZeroScript stops working if you close it. Just       │
+echo  │   minimize this window and leave it running.           │
+echo  │                                                        │
+echo  └────────────────────────────────────────────────────────┘
 echo.
 call :log "Launching bridge.py with %PY%"
 %PY% "%~dp0bridge.py"

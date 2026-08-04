@@ -1,24 +1,43 @@
-# ZeroScript Free - AI Roblox Studio Agent (DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI)
+# ZeroScript Free - AI Roblox Studio Agent (DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot, Mistral)
 
-Control Roblox Studio with AI, for free. ZeroScript turns a normal AI chat (DeepSeek, Google Gemini, Kimi, GLM, Qwen, Arena, or Meta AI) into an agent that builds and scripts your Roblox game for you: just describe what you want, and it reads/edits scripts, runs Luau, inspects the game tree, and generates assets directly in Roblox Studio. No API key, no terminal, no coding required.
+Control Roblox Studio with AI, for free. ZeroScript turns a normal AI chat into an agent that builds and scripts your Roblox game for you: just describe what you want, and it reads/edits scripts, runs Luau, inspects the game tree, and generates assets directly in Roblox Studio. No API key, no terminal, no coding required.
 
-It's a Chrome/Edge browser extension plus a small local bridge that connects the chat to Roblox Studio through the official MCP server. **DeepSeek is the recommended provider.** Gemini, Kimi, GLM, Qwen, Arena and Meta AI also work but can be less stable: Gemini tends to stop using the Roblox tools in long sessions, and Kimi sometimes reaches for its own native tools instead of the Roblox commands. On Arena, keep the mode dropdown on **Direct** (ZeroScript only supports Direct mode).
+It's a browser extension plus a small local bridge that connects the chat to Roblox Studio through the official MCP server. **DeepSeek is the recommended provider.**
+
+**Fully supported (hand-tuned providers):** DeepSeek, Google Gemini, Kimi, GLM, Qwen, Arena, Meta AI. These can each vary in stability: Gemini tends to stop using the Roblox tools in long sessions, Kimi sometimes reaches for its own native tools, and on Arena you must keep the mode dropdown on **Direct** (ZeroScript only supports Direct mode).
+
+**Beta (generic adapter):** ChatGPT, Grok, Perplexity, Copilot, Mistral. These run on a shared, selector-driven adapter (`providers/_generic.js`) instead of a hand-tuned provider, so they load and drive the site but may need per-site tuning — completion timing or the send handshake can be off if the site changed its DOM. If a beta provider stalls or never detects that the reply finished, that's expected roughness; report it so a dedicated provider can be written. The ZeroScript panel shows a "BETA" notice on these sites.
 
 ## Setup
 
-**Load the extension manually (Edge or Chrome):**
-1. Go to `edge://extensions` (Edge) or `chrome://extensions` (Chrome)
+**Load the extension manually (Chromium browsers — Chrome, Edge, Brave, Opera, Vivaldi):**
+1. Go to `chrome://extensions` (or `edge://extensions`, `brave://extensions`, etc.)
 2. Enable **Developer mode** (top right toggle)
 3. Click **Load unpacked**
 4. Select the `zeroscript-extension` folder
 5. The extension is now active
+
+**Load the extension on Firefox (121+):**
+1. Go to `about:debugging#/runtime/this-firefox`
+2. Click **Load Temporary Add-on…**
+3. Select the `manifest.json` inside the `zeroscript-extension` folder
+4. The extension loads until Firefox restarts (temporary add-ons are cleared on
+   restart — reload it the same way, or package/sign it via `about:addons` for a
+   permanent install). The manifest already declares the required
+   `browser_specific_settings.gecko` id for Firefox.
+
+**Safari:** Safari does not load unpacked WebExtensions. It needs a one-time
+conversion into an Xcode project on a Mac using Apple's converter
+(`xcrun safari-web-extension-converter zeroscript-extension`), then a build in
+Xcode. This can't be done from the repo alone — it requires macOS + Xcode — so
+Safari is not supported out of the box.
 
 **Then set up the Bridge:**
 1. **Download the Bridge** from the [GitHub releases page](https://github.com/sebattfg/ZeroScript-Free)
 2. **Open Roblox Studio** and load a Place
 3. **Enable the MCP server in Roblox Studio** (first time only): click **Assistant AI** in the top bar, then **...** > **Manage MCP Servers** > **Enable Studio as MCP Server**
 4. **Run the Bridge** - double-click `start.bat` (Windows) or `MacOS_Start.command` (macOS); a small window opens, the Bridge is running. On macOS, the first launch shows a Gatekeeper warning (normal for any downloaded script): click **Done**, then **System Settings > Privacy & Security**, scroll down, and click **Open Anyway**.
-5. **Go to https://chat.deepseek.com** (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, or https://www.meta.ai, open a new chat (only works on these exact addresses; on Arena use Direct mode)
+5. **Go to https://chat.deepseek.com** (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, or https://www.meta.ai — or a **beta** site: https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai. Open a new chat (only works on these exact addresses; on Arena use Direct mode)
 6. Click **Start session** in the ZeroScript panel
 7. Type what you want to build
 
@@ -47,14 +66,29 @@ providers/arena.js    same interface for Arena / arena.ai (React DOM, multi-mode
                       playground, A/B-comparison auto-commit, Direct-mode gate) (global ZSProvider)
 providers/meta.js     same interface for Meta AI / meta.ai (React DOM, textarea
                       composer, JSON-viewer + code-collapse masking)   (global ZSProvider)
+providers/_generic.js selector-driven factory ZSGeneric(cfg) implementing the whole
+                      ZSProvider interface with framework-neutral defaults (beta base)
+providers/chatgpt.js  BETA: thin config on ZSGeneric for ChatGPT      (global ZSProvider)
+providers/grok.js     BETA: thin config on ZSGeneric for Grok         (global ZSProvider)
+providers/perplexity.js BETA: thin config on ZSGeneric for Perplexity (global ZSProvider)
+providers/copilot.js  BETA: thin config on ZSGeneric for Copilot      (global ZSProvider)
+providers/mistral.js  BETA: thin config on ZSGeneric for Mistral      (global ZSProvider)
 background.js         WebSocket to the local bridge (provider-agnostic)
 ```
 
 `core/main.js` never touches the host site's DOM directly - it only calls the
-`ZSProvider` interface. To integrate another AI site: write a new
-`providers/<site>.js` exporting the same interface, then add its URL pattern to
-`manifest.json` (`content_scripts` + `host_permissions`) and to
-`PROVIDER_URLS` in `background.js`. No core change required.
+`ZSProvider` interface. There are two ways to integrate another AI site:
+
+- **Quick (beta):** add a thin config file that calls `ZSGeneric({ id, displayName,
+  selectors: {...} })` from `providers/_generic.js` (see `providers/chatgpt.js`).
+  Load `providers/_generic.js` **before** the config file in the `content_scripts`
+  `js` array. Fast to stand up; may need per-site tuning.
+- **Full (validated):** write a dedicated `providers/<site>.js` exporting the same
+  interface by hand (see `providers/gemini.js`), for sites whose DOM you've
+  validated live. Preferred once a site is stable.
+
+Either way, add the site's URL pattern to `manifest.json` (`content_scripts` +
+`host_permissions`) and to `PROVIDER_URLS` in `background.js`. No core change required.
 
 Run `node test-parser.js` to smoke-test the command parser.
 

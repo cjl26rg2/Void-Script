@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "ZeroScript Free × Roblox Studio Agent",
   "version": "1.5.0",
-  "description": "Turn DeepSeek, Gemini, Kimi, GLM, Qwen, Arena or Meta AI into a Roblox Studio agent that drives Studio through a local bridge.",
+  "description": "Turn DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot or Mistral into a Roblox Studio agent that drives Studio through a local bridge.",
   "permissions": ["storage"],
   "host_permissions": [
     "https://chat.deepseek.com/*",
@@ -15,11 +15,24 @@
     "https://arena.ai/*",
     "https://www.meta.ai/*",
     "https://meta.ai/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://grok.com/*",
+    "https://www.perplexity.ai/*",
+    "https://perplexity.ai/*",
+    "https://copilot.microsoft.com/*",
+    "https://chat.mistral.ai/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "zeroscript@voidscript.local",
+      "strict_min_version": "121.0"
+    }
   },
   "icons": {
     "16": "icon.png",
@@ -81,6 +94,36 @@
     {
       "matches": ["https://chat.qwen.ai/*"],
       "js": ["core/config.js", "core/parser.js", "providers/qwen.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chatgpt.com/*", "https://chat.openai.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/chatgpt.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://grok.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/grok.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.perplexity.ai/*", "https://perplexity.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/perplexity.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://copilot.microsoft.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/copilot.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.mistral.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/mistral.js", "core/main.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
     }
