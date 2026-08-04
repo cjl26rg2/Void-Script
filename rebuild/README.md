@@ -56,6 +56,15 @@ it is built from the documented protocols (MCP spec, our own WS/command format).
   formatting, the ` ```void-result ` builder, and the tool→chip category map.
 - **`test_config.js`** — 17 cases. Run: `node rebuild/test_config.js` → `17/17`.
 
+## Phase 5 — Overlay UI + CSS ✅ (visually previewed)
+
+- **`overlay.css`** — the in-page bar, per-category result chips, command-masking
+  and the working-cover. Namespaced under `#void-root` / `.void-*`; colours match
+  the logo/popup. **`overlay.js`** (`VoidOverlay`) — builds/mounts the bar, sets
+  status (idle/ok/working/error/paused), makes & updates chips, and masks the raw
+  ` ```void ` block. Design-heavy, so verified with a rendered preview rather than
+  a unit test (syntax passes `node --check`).
+
 ## Next
-- Phase 5 — overlay UI + CSS (bar, chips, command masking), then the agent core
-  (Phase 6) that wires bridge + relay + parser + config + UI together.
+- Phase 6 — the agent core: wires bridge + relay + parser + config + UI + the
+  provider contract into the run loop. The big one.

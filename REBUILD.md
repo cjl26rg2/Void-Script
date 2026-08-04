@@ -153,7 +153,8 @@ note if desired (optional once nothing is derivative).
   10/10). Cutover needs `"alarms"` added to manifest permissions.
 - [x] Phase 3 — Parser — **built & unit-tested** (`rebuild/parser.js`, 11/11).
 - [x] Phase 4 — Prompt & config — **built & unit-tested** (`rebuild/config.js`, 17/17).
-- [ ] Phase 5 — Overlay UI + CSS
+- [x] Phase 5 — Overlay UI + CSS — **built & previewed** (`rebuild/overlay.css` +
+  `rebuild/overlay.js`).
 - [ ] Phase 6 — Agent core
 - [ ] Phase 7 — Providers
 - [ ] Phase 8 — Cutover & relicense
