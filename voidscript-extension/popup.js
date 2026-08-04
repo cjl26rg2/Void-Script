@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 const KOFI_URL = "https://ko-fi.com/sebattfg";
+const WEBSITE_URL = "https://void-script.vercel.app/";
 const SUPPORTED_HOSTS = [
   "chat.deepseek.com", "deepseek.com", "gemini.google.com", "www.kimi.com", "kimi.com",
   "chat.z.ai", "chat.qwen.ai", "arena.ai", "www.meta.ai", "meta.ai",
@@ -8,6 +9,8 @@ const SUPPORTED_HOSTS = [
   "copilot.microsoft.com", "chat.mistral.ai",
   "poe.com", "huggingface.co", "www.phind.com", "www.blackbox.ai", "you.com",
   "groq.com", "lmarena.ai", "www.doubao.com", "yuanbao.tencent.com", "chat.reka.ai",
+  "pi.ai", "coral.cohere.com", "openrouter.ai", "v0.app", "v0.dev", "www.genspark.ai",
+  "lambda.chat", "yiyan.baidu.com", "chat.minimax.io", "manus.im", "chat.together.ai",
 ];
 const DEFAULT_AI_URL = "https://chat.deepseek.com/";
 
@@ -26,6 +29,10 @@ const HOST_LABELS = [
   [/blackbox\.ai/, "Blackbox"], [/you\.com/, "You"], [/groq\.com/, "Groq"],
   [/lmarena\.ai/, "LMArena"], [/doubao\.com/, "Doubao"],
   [/yuanbao\.tencent\.com/, "Yuanbao"], [/reka\.ai/, "Reka"],
+  [/pi\.ai/, "Pi"], [/coral\.cohere\.com/, "Coral"], [/openrouter\.ai/, "OpenRouter"],
+  [/v0\.(app|dev)/, "v0"], [/genspark\.ai/, "Genspark"], [/lambda\.chat/, "Lambda Chat"],
+  [/yiyan\.baidu\.com/, "ERNIE"], [/minimax\.io/, "MiniMax"], [/manus\.im/, "Manus"],
+  [/together\.ai/, "Together"],
 ];
 function setProviderLabel() {
   const el = document.getElementById("prov");
@@ -76,6 +83,9 @@ document.getElementById("restart").addEventListener("click", (e) => {
 });
 document.getElementById("kofi").addEventListener("click", () => {
   chrome.tabs.create({ url: KOFI_URL });
+});
+document.getElementById("website").addEventListener("click", () => {
+  chrome.tabs.create({ url: WEBSITE_URL });
 });
 document.getElementById("settings").addEventListener("click", () => {
   // Same mechanism as the Ko-fi button (chrome.tabs), but tries the in-page

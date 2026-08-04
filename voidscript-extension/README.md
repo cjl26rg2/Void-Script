@@ -6,7 +6,7 @@ It's a browser extension plus a small local bridge that connects the chat to Rob
 
 **Fully supported (hand-tuned providers):** DeepSeek, Google Gemini, Kimi, GLM, Qwen, Arena, Meta AI. These can each vary in stability: Gemini tends to stop using the Roblox tools in long sessions, Kimi sometimes reaches for its own native tools, and on Arena you must keep the mode dropdown on **Direct** (VoidScript only supports Direct mode).
 
-**Beta (generic adapter):** ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe, HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka. These run on a shared, selector-driven adapter (`providers/_generic.js`) instead of a hand-tuned provider, so they load and drive the site but may need per-site tuning — completion timing or the send handshake can be off if the site changed its DOM. The selectors were written from documented/common patterns, **not** validated against each live site, so expect some to need a tweak. If a beta provider stalls or never detects that the reply finished, that's expected roughness; report it so a dedicated provider can be written. The VoidScript panel shows a "BETA" notice on these sites.
+**Beta (generic adapter):** ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe, HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka, Pi, Coral, OpenRouter, v0, Genspark, Lambda Chat, ERNIE, MiniMax, Manus, Together. These run on a shared, selector-driven adapter (`providers/_generic.js`) instead of a hand-tuned provider, so they load and drive the site but may need per-site tuning — completion timing or the send handshake can be off if the site changed its DOM. The selectors were written from documented/common patterns, **not** validated against each live site, so expect some to need a tweak. If a beta provider stalls or never detects that the reply finished, that's expected roughness; report it so a dedicated provider can be written. The VoidScript panel shows a "BETA" notice on these sites.
 
 ## Setup
 
@@ -37,7 +37,7 @@ Safari is not supported out of the box.
 2. **Open Roblox Studio** and load a Place
 3. **Enable the MCP server in Roblox Studio** (first time only): click **Assistant AI** in the top bar, then **...** > **Manage MCP Servers** > **Enable Studio as MCP Server**
 4. **Run the Bridge** - double-click `start.bat` (Windows) or `MacOS_Start.command` (macOS); a small window opens, the Bridge is running. On macOS, the first launch shows a Gatekeeper warning (normal for any downloaded script): click **Done**, then **System Settings > Privacy & Security**, scroll down, and click **Open Anyway**.
-5. **Go to https://chat.deepseek.com** (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, or https://www.meta.ai — or a **beta** site: https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai, https://poe.com, https://huggingface.co/chat, https://www.phind.com, https://www.blackbox.ai, https://you.com, https://groq.com, https://lmarena.ai, https://www.doubao.com, https://yuanbao.tencent.com, https://chat.reka.ai. Open a new chat (only works on these exact addresses; on Arena use Direct mode)
+5. **Go to https://chat.deepseek.com** (recommended), https://gemini.google.com, https://www.kimi.com, https://chat.z.ai, https://chat.qwen.ai, https://arena.ai, or https://www.meta.ai — or a **beta** site: https://chatgpt.com, https://grok.com, https://www.perplexity.ai, https://copilot.microsoft.com, https://chat.mistral.ai, https://poe.com, https://huggingface.co/chat, https://www.phind.com, https://www.blackbox.ai, https://you.com, https://groq.com, https://lmarena.ai, https://www.doubao.com, https://yuanbao.tencent.com, https://chat.reka.ai, https://pi.ai, https://coral.cohere.com, https://openrouter.ai, https://v0.app, https://www.genspark.ai, https://lambda.chat, https://yiyan.baidu.com, https://chat.minimax.io, https://manus.im, https://chat.together.ai. Open a new chat (only works on these exact addresses; on Arena use Direct mode)
 6. Click **Start session** in the VoidScript panel
 7. Type what you want to build
 
@@ -74,7 +74,9 @@ providers/perplexity.js BETA: thin config on ZSGeneric for Perplexity (global ZS
 providers/copilot.js  BETA: thin config on ZSGeneric for Copilot      (global ZSProvider)
 providers/mistral.js  BETA: thin config on ZSGeneric for Mistral      (global ZSProvider)
 providers/poe.js, huggingchat.js, phind.js, blackbox.js, you.js, groq.js,
-providers/lmarena.js, doubao.js, yuanbao.js, reka.js
+providers/lmarena.js, doubao.js, yuanbao.js, reka.js, pi.js, coral.js,
+providers/openrouter.js, v0.js, genspark.js, lambda.js, yiyan.js, minimax.js,
+providers/manus.js, together.js
                       BETA: thin ZSGeneric configs for more chat sites (global ZSProvider)
 background.js         WebSocket to the local bridge (provider-agnostic)
 ```

@@ -5,8 +5,9 @@ All notable changes to VoidScript Free are documented here.
 ## [Unreleased]
 
 ### Added
-- **15 new beta AI providers: ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe,
-  HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka.**
+- **25 new beta AI providers: ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe,
+  HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka, Pi,
+  Coral, OpenRouter, v0, Genspark, Lambda Chat, ERNIE, MiniMax, Manus, Together.**
   These run on a new selector-driven adapter factory (`providers/_generic.js`,
   `ZSGeneric(cfg)`) that implements the full `ZSProvider` interface with
   framework-neutral defaults (textarea *and* contenteditable composers, stop-
@@ -27,6 +28,11 @@ All notable changes to VoidScript Free are documented here.
   includes the beta sites so **Settings** works there too.
 - **`start.bat` banners** redrawn with box-drawing characters for a cleaner
   console (launch/Python-detection logic unchanged).
+- **Rebranded ZeroScript → VoidScript** across all user-facing text, the manifest
+  name, and the extension folder (`voidscript-extension/`). Internal code symbols
+  (`ZS`, `ZSProvider`, `zs-` CSS) are unchanged. GitHub links now point to
+  `cjl26rg2/Void-Script`; a **Website** button in the popup opens
+  `https://void-script.vercel.app/`.
 
 ## [1.5.0] - 2026-07-30
 

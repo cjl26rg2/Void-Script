@@ -32,6 +32,17 @@
     "https://www.doubao.com/*",
     "https://yuanbao.tencent.com/*",
     "https://chat.reka.ai/*",
+    "https://pi.ai/*",
+    "https://coral.cohere.com/*",
+    "https://openrouter.ai/*",
+    "https://v0.app/*",
+    "https://v0.dev/*",
+    "https://www.genspark.ai/*",
+    "https://lambda.chat/*",
+    "https://yiyan.baidu.com/*",
+    "https://chat.minimax.io/*",
+    "https://manus.im/*",
+    "https://chat.together.ai/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*"
   ],
@@ -194,6 +205,66 @@
     {
       "matches": ["https://chat.reka.ai/*"],
       "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/reka.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://pi.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/pi.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://coral.cohere.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/coral.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://openrouter.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/openrouter.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://v0.app/*", "https://v0.dev/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/v0.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.genspark.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/genspark.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lambda.chat/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/lambda.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://yiyan.baidu.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/yiyan.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.minimax.io/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/minimax.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://manus.im/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/manus.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.together.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/together.js", "core/main.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
     }
