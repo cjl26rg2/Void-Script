@@ -1,271 +1,213 @@
 :: SPDX-License-Identifier: GPL-3.0-or-later
+:: VoidScript launcher (Windows). Finds a usable Python, makes sure the
+:: `websockets` dependency is present, frees the bridge port if a previous run
+:: left it held, then runs bridge.py. Written for VoidScript; kept GPL-3.0 as
+:: part of the project.
 @echo off
-setlocal enabledelayedexpansion
+setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
 title VoidScript Bridge  -  Roblox Studio agent
 cd /d "%~dp0"
 
-REM --- ANSI colour setup (Windows 10 1607+ / Windows 11) ----------------------
-REM Grab the raw ESC control character, then define 24-bit truecolor codes. If a
-REM very old console ignores VT sequences the worst case is a few stray codes in
-REM the banner - the launch itself never depends on colour.
-for /f %%a in ('echo prompt $E ^| cmd') do set "ESC=%%a"
-set "R=%ESC%[0m"
-set "B=%ESC%[1m"
-set "RED=%ESC%[38;2;226;35;26m"
-set "RBLX=%ESC%[38;2;255;90;82m"
-set "VIO=%ESC%[38;2;124;140;255m"
-set "VIO2=%ESC%[38;2;154;168;255m"
-set "WHT=%ESC%[38;2;236;236;242m"
-set "DIM=%ESC%[38;2;120;120;140m"
-set "GRN=%ESC%[38;2;52;211;153m"
-set "YEL=%ESC%[38;2;251;191;36m"
+:: ---- palette ---------------------------------------------------------------
+:: 24-bit ANSI (Windows 10 1607+ / 11). ASCII-only art on purpose: colour codes
+:: mixed with Unicode box glyphs confuse cmd's parser under chcp 65001.
+for /f %%e in ('echo prompt $E ^| cmd') do set "E=%%e"
+set "C0=%E%[0m"
+set "CB=%E%[1m"
+set "CRED=%E%[38;2;255;90;82m"
+set "CVIO=%E%[38;2;124;140;255m"
+set "CWHT=%E%[38;2;236;236;242m"
+set "CDIM=%E%[38;2;120;120;140m"
+set "COK=%E%[38;2;52;211;153m"
+set "CWARN=%E%[38;2;251;191;36m"
 
-if not exist "%~dp0logs" mkdir "%~dp0logs" >nul 2>nul
-set "LOGFILE=%~dp0logs\start.log"
-call :log "===== %DATE% %TIME%  start.bat launched ====="
-REM Log the Windows build once per launch - most support requests arrive as a
-REM single terminal screenshot, so anything that identifies the machine's
-REM environment must be either ON SCREEN or in this log.
-for /f "tokens=*" %%v in ('ver') do call :log "%%v"
+:: ---- config ----------------------------------------------------------------
+set "PORT=17613"
+if defined ZS_BRIDGE_PORT set "PORT=%ZS_BRIDGE_PORT%"
+set "LOGDIR=%~dp0logs"
+set "LOG=%LOGDIR%\start.log"
+if not exist "%LOGDIR%" md "%LOGDIR%" >nul 2>nul
+call :note "==== %DATE% %TIME%  launcher started (port %PORT%) ===="
+for /f "delims=" %%v in ('ver') do call :note "%%v"
 
-REM Banner is deliberately ASCII-only: mixing ANSI colour codes with Unicode
-REM block/box-drawing glyphs breaks cmd's tokenizer under chcp 65001 (the glyph
-REM lines get parsed as commands). ASCII art + truecolor is robust everywhere.
-echo.
-echo   %RBLX%    _______%R%
-echo   %RBLX%   /\      \%R%      %B%%WHT%VOID%VIO%SCRIPT%R%   %VIO%^</^>%R%
-echo   %RBLX%  /  \______\%R%     %DIM%AI agent  %RBLX%x%DIM%  ROBLOX STUDIO%R%
-echo   %RBLX%  \  /      /%R%     %DIM%local bridge%R%
-echo   %RBLX%   \/______/%R%
-echo.
-echo   %VIO%==============================================%R%
-echo.
+call :banner
 
-REM Refuse to run from inside a ZIP preview: Explorer extracts start.bat alone
-REM to %TEMP%, so bridge.py is missing and the launch fails with a confusing
-REM Python error. Detect the missing file up front with a plain explanation -
-REM this is one of the most common first-run mistakes.
+:: ---- 0. sanity: are we actually in the project folder? ---------------------
+:: Opening start.bat straight from inside the ZIP extracts it alone to %TEMP%,
+:: so bridge.py is missing and Python fails with a confusing error. Catch it.
 if not exist "%~dp0bridge.py" (
-    echo   ERROR: bridge.py not found next to start.bat.
-    echo.
-    echo   If you opened start.bat from inside the downloaded ZIP, first EXTRACT
-    echo   the whole ZIP ^(right-click, "Extract All..."^), then run start.bat
-    echo   from the extracted folder.
-    echo.
-    call :log "FATAL: bridge.py missing next to start.bat (run from inside ZIP?)."
-    pause
-    exit /b 1
+    call :fail "bridge.py is not next to start.bat."
+    echo   You probably ran start.bat from *inside* the ZIP. Extract the whole
+    echo   ZIP first ^(right-click the .zip -^> "Extract All..."^), then run
+    echo   start.bat from the extracted folder.
+    call :note "ABORT: bridge.py missing (launched from inside the ZIP?)."
+    call :halt 1
 )
 
-REM --- 1. Find Python ---------------------------------------------------------
-echo   %VIO%[1/3]%R% %B%Looking for Python...%R%
+:: ---- 1. locate a usable Python --------------------------------------------
+echo   %CVIO%[1/3]%C0% %CB%Locating Python...%C0%
 set "PY="
+call :try_python "py -3"                    && goto :have_python
+call :try_python "python"                   && goto :have_python
+call :scan_python_dirs                       && goto :have_python
 
-REM Prefer the py launcher - it never resolves to the Microsoft Store stub.
-where py >nul 2>nul && set "PY=py -3"
-call :validate_py && goto :found
-
-REM Fall back to python on PATH, but skip the Store stub (WindowsApps) which
-REM cannot run pip and silently fails.
-set "PY=python"
-call :validate_py && goto :found
-
-REM Last resort: scan the standard install folders directly. Covers the common
-REM case where Python was installed WITHOUT "Add to PATH" and without the py
-REM launcher, so neither "py" nor "python" resolves. Newest version first.
-for %%R in (
-    "%LOCALAPPDATA%\Programs\Python"
-    "%ProgramFiles%"
-    "%ProgramFiles(x86)%"
-) do (
-    if exist "%%~R" (
-        for /f "delims=" %%D in ('dir /b /ad /o-n "%%~R\Python3*" 2^>nul') do (
-            if exist "%%~R\%%D\python.exe" (
-                set PY="%%~R\%%D\python.exe"
-                call :validate_py && goto :found
-            )
-        )
-    )
+:: none found -> try to install it
+call :note "no usable Python on PATH or in the usual install folders."
+where winget >nul 2>nul || (
+    call :fail "Python is not installed, and winget is unavailable to install it."
+    echo   Install Python 3.9+ yourself: https://www.python.org/downloads/
+    echo   Tick %CB%"Add python.exe to PATH"%C0% during setup, then rerun start.bat.
+    call :note "ABORT: no Python and no winget."
+    call :halt 1
 )
-
-set "PY="
-call :log "Python not found on PATH or in standard install folders."
-goto :need_install
-
-:found
-REM Print the exact interpreter VERSION on screen (not just the launcher name):
-REM a user screenshot must tell us whether the failure is a too-old Python
-REM without asking them to run anything else.
-REM "call" prefix: when %PY% is a quoted full path (the no-PATH scan case), a
-REM bare quoted command inside for /f trips cmd's leading-quote stripping rule;
-REM call re-parses the line and keeps the quotes intact.
-for /f "tokens=*" %%v in ('call %PY% --version 2^>^&1') do (
-    echo         Found: %PY%  ^(%%v^)
-    call :log "Python found: %PY% (%%v)"
-)
-goto :install_deps
-
-:need_install
-REM --- Python not found, try winget -------------------------------------------
-REM winget itself may be absent (LTSC / old Win10 / stripped installs). Without
-REM this check the "winget" line fails with an unrelated "not recognized" error
-REM that users screenshot without context - name the real problem instead.
-where winget >nul 2>nul
-if errorlevel 1 (
-    echo   ERROR: Python is not installed and winget ^(Windows package manager^)
-    echo   is not available on this PC, so it cannot be installed automatically.
-    echo.
-    echo   Install Python manually: https://www.python.org/downloads/
-    echo   IMPORTANT: tick "Add python.exe to PATH", then run start.bat again.
-    echo.
-    call :log "FATAL: no Python and no winget on this machine."
-    pause
-    exit /b 1
-)
-echo         Not found. Installing via winget...
-echo.
+echo         %CWARN%Not found - installing Python via winget...%C0%
 winget install --id Python.Python.3.12 --source winget --accept-package-agreements --accept-source-agreements
-if errorlevel 1 call :log "winget install returned an error (see console output above)."
-echo.
-echo   Checking again...
-set "PY=py -3"
-call :validate_py && goto :ready
-set "PY=python"
-call :validate_py && goto :ready
-REM A winget install does NOT refresh THIS console's PATH, so "py"/"python" can
-REM stay unresolvable in the very session that installed them. Rescan the
-REM standard install folders directly (same scan as the pre-install fallback)
-REM before telling the user it failed - a plain restart-and-retry would have
-REM worked, so we do its equivalent for them.
-for %%R in (
-    "%LOCALAPPDATA%\Programs\Python"
-    "%ProgramFiles%"
-    "%ProgramFiles(x86)%"
-) do (
-    if exist "%%~R" (
-        for /f "delims=" %%D in ('dir /b /ad /o-n "%%~R\Python3*" 2^>nul') do (
-            if exist "%%~R\%%D\python.exe" (
-                set PY="%%~R\%%D\python.exe"
-                call :validate_py && goto :ready
-            )
-        )
-    )
-)
-echo.
-echo   ERROR: Python not found after install.
-echo   Install manually: https://www.python.org/downloads/
-echo   Tick "Add python.exe to PATH" then run this again.
-echo.
-call :log "FATAL: no usable Python found even after winget install."
-pause
-exit /b 1
-:ready
-echo         %GRN%Python ready!%R%
-call :log "Python ready after winget install: %PY%"
+call :note "winget install finished (see console for its own result)."
+echo         Re-checking...
+:: a fresh install does not update THIS window's PATH, so re-scan the folders too
+call :try_python "py -3"      && goto :have_python
+call :try_python "python"     && goto :have_python
+call :scan_python_dirs        && goto :have_python
+call :fail "Python still not found after the winget install."
+echo   Install it manually from https://www.python.org/downloads/ ^(tick
+echo   "Add python.exe to PATH"^) and run start.bat again.
+call :note "ABORT: no usable Python even after winget."
+call :halt 1
 
-:install_deps
-REM --- 2. Install websockets --------------------------------------------------
+:have_python
+for /f "delims=" %%v in ('call %PY% --version 2^>^&1') do set "PYVER=%%v"
+echo         %COK%Using%C0% %PY%  %CDIM%(!PYVER!)%C0%
+call :note "python: %PY% (!PYVER!)"
+
+:: ---- 2. dependency: websockets --------------------------------------------
 echo.
-echo   %VIO%[2/3]%R% %B%Checking websockets library...%R%
+echo   %CVIO%[2/3]%C0% %CB%Checking the websockets library...%C0%
 %PY% -c "import websockets" >nul 2>nul
 if errorlevel 1 (
-    echo         Installing websockets - first time only...
+    echo         Installing websockets ^(one time only^)...
     %PY% -m pip install --user websockets
     if errorlevel 1 (
-        echo.
-        echo   ERROR: Could not install websockets ^(see pip output above^).
-        echo   Common causes: no internet, a firewall/antivirus blocking pip,
-        echo   or Python has no working pip. If you used the Microsoft Store
-        echo   python, install from https://www.python.org/downloads/ instead
-        echo   ^(tick "Add to PATH"^).
-        echo.
-        call :log "FATAL: pip install websockets failed."
-        pause
-        exit /b 1
+        call :fail "Could not install websockets (see pip output above)."
+        echo   Usually this is no internet, a firewall/AV blocking pip, or a
+        echo   Microsoft Store Python with no working pip. Install from
+        echo   https://www.python.org/downloads/ and tick "Add to PATH".
+        call :note "ABORT: pip install websockets failed."
+        call :halt 1
     )
 )
-echo         %GRN%OK%R%
-call :log "websockets library OK"
+echo         %COK%Ready%C0%
+call :note "websockets present."
 
-REM --- 3. Run the bridge ------------------------------------------------------
+:: ---- 3. free the port, then run the bridge --------------------------------
 echo.
-echo   %VIO%[3/3]%R% %B%Starting bridge...%R%
+echo   %CVIO%[3/3]%C0% %CB%Starting the bridge...%C0%
+call :free_port
 
-REM If a previous bridge is already listening on 17613, say so instead of
-REM silently killing it - a double-launch is easy to do by mistake (e.g.
-REM double-clicking start.bat twice) and should not look like nothing happened.
-set "OLDPID="
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr :17613 ^| findstr LISTENING 2^>nul') do (
-    set "OLDPID=%%a"
-)
-if defined OLDPID (
-    echo         A previous bridge ^(pid !OLDPID!^) is already running on this port.
-    echo         Replacing it with this new instance...
-    call :log "Killing previous bridge instance (pid !OLDPID!) on port 17613."
-    taskkill /F /T /PID !OLDPID! >nul 2>nul
-    REM Give Windows a moment to actually free the socket before we rebind it.
-    timeout /t 1 /nobreak >nul
-    set "STILLTHERE="
-    for /f "tokens=5" %%a in ('netstat -aon ^| findstr :17613 ^| findstr LISTENING 2^>nul') do (
-        set "STILLTHERE=%%a"
-    )
-    if defined STILLTHERE (
-        echo.
-        echo   WARNING: port 17613 is still held by pid !STILLTHERE! after trying
-        echo   to close the previous bridge. If the bridge below fails to start,
-        echo   close that process manually in Task Manager ^(or restart Windows^)
-        echo   and run start.bat again.
-        echo.
-        call :log "WARNING: port 17613 still held by pid !STILLTHERE! after taskkill."
-    )
-)
-
-echo.
-echo  %RBLX%##############################################################%R%
-echo  %RBLX%##%R%                                                          %RBLX%##%R%
-echo  %RBLX%##%R%   %B%%WHT%KEEP THIS TERMINAL OPEN%R% %DIM%-%R% %RBLX%DO NOT CLOSE THIS WINDOW%R%   %RBLX%##%R%
-echo  %RBLX%##%R%                                                          %RBLX%##%R%
-echo  %RBLX%##%R%   %DIM%VoidScript stops working if you close it. Just%R%         %RBLX%##%R%
-echo  %RBLX%##%R%   %DIM%minimize this window and leave it running.%R%             %RBLX%##%R%
-echo  %RBLX%##%R%                                                          %RBLX%##%R%
-echo  %RBLX%##############################################################%R%
-echo.
-call :log "Launching bridge.py with %PY%"
+call :keepopen
+call :note "launching bridge.py"
 %PY% "%~dp0bridge.py"
-REM Show the exit code ON SCREEN, not only in the log: a screenshot of this
-REM terminal is usually the only diagnostic we get, and "Bridge stopped" alone
-REM does not say whether it crashed (non-zero) or was closed normally.
-set "BRIDGE_EXIT=%errorlevel%"
-call :log "bridge.py exited with code %BRIDGE_EXIT%"
+set "RC=%errorlevel%"
+call :note "bridge.py exited with code %RC%"
 
 echo.
-if not "%BRIDGE_EXIT%"=="0" (
-    echo   Bridge stopped with ERROR code %BRIDGE_EXIT% - scroll up for the Python
-    echo   error message and include THIS WHOLE WINDOW in any bug report.
-    echo   Log file: logs\start.log
+if "%RC%"=="0" (
+    echo   %COK%Bridge stopped normally.%C0%
 ) else (
-    echo   Bridge stopped normally.
+    echo   %CRED%Bridge stopped with error code %RC%.%C0% Scroll up for the Python
+    echo   message and include this whole window in any bug report.
+    echo   Log: %LOG%
 )
+call :halt %RC%
+
+
+:: ===========================================================================
+::  subroutines
+:: ===========================================================================
+
+:: :try_python "<command>"  - set PY and return 0 if the command is a real,
+:: pip-capable Python 3.9+ (rejects the Microsoft Store stub and old versions).
+:try_python
+set "_cand=%~1"
+where %_cand% >nul 2>nul || exit /b 1
+%_cand% -m pip --version >nul 2>nul || exit /b 1
+%_cand% -c "import sys; sys.exit(0 if sys.version_info>=(3,9) else 1)" >nul 2>nul || exit /b 1
+set "PY=%_cand%"
+exit /b 0
+
+:: :scan_python_dirs  - last resort when neither `py` nor `python` resolve
+:: (installed without "Add to PATH"). Newest version first; sets PY on success.
+:scan_python_dirs
+for %%D in ("%LOCALAPPDATA%\Programs\Python" "%ProgramFiles%" "%ProgramFiles(x86)%") do (
+    if exist "%%~D" (
+        for /f "delims=" %%F in ('dir /b /ad /o-n "%%~D\Python3*" 2^>nul') do (
+            if exist "%%~D\%%F\python.exe" (
+                call :try_python "%%~D\%%F\python.exe" && exit /b 0
+            )
+        )
+    )
+)
+exit /b 1
+
+:: :free_port  - if a previous bridge is still holding PORT, replace it. A
+:: double-launch is easy to do by accident, and a silent bind failure looks
+:: like nothing happened.
+:free_port
+set "HOLDER="
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :%PORT% ^| findstr LISTENING 2^>nul') do set "HOLDER=%%p"
+if not defined HOLDER exit /b 0
+echo         %CWARN%A previous bridge (pid !HOLDER!) is on port %PORT% - replacing it.%C0%
+call :note "killing leftover bridge pid !HOLDER! on port %PORT%."
+taskkill /F /T /PID !HOLDER! >nul 2>nul
+timeout /t 1 /nobreak >nul
+set "HOLDER="
+for /f "tokens=5" %%p in ('netstat -aon ^| findstr :%PORT% ^| findstr LISTENING 2^>nul') do set "HOLDER=%%p"
+if defined HOLDER (
+    echo         %CWARN%Port %PORT% is still held by pid !HOLDER!.%C0% If the bridge
+    echo         fails to start, close that process in Task Manager and retry.
+    call :note "WARN: port %PORT% still held by pid !HOLDER! after taskkill."
+)
+exit /b 0
+
+:banner
+echo.
+echo   %CRED%    _______%C0%
+echo   %CRED%   /\      \%C0%      %CB%%CWHT%VOID%CVIO%SCRIPT%C0%   %CVIO%^</^>%C0%
+echo   %CRED%  /  \______\%C0%     %CDIM%AI agent  %CRED%x%CDIM%  ROBLOX STUDIO%C0%
+echo   %CRED%  \  /      /%C0%     %CDIM%local bridge%C0%
+echo   %CRED%   \/______/%C0%
+echo.
+echo   %CVIO%==============================================%C0%
+echo.
+exit /b 0
+
+:keepopen
+echo.
+echo  %CRED%##############################################################%C0%
+echo  %CRED%##%C0%                                                          %CRED%##%C0%
+echo  %CRED%##%C0%   %CB%%CWHT%KEEP THIS WINDOW OPEN%C0% %CDIM%-%C0% %CRED%DO NOT CLOSE IT%C0%                %CRED%##%C0%
+echo  %CRED%##%C0%                                                          %CRED%##%C0%
+echo  %CRED%##%C0%   %CDIM%VoidScript stops the moment this closes. Just%C0%          %CRED%##%C0%
+echo  %CRED%##%C0%   %CDIM%minimize it and leave it running in the background.%C0%    %CRED%##%C0%
+echo  %CRED%##%C0%                                                          %CRED%##%C0%
+echo  %CRED%##############################################################%C0%
+echo.
+exit /b 0
+
+:fail
+echo.
+echo   %CRED%ERROR:%C0% %~1
+echo.
+exit /b 0
+
+:: :note "<text>"  - append a line to the log, best-effort, never blocks.
+:: Redirect first so a message that ends in a digit is not misread as a handle.
+:note
+>>"%LOG%" 2>nul echo(%~1
+exit /b 0
+
+:: :halt <code>  - pause so the window stays readable, then exit with <code>.
+:halt
 echo   Press any key to close.
 pause >nul
-exit /b 0
-
-REM --- Subroutine: verify %PY% is a real, usable Python ------------------------
-REM Returns 0 only if the interpreter runs, has a working pip, AND is Python 3.9
-REM or newer. The pip check rejects the Microsoft Store stub (WindowsApps\
-REM python.exe). The version check rejects old interpreters (e.g. 3.7/3.8) that
-REM lack asyncio.to_thread, which the bridge requires.
-:validate_py
-%PY% -m pip --version >nul 2>nul || exit /b 1
-%PY% -c "import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)" >nul 2>nul
-exit /b %errorlevel%
-
-REM --- Subroutine: append a line to start.log (best-effort, never blocks) -----
-:log
-REM Redirect FIRST, then echo. With the redirect at the end, a message that
-REM ENDS IN A DIGIT (e.g. "exited with code 0") makes cmd parse "0>>" as a
-REM file-handle redirect: the digit is eaten and the line prints to the console
-REM instead of the log (seen live). echo( is the safe echo form for arbitrary text.
->>"%LOGFILE%" 2>nul echo(%~1
-exit /b 0
+exit /b %~1

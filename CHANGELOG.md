@@ -39,10 +39,15 @@ All notable changes to VoidScript Free are documented here.
 - **Landing page (`index.html`)** — a self-contained VoidScript site (void/violet
   + Roblox-red theme, all 32 providers, setup steps) served at the repo root so
   the connected Vercel project deploys it instead of returning 404.
-- **Roblox-themed `start.bat`** — an ASCII "brick" banner with 24-bit ANSI colour
-  (red/violet), colour-coded steps and a red "keep this window open" box. ASCII
-  art is used deliberately: colour codes + Unicode box glyphs break cmd's parser
-  under chcp 65001. Python-detection/winget/port logic is unchanged.
+- **Rewrote the launchers and popup from scratch.** `start.bat`,
+  `MacOS_Start.command`, `popup.html` and `popup.js` are fresh VoidScript
+  implementations (own structure, naming and layout) rather than edits of the
+  originals — same behaviour and message protocol. Both launchers share the
+  Roblox-themed ASCII "brick" banner with 24-bit ANSI colour (red/violet),
+  colour-coded steps and a red "keep this window open" box. ASCII art is used
+  deliberately: colour codes + Unicode box glyphs break cmd's parser under
+  chcp 65001. Python-detection/winget/port logic is preserved. The popup now
+  drives its supported-site list and header pill from one provider table.
 
 ## [1.5.0] - 2026-07-30
 

@@ -1,110 +1,103 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-const KOFI_URL = "https://ko-fi.com/sebattfg";
-const WEBSITE_URL = "https://void-script.vercel.app/";
-const SUPPORTED_HOSTS = [
-  "chat.deepseek.com", "deepseek.com", "gemini.google.com", "www.kimi.com", "kimi.com",
-  "chat.z.ai", "chat.qwen.ai", "arena.ai", "www.meta.ai", "meta.ai",
-  // Beta providers (generic adapter — see providers/_generic.js).
-  "chatgpt.com", "chat.openai.com", "grok.com", "www.perplexity.ai", "perplexity.ai",
-  "copilot.microsoft.com", "chat.mistral.ai",
-  "poe.com", "huggingface.co", "www.phind.com", "www.blackbox.ai", "you.com",
-  "groq.com", "lmarena.ai", "www.doubao.com", "yuanbao.tencent.com", "chat.reka.ai",
-  "pi.ai", "coral.cohere.com", "openrouter.ai", "v0.app", "v0.dev", "www.genspark.ai",
-  "lambda.chat", "yiyan.baidu.com", "chat.minimax.io", "manus.im", "chat.together.ai",
+// VoidScript popup: shows bridge/Studio status and exposes reconnect, restart,
+// settings, website and tip actions. Talks to background.js over the same
+// message protocol the rest of the extension uses ("status" / "reconnect" /
+// "restart_mcp" requests, "zs-status" broadcasts, "zs-open-menu" to a tab).
+
+const LINKS = {
+  site: "https://void-script.vercel.app/",
+  kofi: "https://ko-fi.com/sebattfg",
+  fallbackAI: "https://chat.deepseek.com/",
+};
+
+// One source of truth for every supported site: its display name and a matcher.
+// Both the header pill and the "is this a supported AI tab?" test derive from it.
+const PROVIDERS = [
+  ["DeepSeek", /deepseek\.com/], ["Gemini", /gemini\.google\.com/],
+  ["Kimi", /kimi\.com/], ["GLM", /z\.ai/], ["Qwen", /qwen\.ai/],
+  ["Arena", /(^|\/\/)arena\.ai/], ["Meta AI", /meta\.ai/],
+  ["ChatGPT", /chatgpt\.com|chat\.openai\.com/], ["Grok", /grok\.com/],
+  ["Perplexity", /perplexity\.ai/], ["Copilot", /copilot\.microsoft\.com/],
+  ["Mistral", /mistral\.ai/], ["Poe", /poe\.com/], ["HuggingChat", /huggingface\.co/],
+  ["Phind", /phind\.com/], ["Blackbox", /blackbox\.ai/], ["You", /you\.com/],
+  ["Groq", /groq\.com/], ["LMArena", /lmarena\.ai/], ["Doubao", /doubao\.com/],
+  ["Yuanbao", /yuanbao\.tencent\.com/], ["Reka", /reka\.ai/], ["Pi", /(^|\/\/)pi\.ai/],
+  ["Coral", /coral\.cohere\.com/], ["OpenRouter", /openrouter\.ai/], ["v0", /v0\.(app|dev)/],
+  ["Genspark", /genspark\.ai/], ["Lambda Chat", /lambda\.chat/], ["ERNIE", /yiyan\.baidu\.com/],
+  ["MiniMax", /minimax\.io/], ["Manus", /manus\.im/], ["Together", /together\.ai/],
 ];
-const DEFAULT_AI_URL = "https://chat.deepseek.com/";
+const providerName = (url) => (PROVIDERS.find(([, re]) => re.test(url || "")) || [])[0];
+const isProviderTab = (url) => PROVIDERS.some(([, re]) => re.test(url || ""));
 
-document.getElementById("ver").textContent = `v${chrome.runtime.getManifest().version}`;
+const $ = (id) => document.getElementById(id);
+const send = (msg, cb) => chrome.runtime.sendMessage(msg, cb);
 
-// Map a supported host to its display name for the header pill, so the popup
-// reflects whichever AI the user is actually on instead of a hardcoded label.
-const HOST_LABELS = [
-  [/deepseek\.com/, "DeepSeek"], [/gemini\.google\.com/, "Gemini"],
-  [/kimi\.com/, "Kimi"], [/z\.ai/, "GLM"], [/qwen\.ai/, "Qwen"],
-  [/arena\.ai/, "Arena"], [/meta\.ai/, "Meta AI"],
-  [/chatgpt\.com|openai\.com/, "ChatGPT"], [/grok\.com/, "Grok"],
-  [/perplexity\.ai/, "Perplexity"], [/copilot\.microsoft\.com/, "Copilot"],
-  [/mistral\.ai/, "Mistral"],
-  [/poe\.com/, "Poe"], [/huggingface\.co/, "HuggingChat"], [/phind\.com/, "Phind"],
-  [/blackbox\.ai/, "Blackbox"], [/you\.com/, "You"], [/groq\.com/, "Groq"],
-  [/lmarena\.ai/, "LMArena"], [/doubao\.com/, "Doubao"],
-  [/yuanbao\.tencent\.com/, "Yuanbao"], [/reka\.ai/, "Reka"],
-  [/pi\.ai/, "Pi"], [/coral\.cohere\.com/, "Coral"], [/openrouter\.ai/, "OpenRouter"],
-  [/v0\.(app|dev)/, "v0"], [/genspark\.ai/, "Genspark"], [/lambda\.chat/, "Lambda Chat"],
-  [/yiyan\.baidu\.com/, "ERNIE"], [/minimax\.io/, "MiniMax"], [/manus\.im/, "Manus"],
-  [/together\.ai/, "Together"],
-];
-function setProviderLabel() {
-  const el = document.getElementById("prov");
-  if (!el) return;
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    const url = (tabs && tabs[0] && tabs[0].url) || "";
-    const hit = HOST_LABELS.find(([re]) => re.test(url));
-    el.textContent = hit ? hit[1] : "Ready";
-  });
-}
-setProviderLabel();
+// ── header ────────────────────────────────────────────────────────────────
+$("version").textContent = "v" + chrome.runtime.getManifest().version;
+chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+  $("provider-tag").textContent = providerName(tab && tab.url) || "Ready";
+});
 
-function render(s) {
-  const dot = document.getElementById("dot");
-  const state = document.getElementById("state");
-  const tools = document.getElementById("tools");
-  const servers = document.getElementById("servers");
-  const list = s.servers || [];
-  const up = list.filter((x) => x.alive).length;
-  const mcpOk = s.connected && (s.mcpAlive || up > 0 || s.tools > 0);
-  const studioOff = mcpOk && s.studio === false; // MCP up but no Studio attached
-  const ok = mcpOk && !studioOff;
-  dot.className = "dot " + (s.connected ? (ok ? "on" : "warn") : "");
-  state.textContent = s.connected
-    ? (ok ? "Connected · Roblox Studio ready"
-        : studioOff ? "Studio not connected · enable the MCP server in Studio"
-        : "Bridge OK · open Roblox Studio")
-    : "Bridge offline";
-  tools.textContent = s.connected ? `${s.tools || 0} tools available` : "Run bridge.py";
-  servers.textContent = s.connected
-    ? list.map((x) => `${x.alive ? "●" : "○"} ${x.id} (${x.alive ? x.tools + " tools" : "down"})`).join("\n")
+// ── status rendering ────────────────────────────────────────────────────────
+function paint(s) {
+  s = s || {};
+  const servers = s.servers || [];
+  const anyUp = servers.some((x) => x.alive);
+  const mcpUp = s.connected && (s.mcpAlive || anyUp || s.tools > 0);
+  const studioMissing = mcpUp && s.studio === false;
+  const good = mcpUp && !studioMissing;
+
+  $("status-dot").className = s.connected ? (good ? "up" : "mid") : "";
+  $("status-text").textContent = !s.connected
+    ? "Bridge offline"
+    : good
+    ? "Connected · Roblox Studio ready"
+    : studioMissing
+    ? "Studio not connected · enable its MCP server"
+    : "Bridge OK · open Roblox Studio";
+  $("tool-count").textContent = s.connected ? `${s.tools || 0} tools available` : "Run start.bat to launch the bridge";
+  $("server-list").textContent = s.connected
+    ? servers.map((x) => `${x.alive ? "●" : "○"} ${x.id} (${x.alive ? x.tools + " tools" : "down"})`).join("\n")
     : "";
 }
 
-function refresh() {
-  chrome.runtime.sendMessage({ type: "status" }, (s) => s && render(s));
-}
+const poll = () => send({ type: "status" }, (s) => s && paint(s));
 
-document.getElementById("reconnect").addEventListener("click", () => {
-  chrome.runtime.sendMessage({ type: "reconnect" }, () => setTimeout(refresh, 600));
-});
-document.getElementById("restart").addEventListener("click", (e) => {
-  e.target.textContent = "Restarting…";
-  chrome.runtime.sendMessage({ type: "restart_mcp" }, () => {
-    e.target.textContent = "⟳ Restart Roblox server";
-    setTimeout(refresh, 600);
+// ── actions ─────────────────────────────────────────────────────────────────
+$("btn-reconnect").onclick = () => send({ type: "reconnect" }, () => setTimeout(poll, 600));
+
+$("btn-restart").onclick = (e) => {
+  const label = e.currentTarget.querySelector ? e.currentTarget : e.target;
+  const original = label.innerHTML;
+  label.textContent = "Restarting…";
+  send({ type: "restart_mcp" }, () => {
+    label.innerHTML = original;
+    setTimeout(poll, 600);
   });
-});
-document.getElementById("kofi").addEventListener("click", () => {
-  chrome.tabs.create({ url: KOFI_URL });
-});
-document.getElementById("website").addEventListener("click", () => {
-  chrome.tabs.create({ url: WEBSITE_URL });
-});
-document.getElementById("settings").addEventListener("click", () => {
-  // Same mechanism as the Ko-fi button (chrome.tabs), but tries the in-page
-  // panel on an already-open supported AI tab first, so opening it doesn't
-  // require a conversation to already be started there.
+};
+
+$("btn-site").onclick = () => chrome.tabs.create({ url: LINKS.site });
+$("btn-kofi").onclick = () => chrome.tabs.create({ url: LINKS.kofi });
+
+// Settings opens the in-page panel on an already-open supported AI tab (so it
+// works before a session is started); otherwise it opens the default AI.
+$("btn-settings").onclick = () => {
   chrome.tabs.query({}, (tabs) => {
-    const active = tabs.find((t) => t.active && t.url && SUPPORTED_HOSTS.some((h) => t.url.includes(h)));
-    const anySupported = active || tabs.find((t) => t.url && SUPPORTED_HOSTS.some((h) => t.url.includes(h)));
-    if (anySupported) {
-      chrome.tabs.sendMessage(anySupported.id, { type: "zs-open-menu" });
-      chrome.tabs.update(anySupported.id, { active: true });
+    const target =
+      tabs.find((t) => t.active && isProviderTab(t.url)) ||
+      tabs.find((t) => isProviderTab(t.url));
+    if (target) {
+      chrome.tabs.sendMessage(target.id, { type: "zs-open-menu" });
+      chrome.tabs.update(target.id, { active: true });
     } else {
-      chrome.tabs.create({ url: DEFAULT_AI_URL });
+      chrome.tabs.create({ url: LINKS.fallbackAI });
     }
   });
-});
+};
 
+// ── live updates ────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === "zs-status") render(msg);
+  if (msg && msg.type === "zs-status") paint(msg);
 });
-refresh();
-setInterval(refresh, 2000);
+poll();
+setInterval(poll, 2000);
