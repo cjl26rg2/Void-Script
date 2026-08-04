@@ -147,7 +147,8 @@ note if desired (optional once nothing is derivative).
   interface, so the extension never stops working mid-rebuild.
 
 ## Status tracker
-- [ ] Phase 1 — Bridge
+- [~] Phase 1 — Bridge — **core built & mock-tested** (`rebuild/bridge.py`, 6/6
+  checks); pending live validation against Roblox Studio's MCP server.
 - [ ] Phase 2 — Background relay
 - [ ] Phase 3 — Parser
 - [ ] Phase 4 — Prompt & config
