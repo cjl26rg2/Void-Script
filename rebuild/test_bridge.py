@@ -70,6 +70,11 @@ async def run() -> int:
             pong = await recv_type(ws, "pong")
             assert pong["studio"] is True, pong
             print("PASS  ping -> pong with status"); passed += 1
+
+            await ws.send(json.dumps({"type": "restart", "server": "roblox"}))
+            restarted = await recv_type(ws, "restarted")
+            assert restarted["studio"] is True and restarted["tools"] == 1, restarted
+            print("PASS  restart -> server re-launched, tools back"); passed += 1
     finally:
         proc.terminate()
         try:
@@ -82,8 +87,8 @@ async def run() -> int:
             except FileNotFoundError:
                 pass
 
-    print(f"\n{passed}/6 checks passed")
-    return 0 if passed == 6 else 1
+    print(f"\n{passed}/7 checks passed")
+    return 0 if passed == 7 else 1
 
 
 if __name__ == "__main__":

@@ -149,7 +149,8 @@ note if desired (optional once nothing is derivative).
 ## Status tracker
 - [~] Phase 1 — Bridge — **core built & mock-tested** (`rebuild/bridge.py`, 6/6
   checks); pending live validation against Roblox Studio's MCP server.
-- [ ] Phase 2 — Background relay
+- [~] Phase 2 — Background relay — **built & mock-tested** (`rebuild/background.js`,
+  10/10). Cutover needs `"alarms"` added to manifest permissions.
 - [ ] Phase 3 — Parser
 - [ ] Phase 4 — Prompt & config
 - [ ] Phase 5 — Overlay UI + CSS

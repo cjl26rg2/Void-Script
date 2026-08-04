@@ -27,6 +27,19 @@ it is built from the documented protocols (MCP spec, our own WS/command format).
   enabled, `config.json` pointing at the real Studio MCP command). The protocol
   is standard MCP, so this is a wiring/validation step, not new logic.
 
+## Phase 2 — Background relay ✅ (mock-tested)
+
+- **`background.js`** — the service worker that owns the WebSocket to the bridge
+  and relays between it and the extension. Popup API (`status` / `reconnect` /
+  `restart_mcp`, `zs-status` broadcast) matches our popup unchanged; content
+  scripts get `vs-tools` / `vs-call` (id-correlated). MV3 keep-alive via
+  `chrome.alarms`.
+- **`test_background.js`** — loads it with a mocked `WebSocket` + `chrome` and
+  drives the relay. Run: `node rebuild/test_background.js` → `10/10`.
+
+> **Cutover note:** the real `manifest.json` needs `"alarms"` added to
+> `permissions` when this replaces the shipping `background.js`.
+
 ## Next
-- Phase 2 — background relay (WS client) that pairs with this bridge.
-- Then parser, prompt/config, UI, and the agent core. See `../REBUILD.md`.
+- Phase 3 — command parser (our ` ```void ` format), then prompt/config, UI,
+  and the agent core. See `../REBUILD.md`.

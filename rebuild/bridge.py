@@ -218,6 +218,17 @@ class McpHost:
                 out.append({**t, "_server": name})
         return out
 
+    async def restart(self, name: str | None) -> None:
+        """Restart one server by name, or all when name is falsy. Used by the
+        popup's 'Restart Roblox server' action."""
+        targets = [n for n in self.servers if name in (None, "", n)]
+        for n in targets:
+            old = self.servers[n]
+            await old.stop()
+            fresh = McpServer(n, old.command, old.args, old.env)
+            self.servers[n] = fresh
+            await fresh.start()
+
     async def call(self, tool: str, params: dict) -> dict:
         # Accept either "server/tool" or a bare tool name (first server that has it).
         server_name, _, bare = tool.partition("/")
@@ -286,6 +297,10 @@ class Bridge:
             rid = msg.get("id")
             res = await self.host.call(msg.get("tool", ""), msg.get("params") or {})
             await self._send(ws, {"type": "result", "id": rid, **res})
+        elif kind == "restart":
+            await self.host.restart(msg.get("server"))
+            await self._send(ws, {"type": "restarted", **self.host.status()})
+            await self.broadcast_status()
         # unknown types are ignored on purpose (forward-compatible)
 
     @staticmethod
