@@ -102,9 +102,42 @@ async function offlineAndUnknown() {
   ok(ov2._calls.status.some((s) => s[1] === "error"), "  -> status shows an error state");
 }
 
+async function hidingFlow() {
+  // provider that models real turns (user + assistant) so _hideInjected can run
+  const turns = [];
+  const provider = {
+    displayName: "MockAI",
+    _turns: turns,
+    async typeAndSend(text) { turns.push({ role: "user", text }); },
+    allItems() { return turns; },
+    isUserItem(it) { return it.role === "user"; },
+    itemText(it) { return it.text; },
+    readAssistant() { const a = [...turns].reverse().find((t) => t.role === "assistant"); return a ? { present: true, reply: a.text, item: a } : { present: false, reply: "", item: null }; },
+    isGenerating() { return false; },
+    findToolBlockSpot() { return { ref: {} }; },
+  };
+  const overlay = mockOverlay();
+  const agent = new VoidAgent({
+    provider, overlay, parse, config,
+    getTools: async () => [{ name: "execute_luau" }],
+    callTool: async () => ({ ok: true, output: "x" }), autoWatch: false,
+  });
+  await agent.start(); // injects the system prompt as a user turn
+  agent._hideInjected();
+  const promptTurn = turns[0];
+  ok(overlay._calls.masks.includes(promptTurn), "system prompt turn is hidden");
+
+  // a real user message must stay visible
+  const realTurn = { role: "user", text: "make a red part" };
+  turns.push(realTurn);
+  agent._hideInjected();
+  ok(!overlay._calls.masks.includes(realTurn), "a normal user message is NOT hidden");
+}
+
 (async () => {
   await mainFlow();
   await offlineAndUnknown();
+  await hidingFlow();
   console.log(`\n${pass}/${pass + fail} checks passed`);
   process.exit(fail ? 1 : 0);
 })();

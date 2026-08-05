@@ -81,8 +81,24 @@
 
     // One processing step. Returns a short token describing what happened
     // (used by tests and diagnostics).
+    // Hide the user turns the agent injected (system prompt, tool results,
+    // feedback) so the human never sees them. Only USER turns are touched, and
+    // only when their text carries our marker — assistant replies are never hidden.
+    _hideInjected() {
+      const p = this.provider;
+      if (!p.allItems || !p.isUserItem) return;
+      const re = this.config.hideRe;
+      if (!re) return;
+      for (const item of p.allItems()) {
+        if (!p.isUserItem(item)) continue;
+        const text = p.itemText ? p.itemText(item) : (item.textContent || "");
+        if (re.test(text)) this.overlay.mask(item);
+      }
+    }
+
     async _tick() {
       if (!this.running) return "stopped";
+      this._hideInjected();
       const read = this.provider.readAssistant();
       if (!read || !read.present) return "waiting";
       if (this.provider.isGenerating && this.provider.isGenerating()) {

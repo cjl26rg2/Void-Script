@@ -23,9 +23,15 @@ ok(p.includes("execute_luau(code)") && p.includes("script_read(path)"), "prompt 
 ok(C.formatTools(tools).includes("execute_luau(code) - Run Luau in Studio.") &&
    !C.formatTools(tools).includes("second line"), "formatTools uses first description line only");
 
-// result block
+// result block (prefixed with the hide marker)
 const rb = C.formatResult({ ok: true, output: "done" });
-ok(rb === '```void-result\n{"ok":true,"output":"done"}\n```', "formatResult builds a void-result block");
+ok(rb === C.INJECT_MARK + '\n```void-result\n{"ok":true,"output":"done"}\n```', "formatResult builds a marked void-result block");
+
+// hide marker matches injected turns, not normal text
+ok(C.hideRe.test(C.buildSystemPrompt({ siteName: "X", tools })), "hideRe matches the system prompt");
+ok(C.hideRe.test(rb), "hideRe matches a tool result");
+ok(C.hideRe.test(C.feedback.parseError("malformed")), "hideRe matches feedback");
+ok(!C.hideRe.test("Create a red part please"), "hideRe does NOT match normal user text");
 
 // categories for the chips
 ok(C.toolCategory("script_read") === "read", "toolCategory: read");

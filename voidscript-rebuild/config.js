@@ -14,6 +14,13 @@
   // recognise (and hide) the bootstrap turn it sent. Ours, distinct from any
   // prior convention.
   const SYS_MARKER = "⟦VOID:SYS⟧"; // ⟦VOID:SYS⟧
+  // Prefix on every OTHER message the agent injects (tool results, feedback) so
+  // those user turns can be hidden too. Both markers share the "⟦VOID" stem.
+  const INJECT_MARK = "⟦VOID⟧";
+  const mark = (s) => INJECT_MARK + " " + s;
+  // Matches any agent-injected user turn (prompt or otherwise). The core hides
+  // USER turns whose text matches this — never assistant replies.
+  const HIDE_RE = /⟦VOID/;
 
   const BT = "```";
 
@@ -46,7 +53,7 @@
   // turn; the parser ignores ```void-result so it is never mistaken for input.
   function formatResult(res) {
     const payload = { ok: !!(res && res.ok), output: (res && res.output) || "" };
-    return `${BT}void-result\n${JSON.stringify(payload)}\n${BT}`;
+    return `${INJECT_MARK}\n${BT}void-result\n${JSON.stringify(payload)}\n${BT}`;
   }
 
   // One unified system prompt. `opts`: { siteName, tools }.
@@ -87,7 +94,7 @@
 
   // Feedback the agent sends back (as a normal user turn) when a command can't
   // run. Keyed to the parser's outcomes + bridge/Studio conditions.
-  const feedback = {
+  const feedbackRaw = {
     parseError: (reason) => {
       const notes = {
         malformed:
@@ -122,7 +129,18 @@
       `you stopped — do not restart and do not repeat what you already wrote.)`,
   };
 
-  const api = { APP_NAME, SYS_MARKER, toolCategory, formatTools, formatResult, buildSystemPrompt, feedback };
+  // Public feedback: every message gets the INJECT_MARK prefix so its user turn
+  // is hidden from view (the model still reads it).
+  const feedback = {
+    parseError: (reason) => mark(feedbackRaw.parseError(reason)),
+    multiTool: (names) => mark(feedbackRaw.multiTool(names)),
+    unknownTool: (name, valid) => mark(feedbackRaw.unknownTool(name, valid)),
+    bridgeOffline: mark(feedbackRaw.bridgeOffline),
+    studioOffline: mark(feedbackRaw.studioOffline),
+    truncated: mark(feedbackRaw.truncated),
+  };
+
+  const api = { APP_NAME, SYS_MARKER, INJECT_MARK, hideRe: HIDE_RE, toolCategory, formatTools, formatResult, buildSystemPrompt, feedback };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.VoidConfig = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
