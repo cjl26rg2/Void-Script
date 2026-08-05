@@ -221,6 +221,10 @@ def _flatten_content(content: list) -> str:
 class McpHost:
     def __init__(self):
         self.servers: dict[str, McpServer] = {}
+        # Whether a Roblox Studio instance is actually attached. StudioMCP always
+        # exposes its ~27 tools even with Studio closed, so tool-count is not a
+        # signal; we probe list_roblox_studios (empty "studios" == none open).
+        self.studio_attached = False
 
     def load_config(self) -> None:
         if not CONFIG_PATH.exists():
@@ -276,20 +280,35 @@ class McpHost:
                 return await srv.call_tool(tool, params)
         return {"ok": False, "output": f"no connected server exposes tool '{tool}'"}
 
+    def _roblox_server(self) -> "McpServer | None":
+        for n, s in self.servers.items():
+            if "roblox" in n.lower() or "studio" in n.lower():
+                return s
+        return None
+
+    async def probe_studio(self) -> bool:
+        """Ask the roblox server which Studio instances are connected. Sets
+        studio_attached; returns True if it changed. StudioMCP replies with
+        {"studios":[...]} — an empty list means no Studio is open."""
+        prev = self.studio_attached
+        attached = False
+        srv = self._roblox_server()
+        if srv and srv.alive:
+            res = await srv.call_tool("list_roblox_studios", {})
+            if res.get("ok"):
+                out = res.get("output") or ""
+                try:
+                    attached = bool(json.loads(out).get("studios"))
+                except Exception:  # noqa: BLE001 - be lenient about the exact shape
+                    attached = "studios" in out and '"studios":[]' not in out.replace(" ", "")
+        self.studio_attached = attached
+        return attached != prev
+
     def status(self) -> dict:
         servers = [{"id": n, "alive": s.alive, "tools": len(s.tools)} for n, s in self.servers.items()]
-        # Studio is "attached" only when a roblox/studio server is alive AND is
-        # exposing tools — StudioMCP proxies Studio's tool set, which is empty
-        # until Studio is open with the MCP server enabled. Server-alive alone is
-        # not enough (it handshakes even with no Studio behind it).
-        studio = any(
-            s.alive and len(s.tools) > 0
-            for n, s in self.servers.items()
-            if "roblox" in n.lower() or "studio" in n.lower()
-        )
         return {
             "connected": True,
-            "studio": studio if servers else False,
+            "studio": self.studio_attached,
             "tools": sum(len(s.tools) for s in self.servers.values()),
             "servers": servers,
         }
@@ -316,8 +335,10 @@ class Bridge:
         while True:
             await asyncio.sleep(5)
             try:
-                if await self.host.refresh_all():
-                    log("tools changed -> " + ("Studio attached" if self.host.status()["studio"] else "Studio detached"))
+                changed = await self.host.refresh_all()
+                changed = (await self.host.probe_studio()) or changed
+                if changed:
+                    log("status changed -> " + ("Studio attached" if self.host.studio_attached else "no Studio"))
                     await self.broadcast_status()
             except Exception:  # noqa: BLE001
                 pass
@@ -383,6 +404,8 @@ async def amain() -> int:
     host = McpHost()
     host.load_config()
     await host.start_all()
+    await host.probe_studio()
+    log("Studio attached" if host.studio_attached else "no Studio open yet (start it and it'll attach)")
     bridge = Bridge(host)
     try:
         await bridge.serve()

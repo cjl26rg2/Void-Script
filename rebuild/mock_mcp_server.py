@@ -36,9 +36,14 @@ def main():
         elif method == "tools/list":
             send({"jsonrpc": "2.0", "id": rid, "result": {"tools": TOOLS}})
         elif method == "tools/call":
-            args = (msg.get("params") or {}).get("arguments", {})
-            send({"jsonrpc": "2.0", "id": rid, "result": {
-                "content": [{"type": "text", "text": f"echoed: {args.get('text', '')}"}]}})
+            params = msg.get("params") or {}
+            name = params.get("name")
+            args = params.get("arguments", {})
+            if name == "list_roblox_studios":
+                text = json.dumps({"studios": [{"name": "MockStudio", "id": "1", "active": True}]})
+            else:
+                text = f"echoed: {args.get('text', '')}"
+            send({"jsonrpc": "2.0", "id": rid, "result": {"content": [{"type": "text", "text": text}]}})
         elif rid is not None:
             send({"jsonrpc": "2.0", "id": rid, "error": {"code": -32601, "message": "method not found"}})
 
