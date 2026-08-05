@@ -14,6 +14,7 @@ const VSProvider = VSGeneric({
   id: "chatgpt",
   displayName: "ChatGPT",
   supportsVision: false, // flip to true only after a live screen_capture read is confirmed
+  beta: false, // stable: no "unstable" pill on the status bar
   selectors: {
     userItem: '[data-message-author-role="user"]',
     assistantItem: '[data-message-author-role="assistant"]',

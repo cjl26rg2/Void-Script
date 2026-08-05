@@ -69,7 +69,7 @@ async function mainFlow() {
   ok(toolCalls[1].params.code === 'print("hi")', "  -> raw luau passed as code");
 
   ok((await agent._tick()) === "feedback:malformed", "reply 3: malformed -> feedback");
-  ok(/could not be parsed/.test(provider._sent[provider._sent.length - 1]), "  -> parse-error feedback sent");
+  ok(/couldn.t be parsed/.test(provider._sent[provider._sent.length - 1]), "  -> parse-error feedback sent");
 
   ok((await agent._tick()) === "idle", "reply 4: plain text -> idle (model done)");
   const lastStatus = overlay._calls.status[overlay._calls.status.length - 1];

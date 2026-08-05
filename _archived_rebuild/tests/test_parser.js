@@ -29,6 +29,34 @@ check("void-luau -> execute_luau",
   parse(fence("void-luau", 'print("hi")')),
   { status: "ok", command: { tool: "execute_luau", params: { code: 'print("hi")' } }, raw: 'print("hi")\n' });
 
+// plain ```lua / ```luau blocks are commands too (models write these instead of
+// the void envelope)
+check("plain lua -> execute_luau",
+  parse(fence("lua", 'print("hi")')),
+  { status: "ok", command: { tool: "execute_luau", params: { code: 'print("hi")' } }, raw: 'print("hi")\n' });
+
+check("plain luau -> execute_luau",
+  parse(fence("luau", "game.Workspace.Foo = 1")),
+  { status: "ok", command: { tool: "execute_luau", params: { code: "game.Workspace.Foo = 1" } }, raw: "game.Workspace.Foo = 1\n" });
+
+check("roblox-lua -> execute_luau",
+  parse(fence("roblox-lua", "task.wait(1)")),
+  { status: "ok", command: { tool: "execute_luau", params: { code: "task.wait(1)" } }, raw: "task.wait(1)\n" });
+
+// non-Lua code blocks must NOT be treated as commands
+check("plain json block ignored -> none",
+  parse(fence("json", '{"a":1}')),
+  { status: "none" });
+
+check("python block ignored -> none",
+  parse(fence("python", "print('hi')")),
+  { status: "none" });
+
+// void-result is still ignored (must never be mistaken for a command)
+check("void-result still ignored -> none",
+  parse(fence("void-result", '{"ok":true,"output":"done"}') + "\n" + fence("lua", "print(1)")),
+  { status: "ok", command: { tool: "execute_luau", params: { code: "print(1)" } }, raw: "print(1)\n" });
+
 // malformed JSON
 check("bad json -> malformed",
   parse(fence("void", '{"tool": "x", oops}')),

@@ -8,6 +8,7 @@
 set -u
 
 cd "$(dirname "$0")" || exit 1
+SELF="$(pwd)/$(basename "$0")"
 
 PORT="${VOID_BRIDGE_PORT:-17613}"
 LOG="logs/start.log"
@@ -85,6 +86,25 @@ fi
 PYVER="$("$PY" --version 2>&1)"
 echo "        ${OK}Using${R} $PY  ${DIM}($PYVER)${R}"
 logline "python: $PY ($PYVER)"
+
+# ---- 1.5. auto-update (fully automatic) ------------------------------------
+# Downloads and applies a newer GitHub release on every launch, then re-executes
+# this script so the NEW bridge.py is the one that runs. Silent when nothing is
+# newer; offline/API errors are silent too and never block startup.
+if [ -f update.py ]; then
+  UPAUTO="$("$PY" update.py --auto 2>/dev/null || true)"
+  case "$UPAUTO" in
+    UPDATE_APPLIED*)
+      echo
+      echo "  ${OK}UPDATE INSTALLED${R}  $UPAUTO"
+      echo "  Reload the extension at chrome://extensions after this restarts."
+      logline "auto-update applied: $UPAUTO"
+      echo
+      echo "  ${VIO}Restarting VoidScript with the new version...${R}"
+      exec bash "$SELF"
+      ;;
+  esac
+fi
 
 # ---- 2. dependency: websockets ---------------------------------------------
 echo

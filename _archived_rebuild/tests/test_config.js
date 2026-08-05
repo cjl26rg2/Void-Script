@@ -40,11 +40,11 @@ ok(C.toolCategory("screen_capture") === "screen", "toolCategory: screen");
 ok(C.toolCategory("generate_mesh") === "generate", "toolCategory: generate");
 
 // feedback strings map to parser reasons
-ok(/could not be parsed/.test(C.feedback.parseError("malformed")), "feedback: malformed");
+ok(/couldn.t be parsed/.test(C.feedback.parseError("malformed")), "feedback: malformed");
 ok(/no "tool" field/.test(C.feedback.parseError("envelope")), "feedback: envelope");
 ok(/empty/.test(C.feedback.parseError("empty")), "feedback: empty");
-ok(/ONE command at a time/.test(C.feedback.multiTool(["a", "b"])), "feedback: multiTool");
-ok(/unknown tool "zzz"/.test(C.feedback.unknownTool("zzz", ["a"])), "feedback: unknownTool");
+ok(/one command at a time/i.test(C.feedback.multiTool(["a", "b"])), "feedback: multiTool");
+ok(/unknown tool "zzz"/i.test(C.feedback.unknownTool("zzz", ["a"])), "feedback: unknownTool");
 ok(typeof C.feedback.bridgeOffline === "string" && C.feedback.bridgeOffline.length > 20, "feedback: bridgeOffline");
 
 console.log(`\n${pass}/${pass + fail} checks passed`);

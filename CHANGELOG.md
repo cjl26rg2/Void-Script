@@ -9,7 +9,7 @@ All notable changes to VoidScript Free are documented here.
   HuggingChat, Phind, Blackbox, You, Groq, LMArena, Doubao, Yuanbao, Reka, Pi,
   Coral, OpenRouter, v0, Genspark, Lambda Chat, ERNIE, MiniMax, Manus, Together.**
   These run on a new selector-driven adapter factory (`providers/_generic.js`,
-  `ZSGeneric(cfg)`) that implements the full `ZSProvider` interface with
+  `VSGeneric(cfg)`) that implements the full `VSProvider` interface with
   framework-neutral defaults (textarea *and* contenteditable composers, stop-
   button-or-quiescence generation detection, best-effort image attach). Each new
   provider is a thin config of CSS selectors. They are marked **BETA** in the
@@ -30,7 +30,7 @@ All notable changes to VoidScript Free are documented here.
   console (launch/Python-detection logic unchanged).
 - **Rebranded ZeroScript → VoidScript** across all user-facing text, the manifest
   name, and the extension folder (`voidscript-extension/`). Internal code symbols
-  (`ZS`, `ZSProvider`, `zs-` CSS) are unchanged. GitHub links now point to
+  (`VS`, `VSProvider`, `vs-` CSS) are unchanged. GitHub links now point to
   `cjl26rg2/Void-Script`; a **Website** button in the popup opens
   `https://void-script.vercel.app/`.
 - **New VoidScript logo** — a glowing "void" portal ring with a `</>` script
@@ -98,7 +98,7 @@ All notable changes to VoidScript Free are documented here.
   leftover Bridge process it can positively identify (by command line, never
   by process name alone) before binding, and falls through to a clear,
   actionable message - with the exact `netstat`/`taskkill` commands and the
-  `ZS_BRIDGE_PORT` override - if the port is held by something else.
+  `VS_BRIDGE_PORT` override - if the port is held by something else.
 
 ### Fixed
 - **The agent could parse/execute commands while its AI tab was backgrounded
@@ -121,7 +121,7 @@ All notable changes to VoidScript Free are documented here.
   frees a previous Bridge still holding the port, and runs `bridge.py`,
   mirroring what `start.bat` already does on Windows. `launch_studio_mcp.py`
   now also locates Roblox Studio's MCP binary inside the macOS app bundle
-  (`RobloxStudio.app/Contents/MacOS/StudioMCP`), with a `ZS_STUDIO_MCP_PATH`
+  (`RobloxStudio.app/Contents/MacOS/StudioMCP`), with a `VS_STUDIO_MCP_PATH`
   override for non-standard installs.
 - **DeepSeek: outgoing messages are now truncated to fit its input limit.**
   DeepSeek's composer silently refuses to send past 163840 characters

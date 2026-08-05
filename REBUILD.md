@@ -78,7 +78,7 @@ The AI is prompted to emit exactly one action per turn as a fenced block:
   easy to detect in the DOM, and easy to visually mask (see UI).
 
 ### 3. Core ⇄ Provider — the adapter interface
-**Already ours.** `providers/_generic.js` (`ZSGeneric(cfg)`) defines the full
+**Already ours.** `providers/_generic.js` (`VSGeneric(cfg)`) defines the full
 adapter contract (turn reading, composer I/O, generation detection, send hooks,
 command masking). The new core builds to this same interface, so our generic
 factory + all 25 beta providers carry over unchanged.

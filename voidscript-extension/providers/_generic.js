@@ -93,7 +93,7 @@ function VSGeneric(cfg) {
   // excluded selector, so tool blocks drafted inside reasoning are never run.
   function textWithout(root, excludeSel) {
     if (!root) return "";
-    const skipParts = [S.thinking, ".void-chip"];
+    const skipParts = [S.thinking, ".vs-chip"];
     if (S.attachment) skipParts.push(S.attachment);
     if (excludeSel) skipParts.push(excludeSel);
     const skip = skipParts.filter(Boolean).join(", ");
@@ -119,15 +119,8 @@ function VSGeneric(cfg) {
   const classifyText = (item, excludeSel) => textWithout(item, excludeSel);
 
   // ── DOM primitives ────────────────────────────────────────────────────────
-  const notOurs = (e) => !e.closest("#void-root");
-  const allItems = () => [...document.querySelectorAll(S.anyItem)].filter(notOurs);
-  // Heuristic fallback: if the configured selector matches nothing, markdown/prose
-  // blocks are almost always assistant replies (covers sites with hashed classes).
-  const assistantItems = () => {
-    const hit = [...document.querySelectorAll(S.assistantItem)].filter(notOurs);
-    if (hit.length) return hit;
-    return [...document.querySelectorAll('.markdown, .prose, [class*="markdown" i], [class*="prose" i]')].filter(notOurs);
-  };
+  const allItems = () => [...document.querySelectorAll(S.anyItem)];
+  const assistantItems = () => [...document.querySelectorAll(S.assistantItem)];
   const assistantCount = () => assistantItems().length;
   const userCount = () => document.querySelectorAll(S.userItem).length;
 
@@ -135,7 +128,7 @@ function VSGeneric(cfg) {
   // settings textarea never defeats the "not on a chat page" guard.
   const getEditor = () => {
     for (const e of document.querySelectorAll(S.editor)) {
-      if (notOurs(e)) return e;
+      if (!e.closest("#vs-root")) return e;
     }
     return null;
   };
@@ -156,19 +149,31 @@ function VSGeneric(cfg) {
   const chatIsEmpty = () => allItems().length === 0;
   const isFreshChat = () => chatIsEmpty() && !!getEditor();
 
-  const composerFrame = () =>
-    (getEditor() ? getEditor().closest(S.composer) || getEditor().closest("form, .relative") : null) ||
-    document.querySelector(S.composer);
+  // A provider may set composer: "" (e.g. Arena Agent has a contenteditable
+  // composer with no <form>), so guard every closest/querySelector on it -
+  // an empty selector throws a SyntaxError and would break send/stop detection.
+  const composerFrame = () => {
+    const ed = getEditor();
+    const host = ed ? (S.composer && ed.closest(S.composer)) || ed.closest("form, .relative") : null;
+    return host || (S.composer ? document.querySelector(S.composer) : null);
+  };
 
   // The rounded composer card the core's bar can hug (best effort).
+  // Same walk-up as the hand-tuned providers (Arena Direct / Meta / GLM): climb
+  // from the editor to the first ancestor carrying ANY rounded-* class. The old
+  // selector list only matched the literal `rounded-xl/2xl/3xl` substrings, so a
+  // card using `rounded-lg` or an arbitrary `rounded-[…]` value fell all the way
+  // through to the editor's tiny parent - which mis-placed the bar (seen on
+  // Arena Agent, where the composer is a contenteditable with no <form>).
   function barAnchor() {
     const ed = getEditor();
     if (!ed) return null;
-    return (
-      ed.closest('[class*="rounded-xl"], [class*="rounded-2xl"], [class*="rounded-3xl"]') ||
-      ed.closest("form") ||
-      ed.parentElement
-    );
+    let n = ed;
+    for (let i = 0; i < 10 && n; i++) {
+      if ([...n.classList].some((c) => c.startsWith("rounded"))) return n;
+      n = n.parentElement;
+    }
+    return ed.closest("form") || ed.parentElement || null;
   }
 
   // ── Input lock ────────────────────────────────────────────────────────────
@@ -177,38 +182,26 @@ function VSGeneric(cfg) {
     if (!ed) return;
     if (isTextField(ed)) {
       if (on) {
-        if (!ed.dataset.zsPlaceholder) ed.dataset.zsPlaceholder = ed.getAttribute("placeholder") || "";
+        if (!ed.dataset.vsPlaceholder) ed.dataset.vsPlaceholder = ed.getAttribute("placeholder") || "";
         ed.setAttribute("readonly", "");
         ed.setAttribute("placeholder", "⏳ Agent working… please wait");
       } else {
         ed.removeAttribute("readonly");
-        if (ed.dataset.zsPlaceholder != null) ed.setAttribute("placeholder", ed.dataset.zsPlaceholder);
+        if (ed.dataset.vsPlaceholder != null) ed.setAttribute("placeholder", ed.dataset.vsPlaceholder);
       }
     } else {
       // contenteditable: toggling contenteditable=false would block our own
       // execCommand injection, so only flag it visually via a data attribute the
       // overlay CSS can style. typeAndSend re-enables as needed.
-      if (on) ed.setAttribute("data-zs-locked", "1");
-      else ed.removeAttribute("data-zs-locked");
+      if (on) ed.setAttribute("data-vs-locked", "1");
+      else ed.removeAttribute("data-vs-locked");
     }
   }
 
   // ── Send / stop buttons ───────────────────────────────────────────────────
   const sendButton = () => {
-    const c = composerFrame() || document;
-    // configured selector first
-    let b = c.querySelector(S.sendBtn) || document.querySelector(S.sendBtn);
-    if (b) return b;
-    // fallback: an enabled, visible button in the composer that looks like send
-    const cands = Array.prototype.filter.call(
-      c.querySelectorAll("button, [role='button']"),
-      (x) => !x.disabled && x.offsetParent !== null
-    );
-    return (
-      cands.find((x) => x.type === "submit") ||
-      cands.find((x) => /send|submit/i.test((x.getAttribute("aria-label") || "") + " " + (x.getAttribute("data-testid") || ""))) ||
-      null
-    );
+    const c = composerFrame();
+    return (c && c.querySelector(S.sendBtn)) || document.querySelector(S.sendBtn);
   };
   const stopButton = () => {
     if (!S.stopBtn) return null;
@@ -342,13 +335,9 @@ function VSGeneric(cfg) {
     }, 8000);
     diag(`${cfg.id}.send`, { enabled, busy: isBusyNow() });
     if (!clickSendButton() && !isBusyNow()) {
-      // Fallback: full Enter key sequence, then form.requestSubmit as a last resort.
       const o = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
       editor.dispatchEvent(new KeyboardEvent("keydown", o));
-      editor.dispatchEvent(new KeyboardEvent("keypress", o));
       editor.dispatchEvent(new KeyboardEvent("keyup", o));
-      const form = editor.closest && editor.closest("form");
-      if (form && form.requestSubmit) { try { form.requestSubmit(); } catch {} }
     }
   }
 
@@ -459,10 +448,10 @@ function VSGeneric(cfg) {
     let hidAny = null;
     for (const wrap of item.querySelectorAll(S.codeWrap)) {
       if (S.thinking && wrap.closest(S.thinking)) continue;
-      if (wrap.closest(".void-chip")) continue;
+      if (wrap.closest(".vs-chip")) continue;
       if (CMD_SHAPE.test(wrap.textContent || "")) {
-        wrap.classList.add("void-tool-hide");
-        item.classList.add("void-cmd-mask");
+        wrap.classList.add("vs-tool-hide");
+        item.classList.add("vs-cmd-mask");
         hidAny = hidAny || { parent: wrap.parentElement, ref: wrap };
       }
     }

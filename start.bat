@@ -24,7 +24,7 @@ set "CWARN=%E%[38;2;251;191;36m"
 
 :: ---- config ----------------------------------------------------------------
 set "PORT=17613"
-if defined VOID_BRIDGE_PORT set "PORT=%VOID_BRIDGE_PORT%"
+if defined VS_BRIDGE_PORT set "PORT=%VS_BRIDGE_PORT%"
 set "LOGDIR=%~dp0logs"
 set "LOG=%LOGDIR%\start.log"
 if not exist "%LOGDIR%" md "%LOGDIR%" >nul 2>nul
@@ -80,6 +80,26 @@ for /f "delims=" %%v in ('call %PY% --version 2^>^&1') do set "PYVER=%%v"
 echo         %COK%Using%C0% %PY%  %CDIM%(!PYVER!)%C0%
 call :note "python: %PY% (!PYVER!)"
 
+:: ---- 1.5. auto-update (fully automatic) -----------------------------------
+:: Downloads and applies a newer GitHub release on every launch, then restarts
+:: this launcher so the NEW bridge.py is the one that runs. Silent when nothing
+:: is newer; offline/API errors are silent too and never block startup.
+if exist "%~dp0update.py" (
+    for /f "delims=" %%u in ('call %PY% "%~dp0update.py" --auto 2^>nul') do set "UPAUTO=%%u"
+    if defined UPAUTO (
+        if /i "!UPAUTO:~0,15!"=="UPDATE_APPLIED" (
+            echo.
+            echo   %COK%UPDATE INSTALLED%C0%  !UPAUTO!
+            echo   Reload the extension at chrome://extensions after this restarts.
+            call :note "auto-update applied: !UPAUTO!"
+            echo.
+            echo   %CVIO%Restarting VoidScript with the new version...%C0%
+            start "VoidScript Update" /d "%~dp0" cmd /c "%~f0"
+            call :halt 0
+        )
+    )
+)
+
 :: ---- 2. dependency: websockets --------------------------------------------
 echo.
 echo   %CVIO%[2/3]%C0% %CB%Checking the websockets library...%C0%
@@ -105,7 +125,6 @@ echo   %CVIO%[3/3]%C0% %CB%Starting the bridge...%C0%
 call :free_port
 
 call :keepopen
-REM Launch the self-made VoidScript bridge (pairs with the voidscript-extension).
 call :note "launching bridge.py"
 %PY% "%~dp0bridge.py"
 set "RC=%errorlevel%"

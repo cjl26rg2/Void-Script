@@ -1,105 +1,151 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""
-launch_studio_mcp.py — VoidScript launcher for Roblox's StudioMCP binary.
-
-The bridge (config.json -> mcpServers.roblox) runs this. Its job is tiny: locate
-Roblox's own StudioMCP executable (it ships inside each installed Studio version)
-and exec it, forwarding stdio and any args untouched so the bridge speaks MCP
-straight to it. Roblox's own mcp.bat hard-codes one version path and breaks on
-auto-update; this finds the newest *paired* install (a version folder that has
-both StudioMCP and an actual Studio exe) so it never lands on a leftover.
-
-Override the path with the VOID_STUDIO_MCP env var if discovery ever misses.
-"""
+# launch_studio_mcp.py
+# ──────────────────────────────────────────────────────────────────────────
+#  Robust launcher for Roblox's StudioMCP.exe (the Studio MCP studio server).
+#
+#  Roblox ships a %LOCALAPPDATA%\Roblox\mcp.bat, but it hard-codes ONE Studio
+#  version path. When Studio auto-updates, that folder is eventually removed and
+#  the .bat's fallback branch is broken batch syntax (`else` on its own line),
+#  so StudioMCP.exe never launches -> the bridge sees 0 tools -> the extension
+#  reports "Bridge or Studio offline".
+#
+#  This launcher sidesteps that entirely: it finds the NEWEST StudioMCP.exe
+#  across all installed Studio versions and launches it, transparently forwarding
+#  stdio and any CLI args. It also supports an explicit override path via
+#  `VS_STUDIO_MCP_PATH` when discovery is not enough.
+# ──────────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
 import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Iterable, Optional
 
-ENV_OVERRIDE = "VOID_STUDIO_MCP"
-WIN_STUDIO_EXES = ("RobloxStudioBeta.exe", "RobloxStudio.exe")
-MAC_STUDIO_EXES = ("RobloxStudio", "RobloxStudioBeta", "Roblox")
+ENV_OVERRIDE = "VS_STUDIO_MCP_PATH"
+WINDOWS_STUDIO_EXECUTABLES = ("RobloxStudioBeta.exe", "RobloxStudio.exe")
+MAC_STUDIO_EXECUTABLES = ("RobloxStudio", "RobloxStudioBeta", "Roblox")
 
 
-def _version_roots() -> list[Path]:
+def _candidate_roots() -> list[Path]:
+    """Directories that may contain Roblox Studio version folders (Windows)."""
     roots: list[Path] = []
-    la = os.environ.get("LOCALAPPDATA")
-    if la:
-        roots.append(Path(la) / "Roblox" / "Versions")
-    for var in ("ProgramFiles", "ProgramFiles(x86)"):
-        v = os.environ.get(var)
-        if v:
-            roots.append(Path(v) / "Roblox" / "Versions")
+    local_appdata = os.environ.get("LOCALAPPDATA")
+    if local_appdata:
+        roots.append(Path(local_appdata) / "Roblox" / "Versions")
+    for env in ("ProgramFiles", "ProgramFiles(x86)"):
+        value = os.environ.get(env)
+        if value:
+            roots.append(Path(value) / "Roblox" / "Versions")
     return roots
 
 
-def _newest(paths: list[Path]) -> Path | None:
+def _resolve_override_path(path_value: str) -> Optional[Path]:
+    path = Path(path_value).expanduser()
+    if path.is_file():
+        return path
+    if path.is_dir():
+        if sys.platform == "darwin":
+            candidate = path / "Contents" / "MacOS" / "StudioMCP"
+        else:
+            candidate = path / "StudioMCP.exe"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _newest_path(paths: Iterable[Path]) -> Optional[Path]:
     try:
         return max(paths, key=lambda p: p.stat().st_mtime)
     except (ValueError, OSError):
         return None
 
 
-def _find_windows() -> Path | None:
-    """Newest StudioMCP.exe from a version folder that also holds a real Studio
-    exe (skip leftover 'zombie' folders that would launch with no Studio)."""
-    paired, orphans = [], []
-    for root in _version_roots():
+def _find_studio_mcp_windows() -> Optional[Path]:
+    """Return the path to the StudioMCP.exe of the live Studio install, or None.
+
+    Roblox leaves "zombie" version folders behind after an update: they still
+    contain a StudioMCP.exe but no RobloxStudioBeta.exe / RobloxStudio.exe
+    (the actual Studio is gone). Picking the newest StudioMCP.exe by mtime can
+    land on such a zombie, which launches fine but has no Studio to attach to ->
+    the bridge sees 0 tools.
+
+    We only consider version folders that ALSO contain a current Studio
+    executable, and prefer the newest of those. We keep zombie StudioMCP.exe
+    paths only as a last-resort fallback if no paired install exists.
+    """
+    paired: list[Path] = []
+    orphans: list[Path] = []
+    for root in _candidate_roots():
         if not root.is_dir():
             continue
         try:
-            for ver in root.iterdir():
-                mcp = ver / "StudioMCP.exe"
-                if not mcp.is_file():
+            for version_dir in root.iterdir():
+                if not version_dir.is_dir():
                     continue
-                (paired if any((ver / e).is_file() for e in WIN_STUDIO_EXES) else orphans).append(mcp)
+                studio_mcp = version_dir / "StudioMCP.exe"
+                if not studio_mcp.is_file():
+                    continue
+                if any((version_dir / exe_name).is_file() for exe_name in WINDOWS_STUDIO_EXECUTABLES):
+                    paired.append(studio_mcp)
+                else:
+                    orphans.append(studio_mcp)
         except OSError:
             continue
-    return _newest(paired) or _newest(orphans)
+    return _newest_path(paired) or _newest_path(orphans)
 
 
-def _find_mac() -> Path | None:
+def _mac_app_candidates() -> list[Path]:
+    """Locations where Roblox Studio may be installed on macOS."""
     home = Path.home()
-    apps = [
-        Path("/Applications/RobloxStudio.app"), home / "Applications/RobloxStudio.app",
-        Path("/Applications/Roblox.app"), home / "Applications/Roblox.app",
+    return [
+        Path("/Applications/RobloxStudio.app"),
+        home / "Applications" / "RobloxStudio.app",
+        Path("/Applications/Roblox.app"),
+        home / "Applications" / "Roblox.app",
+        Path("/Applications/RobloxStudioBeta.app"),
+        home / "Applications" / "RobloxStudioBeta.app",
     ]
-    for app in apps:
-        macos = app / "Contents" / "MacOS"
-        mcp = macos / "StudioMCP"
-        if mcp.is_file() and any((macos / e).is_file() for e in MAC_STUDIO_EXES):
-            return mcp
+
+
+def _find_studio_mcp_mac() -> Optional[Path]:
+    """Return the path to StudioMCP inside a Roblox Studio app bundle, or None."""
+    for app in _mac_app_candidates():
+        macos_dir = app / "Contents" / "MacOS"
+        studio_mcp = macos_dir / "StudioMCP"
+        if not studio_mcp.is_file():
+            continue
+        if any((macos_dir / exe_name).is_file() for exe_name in MAC_STUDIO_EXECUTABLES):
+            return studio_mcp
     return None
 
 
-def find_studio_mcp() -> Path | None:
-    override = os.environ.get(ENV_OVERRIDE)
-    if override:
-        p = Path(override).expanduser()
-        if p.is_file():
-            return p
-        cand = p / ("StudioMCP" if sys.platform == "darwin" else "StudioMCP.exe")
-        if cand.is_file():
-            return cand
-        sys.stderr.write(f"launch_studio_mcp: {ENV_OVERRIDE} set but no StudioMCP at {override}\n")
-    return _find_mac() if sys.platform == "darwin" else _find_windows()
+def find_studio_mcp() -> Optional[Path]:
+    override_value = os.environ.get(ENV_OVERRIDE)
+    if override_value:
+        override_path = _resolve_override_path(override_value)
+        if override_path:
+            return override_path
+        sys.stderr.write(
+            f"launch_studio_mcp: {ENV_OVERRIDE} is set but does not point to a valid StudioMCP binary: {override_value}\n"
+        )
+    if sys.platform == "darwin":
+        return _find_studio_mcp_mac()
+    return _find_studio_mcp_windows()
 
 
 def main() -> int:
     exe = find_studio_mcp()
+    binary_name = "StudioMCP" if sys.platform == "darwin" else "StudioMCP.exe"
     if not exe:
-        name = "StudioMCP" if sys.platform == "darwin" else "StudioMCP.exe"
         sys.stderr.write(
-            f"launch_studio_mcp: no {name} found. Open Roblox Studio and enable "
-            "'Studio as MCP server' (Assistant settings), then retry.\n"
+            f"launch_studio_mcp: no {binary_name} found. Open Roblox Studio and "
+            "enable 'Studio as MCP server' (Assistant Settings > MCP Servers).\n"
         )
         return 1
     sys.stderr.write(f"launch_studio_mcp: using {exe}\n")
     sys.stderr.flush()
-    proc = subprocess.Popen([str(exe), *sys.argv[1:]])
+    proc = subprocess.Popen([str(exe)] + sys.argv[1:])
     try:
         return proc.wait()
     except KeyboardInterrupt:
