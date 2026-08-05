@@ -30,10 +30,16 @@
     });
   const getTools = () =>
     new Promise((resolve) => {
-      chrome.runtime.sendMessage({ type: "vs-tools" }, (res) => {
-        if (chrome.runtime.lastError) return resolve([]);
-        resolve((res && res.tools) || []);
-      });
+      let tries = 0;
+      const ask = () =>
+        chrome.runtime.sendMessage({ type: "vs-tools" }, (res) => {
+          if (chrome.runtime.lastError) return resolve([]);
+          const list = (res && res.tools) || [];
+          // The list may still be loading right after connect — retry briefly.
+          if (list.length || tries++ >= 6) return resolve(list);
+          setTimeout(ask, 500);
+        });
+      ask();
     });
 
   // ── UI + agent ──

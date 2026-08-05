@@ -83,6 +83,10 @@ function dispatch(raw) {
         tools: msg.tools || 0,
         servers: msg.servers || [],
       });
+      // The tool LIST can lag behind the count (e.g. the bridge finished booting
+      // its MCP servers after our initial hello). If the reported count differs
+      // from what we cached, re-fetch the full list so callers get real tools.
+      if ((msg.tools || 0) !== tools.length) send({ type: "list_tools" });
       break;
     case "result": {
       const p = pending.get(msg.id);
