@@ -10,7 +10,7 @@
 //    <textarea>, so the factory's contenteditable path is used.
 //  - Send/stop buttons are identified by data-testid.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "chatgpt",
   displayName: "ChatGPT",
   supportsVision: false, // flip to true only after a live screen_capture read is confirmed

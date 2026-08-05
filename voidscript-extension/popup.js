@@ -2,7 +2,7 @@
 // VoidScript popup: shows bridge/Studio status and exposes reconnect, restart,
 // settings, website and tip actions. Talks to background.js over the same
 // message protocol the rest of the extension uses ("status" / "reconnect" /
-// "restart_mcp" requests, "zs-status" broadcasts, "zs-open-menu" to a tab).
+// "restart_mcp" requests, "vs-status" broadcasts, "vs-open-menu" to a tab).
 
 const LINKS = {
   site: "https://void-script.vercel.app/",
@@ -87,7 +87,7 @@ $("btn-settings").onclick = () => {
       tabs.find((t) => t.active && isProviderTab(t.url)) ||
       tabs.find((t) => isProviderTab(t.url));
     if (target) {
-      chrome.tabs.sendMessage(target.id, { type: "zs-open-menu" });
+      chrome.tabs.sendMessage(target.id, { type: "vs-open-menu" });
       chrome.tabs.update(target.id, { active: true });
     } else {
       chrome.tabs.create({ url: LINKS.fallbackAI });
@@ -97,7 +97,7 @@ $("btn-settings").onclick = () => {
 
 // ── live updates ────────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === "zs-status") paint(msg);
+  if (msg && msg.type === "vs-status") paint(msg);
 });
 poll();
 setInterval(poll, 2000);

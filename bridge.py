@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover - the launchers install this for the use
 
 HERE = Path(__file__).resolve().parent
 HOST = "127.0.0.1"
-PORT = int(os.environ.get("ZS_BRIDGE_PORT", "17613"))
+PORT = int(os.environ.get("VOID_BRIDGE_PORT", "17613"))
 CONFIG_PATH = Path(os.environ.get("VOID_CONFIG", HERE / "config.json"))
 MCP_PROTOCOL_VERSION = "2024-11-05"
 CLIENT_INFO = {"name": "voidscript-bridge", "version": "2.0"}

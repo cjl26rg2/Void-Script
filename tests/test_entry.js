@@ -28,7 +28,7 @@ class MockOverlay {
 }
 globalThis.VoidOverlay = MockOverlay;
 
-globalThis.ZSProvider = {
+globalThis.VSProvider = {
   displayName: "MockAI",
   _sent: [],
   init() {},

@@ -44,7 +44,7 @@ async function main() {
   ok(ws.sent[0] && ws.sent[0].type === "hello", "sends 'hello' on open");
 
   ws._recv({ type: "ready", tools: [{ name: "echo" }], studio: true, servers: [{ id: "roblox", alive: true, tools: 1 }] });
-  const st = broadcasts.find((b) => b.type === "zs-status" && b.connected);
+  const st = broadcasts.find((b) => b.type === "vs-status" && b.connected);
   ok(st && st.studio === true && st.tools === 1, "'ready' updates + broadcasts status");
 
   // popup asks for status
@@ -75,7 +75,7 @@ async function main() {
   // disconnect clears status
   ws.close();
   const down = broadcasts[broadcasts.length - 1];
-  ok(down.type === "zs-status" && down.connected === false, "socket close broadcasts offline status");
+  ok(down.type === "vs-status" && down.connected === false, "socket close broadcasts offline status");
 
   console.log(`\n${pass}/${pass + fail} checks passed`);
   process.exit(fail ? 1 : 0);

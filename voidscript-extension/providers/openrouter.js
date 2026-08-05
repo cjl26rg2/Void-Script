@@ -4,7 +4,7 @@
 // openrouter.ai/chat. Best-guess selectors; re-verify live if turns are not read
 // or the send does not fire.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "openrouter",
   displayName: "OpenRouter",
   supportsVision: false,

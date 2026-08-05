@@ -7,7 +7,7 @@
 //  - Grok's web app marks message rows with message-bubble / author classes and
 //    uses a real <textarea> composer, so the factory's textarea path applies.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "grok",
   displayName: "Grok",
   supportsVision: false,

@@ -24,7 +24,7 @@ set "CWARN=%E%[38;2;251;191;36m"
 
 :: ---- config ----------------------------------------------------------------
 set "PORT=17613"
-if defined ZS_BRIDGE_PORT set "PORT=%ZS_BRIDGE_PORT%"
+if defined VOID_BRIDGE_PORT set "PORT=%VOID_BRIDGE_PORT%"
 set "LOGDIR=%~dp0logs"
 set "LOG=%LOGDIR%\start.log"
 if not exist "%LOGDIR%" md "%LOGDIR%" >nul 2>nul

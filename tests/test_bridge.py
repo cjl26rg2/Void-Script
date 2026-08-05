@@ -30,7 +30,7 @@ async def recv_type(ws, wanted, timeout=5):
 async def run() -> int:
     cfg = {"mcpServers": {"roblox": {"command": "mock_mcp_server.py", "args": []}}}
     (HERE / "test_config.json").write_text(json.dumps(cfg), encoding="utf-8")
-    env = {**os.environ, "VOID_CONFIG": str(HERE / "test_config.json"), "ZS_BRIDGE_PORT": PORT}
+    env = {**os.environ, "VOID_CONFIG": str(HERE / "test_config.json"), "VOID_BRIDGE_PORT": PORT}
     proc = subprocess.Popen([sys.executable, str(HERE.parent / "bridge.py")], env=env)
 
     passed = 0

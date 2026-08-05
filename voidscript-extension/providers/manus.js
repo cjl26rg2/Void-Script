@@ -5,7 +5,7 @@
 // Note: Manus runs its own long agent loops, so completion detection via stream
 // quiescence may fire early - expect to tune timings for this one.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "manus",
   displayName: "Manus",
   supportsVision: false,

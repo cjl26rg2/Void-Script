@@ -7,7 +7,7 @@
 //
 // This factory exists so a NEW site can be brought up quickly with just a config
 // object of CSS selectors instead of a full 40-method rewrite. It implements the
-// entire ZSProvider interface the core (core/main.js) expects, using sensible,
+// entire VSProvider interface the core (core/main.js) expects, using sensible,
 // framework-neutral defaults:
 //   - turn reading via user/assistant item selectors
 //   - text extraction that strips the reasoning subtree + our own chip
@@ -23,10 +23,10 @@
 // full hand-written one (its own providers/<name>.js) once its DOM is validated.
 //
 // Usage (in a provider file, after core/config.js + core/parser.js are loaded):
-//   const ZSProvider = ZSGeneric({ id, displayName, selectors: {...}, ... });
+//   const VSProvider = VSGeneric({ id, displayName, selectors: {...}, ... });
 //
 // eslint-disable-next-line no-unused-vars
-function ZSGeneric(cfg) {
+function VSGeneric(cfg) {
   "use strict";
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   let diag = () => {}; // injected by core via init()
@@ -93,7 +93,7 @@ function ZSGeneric(cfg) {
   // excluded selector, so tool blocks drafted inside reasoning are never run.
   function textWithout(root, excludeSel) {
     if (!root) return "";
-    const skipParts = [S.thinking, ".zs-chip"];
+    const skipParts = [S.thinking, ".void-chip"];
     if (S.attachment) skipParts.push(S.attachment);
     if (excludeSel) skipParts.push(excludeSel);
     const skip = skipParts.filter(Boolean).join(", ");
@@ -459,10 +459,10 @@ function ZSGeneric(cfg) {
     let hidAny = null;
     for (const wrap of item.querySelectorAll(S.codeWrap)) {
       if (S.thinking && wrap.closest(S.thinking)) continue;
-      if (wrap.closest(".zs-chip")) continue;
+      if (wrap.closest(".void-chip")) continue;
       if (CMD_SHAPE.test(wrap.textContent || "")) {
-        wrap.classList.add("zs-tool-hide");
-        item.classList.add("zs-cmd-mask");
+        wrap.classList.add("void-tool-hide");
+        item.classList.add("void-cmd-mask");
         hidAny = hidAny || { parent: wrap.parentElement, ref: wrap };
       }
     }

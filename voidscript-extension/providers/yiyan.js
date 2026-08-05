@@ -4,7 +4,7 @@
 // re-verify live if turns are not read or the send does not fire. UI is in
 // Chinese; a dedicated provider should add zh error/limit patterns.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "yiyan",
   displayName: "ERNIE",
   supportsVision: false,

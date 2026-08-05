@@ -3,7 +3,7 @@
 // answer engine. Built on the generic factory (providers/_generic.js).
 // Best-guess selectors; re-verify live if turns are not read or send fails.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "phind",
   displayName: "Phind",
   supportsVision: false,

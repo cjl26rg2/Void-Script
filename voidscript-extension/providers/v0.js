@@ -5,7 +5,7 @@
 // v0 is code-generation-oriented; its replies are heavy on code blocks, which
 // suits VoidScript's fenced-command extraction.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "v0",
   displayName: "v0",
   supportsVision: false,

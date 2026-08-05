@@ -13,7 +13,7 @@
 //   popup    -> bg : {type:"restart_mcp"}  -> {ok}
 //   content  -> bg : {type:"vs-tools"}     -> {tools}
 //   content  -> bg : {type:"vs-call", tool, params} -> {ok, output}
-//   bg -> popup/content (broadcast) : {type:"zs-status", ...status}
+//   bg -> popup/content (broadcast) : {type:"vs-status", ...status}
 //
 // MV3 note: a service worker is torn down when idle. We use chrome.alarms to
 // wake it, re-open the socket, and ping. Requires "alarms" in the manifest at
@@ -106,7 +106,7 @@ function dispatch(raw) {
 
 function setStatus(s) {
   status = s;
-  broadcast({ type: "zs-status", ...status });
+  broadcast({ type: "vs-status", ...status });
 }
 
 function broadcast(obj) {

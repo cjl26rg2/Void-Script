@@ -10,7 +10,7 @@
 //    strip in the factory keeps command extraction clean of most chrome, but
 //    watch for false positives if answers embed the command JSON in a citation.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "perplexity",
   displayName: "Perplexity",
   supportsVision: false,

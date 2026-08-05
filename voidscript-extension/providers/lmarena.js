@@ -4,7 +4,7 @@
 // (single model), not battle/side-by-side - like the hand-tuned arena.js, the
 // comparison modes are not supported. Best-guess selectors; re-verify live.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "lmarena",
   displayName: "LMArena",
   supportsVision: false,

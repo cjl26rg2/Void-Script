@@ -7,7 +7,7 @@
 //  - Copilot marks messages with data-content / author attributes and uses a
 //    <textarea> composer (id="userInput" on recent builds).
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "copilot",
   displayName: "Copilot",
   supportsVision: false,

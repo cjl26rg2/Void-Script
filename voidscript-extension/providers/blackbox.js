@@ -3,7 +3,7 @@
 // assistant. Built on the generic factory (providers/_generic.js). Best-guess
 // selectors; re-verify live if turns are not read or the send does not fire.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "blackbox",
   displayName: "Blackbox",
   supportsVision: false,

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // providers/kimi.js — generic VoidScript adapter for Kimi (test build).
-// Best-guess selectors on the ZSGeneric factory; tune live if a turn is not
+// Best-guess selectors on the VSGeneric factory; tune live if a turn is not
 // read or the send does not fire. (The shipping extension uses a hand-tuned
 // provider for this site; this rebuild routes it through the generic adapter.)
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "kimi",
   displayName: "Kimi",
   supportsVision: false,

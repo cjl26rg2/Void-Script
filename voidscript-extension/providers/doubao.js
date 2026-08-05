@@ -5,7 +5,7 @@
 // Chinese; the factory's error/limit regexes are English-first so limit
 // detection may miss - a dedicated provider should add zh patterns.
 // eslint-disable-next-line no-unused-vars
-const ZSProvider = ZSGeneric({
+const VSProvider = VSGeneric({
   id: "doubao",
   displayName: "Doubao",
   supportsVision: false,

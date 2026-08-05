@@ -2,7 +2,7 @@
 // VoidScript content-script entry (self-made, clean-room rebuild — Phase 7).
 //
 // The seam. Loaded LAST in the content_scripts list, after (new) config.js +
-// parser.js, the provider adapter (which defines the global ZSProvider), and the
+// parser.js, the provider adapter (which defines the global VSProvider), and the
 // rebuilt overlay.js + core.js. It wires the tested modules to the live page:
 //   - builds the overlay and mounts it near the site's composer
 //   - points callTool / getTools at the background relay (vs-call / vs-tools)
@@ -15,8 +15,8 @@
   "use strict";
 
   // No provider adapter on this page => nothing to do.
-  if (typeof ZSProvider === "undefined" || !ZSProvider) return;
-  const provider = ZSProvider;
+  if (typeof VSProvider === "undefined" || !VSProvider) return;
+  const provider = VSProvider;
   const diag = (tag, data) => { try { console.log("[void]", tag, data || ""); } catch {} };
   if (provider.init) provider.init({ diag });
 
@@ -108,7 +108,7 @@
     else overlay.setStatus(`Studio ready · ${s.tools || 0} tools`, "ok");
   }
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg && msg.type === "zs-status") paintIdleStatus(msg);
+    if (msg && msg.type === "vs-status") paintIdleStatus(msg);
   });
   chrome.runtime.sendMessage({ type: "status" }, (s) => {
     if (!chrome.runtime.lastError) paintIdleStatus(s);

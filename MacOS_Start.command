@@ -9,7 +9,7 @@ set -u
 
 cd "$(dirname "$0")" || exit 1
 
-PORT="${ZS_BRIDGE_PORT:-17613}"
+PORT="${VOID_BRIDGE_PORT:-17613}"
 LOG="logs/start.log"
 mkdir -p logs 2>/dev/null
 
