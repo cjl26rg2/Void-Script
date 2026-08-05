@@ -29,6 +29,7 @@ let status = { connected: false, studio: false, tools: 0, servers: [] };
 let nextId = 1;
 const pending = new Map(); // call id -> {resolve, timer}
 let reconnectTimer = null;
+let toolWaiters = []; // resolvers waiting for a fresh tool list
 
 // ── socket lifecycle ────────────────────────────────────────────────────────
 function connect() {
@@ -73,6 +74,7 @@ function dispatch(raw) {
       break;
     case "tools":
       tools = msg.tools || [];
+      toolWaiters.splice(0).forEach((r) => r(tools)); // wake anyone waiting for the list
       break;
     case "status":
     case "pong":
@@ -133,6 +135,21 @@ function callTool(tool, params) {
   });
 }
 
+// Return the tool list, actively asking the bridge if our cache is cold (the MV3
+// service worker can be torn down and lose it between calls).
+function fetchTools() {
+  return new Promise((resolve) => {
+    if (tools.length) { resolve(tools); return; }
+    if (!socket || socket.readyState !== WebSocket.OPEN) { resolve([]); return; }
+    toolWaiters.push(resolve);
+    send({ type: "list_tools" });
+    setTimeout(() => {
+      const i = toolWaiters.indexOf(resolve);
+      if (i >= 0) { toolWaiters.splice(i, 1); resolve(tools); }
+    }, 3000);
+  });
+}
+
 // ── extension message API ───────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   if (!msg || !msg.type) return;
@@ -151,8 +168,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       sendResponse({ ok: true });
       return;
     case "vs-tools":
-      sendResponse({ tools });
-      return;
+      fetchTools().then((t) => sendResponse({ tools: t }));
+      return true; // async: keep the channel open
     case "vs-call":
       callTool(msg.tool, msg.params).then(sendResponse);
       return true; // async: keep the channel open

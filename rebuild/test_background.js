@@ -52,9 +52,10 @@ async function main() {
   onMsg({ type: "status" }, {}, (r) => (statusResp = r));
   ok(statusResp && statusResp.connected === true && statusResp.tools === 1, "status request returns cached status");
 
-  // content script asks for the tool list
+  // content script asks for the tool list (async now)
   let toolsResp = null;
   onMsg({ type: "vs-tools" }, {}, (r) => (toolsResp = r));
+  await tick();
   ok(toolsResp && toolsResp.tools[0].name === "echo", "vs-tools returns tool list");
 
   // content script calls a tool -> bridge -> result
