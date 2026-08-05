@@ -36,7 +36,10 @@
       this.running = false;
       this.tools = [];
       this._names = new Set();
-      this._processed = new WeakMap(); // turn item -> last text handled (avoids re-processing)
+      // Track the last reply we acted on by its TEXT, not the DOM node. SPA sites
+      // (ChatGPT) re-render message elements, so a node-keyed check saw a "new"
+      // turn every tick and re-ran the same command dozens of times.
+      this._lastText = null;
     }
 
     async start() {
@@ -114,13 +117,13 @@
       }
       const item = read.item;
       const text = read.reply || "";
-      if (this._processed.get(item) === text) return "idle";
+      if (text && text === this._lastText) return "idle"; // same reply, already handled
 
       const parsed = this.parse.parse(text);
+      if (parsed.status === "partial") return "partial"; // still streaming; don't commit
       this.diag("turn", { textLen: text.length, parse: parsed.status, tool: parsed.command && parsed.command.tool });
-      if (parsed.status === "partial") return "partial";
 
-      this._processed.set(item, text);
+      this._lastText = text;
       switch (parsed.status) {
         case "none":
           this.overlay.setStatus("Done", "ok");
