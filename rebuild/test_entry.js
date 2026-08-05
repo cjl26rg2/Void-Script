@@ -18,7 +18,7 @@ globalThis.VoidParse = require("./parser.js");
 globalThis.VoidConfig = require("./config.js");
 
 class MockOverlay {
-  constructor(opts) { this.onToggle = (opts && opts.onToggle) || (() => {}); this.calls = { mount: [], status: [], running: [] }; this.root = { nodeType: 1 }; }
+  constructor(opts) { this.onToggle = (opts && opts.onToggle) || (() => {}); this.calls = { mount: [], status: [], running: [] }; this.root = { nodeType: 1, style: {} }; }
   mount(el, where) { this.calls.mount.push([el, where]); }
   setStatus(t, s) { this.calls.status.push([t, s]); }
   setRunning(b) { this.calls.running.push(b); }

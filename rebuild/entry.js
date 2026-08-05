@@ -60,26 +60,39 @@
     diag("mounted", {});
   }
 
-  // Find the site's composer box so we can sit just above it.
+  // Find the site's text input so we can sit just above it. The editor element
+  // is the most reliable anchor; the composer frame is a wider fallback.
   function composerEl() {
     return (
-      (provider.barAnchor && provider.barAnchor()) ||
+      (provider.getEditor && provider.getEditor()) ||
       (provider.composerFrame && provider.composerFrame()) ||
-      (provider.getEditor && provider.getEditor())
+      (provider.barAnchor && provider.barAnchor())
     );
   }
-  // Pin the bar to hug the top edge of the composer, matching its width.
+  // Pin the bar just above the input, matching its width. If the measurement
+  // looks wrong (input in the top half of the screen), fall back to bottom-center
+  // so the bar never floats over the middle of the conversation.
   function positionBar() {
     const el = composerEl();
-    if (!el || !el.getBoundingClientRect) return;
-    const r = el.getBoundingClientRect();
-    if (!r.width || !r.height) return;
     const s = overlay.root.style;
-    s.left = Math.max(8, r.left) + "px";
-    s.width = Math.min(r.width, window.innerWidth - 16) + "px";
-    s.bottom = window.innerHeight - r.top + 8 + "px"; // 8px gap above the composer
+    if (el && el.getBoundingClientRect) {
+      const r = el.getBoundingClientRect();
+      if (r.width && r.height && r.top > window.innerHeight * 0.5) {
+        s.left = Math.max(8, r.left) + "px";
+        s.width = Math.min(r.width, window.innerWidth - 16) + "px";
+        s.bottom = window.innerHeight - r.top + 8 + "px"; // 8px above the input
+        s.top = "auto";
+        s.transform = "none";
+        return;
+      }
+    }
+    // fallback: fixed bottom-center
+    s.left = "50%";
+    s.right = "auto";
+    s.width = "min(720px, 94vw)";
+    s.bottom = "92px";
     s.top = "auto";
-    s.transform = "none";
+    s.transform = "translateX(-50%)";
   }
   function place() { mountBar(); positionBar(); }
   place();
