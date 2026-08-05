@@ -89,10 +89,17 @@
       if (!p.allItems || !p.isUserItem) return;
       const re = this.config.hideRe;
       if (!re) return;
-      for (const item of p.allItems()) {
+      const items = p.allItems();
+      let hidden = 0;
+      for (const item of items) {
         if (!p.isUserItem(item)) continue;
         const text = p.itemText ? p.itemText(item) : (item.textContent || "");
-        if (re.test(text)) this.overlay.mask(item);
+        if (re.test(text)) { this.overlay.mask(item); hidden++; }
+      }
+      // Log when the turn count changes so a selector mismatch (turns: 0) is obvious.
+      if (items.length !== this._lastItemCount) {
+        this._lastItemCount = items.length;
+        this.diag("scan", { turns: items.length, hidden });
       }
     }
 
@@ -110,6 +117,7 @@
       if (this._processed.get(item) === text) return "idle";
 
       const parsed = this.parse.parse(text);
+      this.diag("turn", { textLen: text.length, parse: parsed.status, tool: parsed.command && parsed.command.tool });
       if (parsed.status === "partial") return "partial";
 
       this._processed.set(item, text);

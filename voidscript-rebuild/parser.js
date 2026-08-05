@@ -53,6 +53,38 @@
     return { status: "ok", command: { tool: obj.tool, params }, raw: json };
   }
 
+  // Scan text for the first balanced {...} that parses as JSON and carries a
+  // string "tool". This is how we recover a command AFTER a site has rendered
+  // the ```void block into a styled code box (the backtick fence is gone from
+  // the DOM, but the JSON survives). String-aware so braces inside strings don't
+  // throw off the depth count.
+  function scanBareCommand(text) {
+    for (let i = 0; i < text.length; i++) {
+      if (text[i] !== "{") continue;
+      let depth = 0, inStr = false, esc = false;
+      for (let j = i; j < text.length; j++) {
+        const c = text[j];
+        if (esc) { esc = false; continue; }
+        if (c === "\\") { esc = true; continue; }
+        if (c === '"') { inStr = !inStr; continue; }
+        if (inStr) continue;
+        if (c === "{") depth++;
+        else if (c === "}") {
+          depth--;
+          if (depth === 0) {
+            const cand = text.slice(i, j + 1);
+            try {
+              const obj = JSON.parse(cand);
+              if (obj && typeof obj.tool === "string" && obj.tool) return { obj, raw: cand };
+            } catch { /* not this one; keep scanning from the next { */ }
+            break;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
   function parse(text) {
     text = text || "";
     const blocks = [];
@@ -61,7 +93,14 @@
     while ((m = CLOSED.exec(text))) blocks.push({ tag: m[1], body: m[2] });
 
     if (blocks.length === 0) {
-      // No complete block. Is there a dangling opening fence (mid-stream)?
+      // No fenced block. It may have been rendered (backticks stripped) — try to
+      // recover a bare {"tool":...} command from the text.
+      const bare = scanBareCommand(text);
+      if (bare) {
+        const params = bare.obj.params && typeof bare.obj.params === "object" ? bare.obj.params : {};
+        return { status: "ok", command: { tool: bare.obj.tool, params }, raw: bare.raw };
+      }
+      // Otherwise: a dangling opening fence (mid-stream) => partial, else none.
       return OPEN.test(text) ? { status: "partial" } : { status: "none" };
     }
     if (blocks.length > 1) {

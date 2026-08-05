@@ -57,8 +57,15 @@ check("void-result ignored -> none",
   parse(fence("void-result", '{"ok":true,"output":"done"}')),
   { status: "none" });
 
-// a lookalike tag must not match
-check("voidx tag -> none", parse(fence("voidx", '{"tool":"a"}')), { status: "none" });
+// rendered pages strip the backtick fence; a bare {"tool":...} is still detected
+check("bare/rendered json command -> ok",
+  parse('void\n{ "tool": "list_roblox_studios", "params": {} }'),
+  { status: "ok", command: { tool: "list_roblox_studios", params: {} }, raw: '{ "tool": "list_roblox_studios", "params": {} }' });
+
+// a JSON object with no tool key is not a command (avoids false positives)
+check("bare json without tool -> none",
+  parse('here is data { "x": 1, "y": { "z": 2 } }'),
+  { status: "none" });
 
 console.log(`\n${pass}/${pass + fail} checks passed`);
 process.exit(fail ? 1 : 0);

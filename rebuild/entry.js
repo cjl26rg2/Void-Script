@@ -17,7 +17,7 @@
   // No provider adapter on this page => nothing to do.
   if (typeof ZSProvider === "undefined" || !ZSProvider) return;
   const provider = ZSProvider;
-  const diag = (tag, data) => { try { console.debug("[void]", tag, data || ""); } catch {} };
+  const diag = (tag, data) => { try { console.log("[void]", tag, data || ""); } catch {} };
   if (provider.init) provider.init({ diag });
 
   // ── bridge relay via the background service worker ──
