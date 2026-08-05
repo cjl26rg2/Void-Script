@@ -153,6 +153,27 @@
       return count;
     }
 
+    /** Hide the model's rendered command code block inside a turn, located by a
+     *  distinctive slice of the command's raw text. Climbs to the code-block
+     *  wrapper (header + copy button) so the whole box is hidden, not just the
+     *  <pre>. Returns true if it hid something. */
+    maskCommandBlock(item, raw) {
+      if (!item || !raw || !item.querySelectorAll) return false;
+      const needle = String(raw).replace(/\s+/g, " ").trim().slice(0, 30);
+      if (!needle) return false;
+      for (const pre of item.querySelectorAll("pre")) {
+        if ((pre.textContent || "").replace(/\s+/g, " ").indexOf(needle) < 0) continue;
+        let target = pre, up = pre.parentElement, depth = 0;
+        while (up && depth < 3) {
+          if (/code|highlight|md-|markdown/i.test(up.className || "") || up.querySelector("button")) target = up;
+          up = up.parentElement; depth++;
+        }
+        target.classList.add(HIDDEN);
+        return true;
+      }
+      return false;
+    }
+
     /** Hide the raw ```void block the model emitted; the chip replaces it. */
     mask(el) { if (el) el.classList.add(HIDDEN); }
     unmask(el) { if (el) el.classList.remove(HIDDEN); }

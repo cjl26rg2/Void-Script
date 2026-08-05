@@ -136,13 +136,13 @@
           await this._feedback(this.config.feedback.parseError(parsed.reason));
           return "feedback:" + parsed.reason;
         case "ok":
-          return await this._run(parsed.command, item);
+          return await this._run(parsed.command, item, parsed.raw);
         default:
           return "none";
       }
     }
 
-    async _run(cmd, item) {
+    async _run(cmd, item, raw) {
       if (!this._known(cmd.tool)) {
         await this._feedback(this.config.feedback.unknownTool(cmd.tool, [...this._names]));
         return "feedback:unknown";
@@ -150,6 +150,9 @@
       const category = this.config.toolCategory(cmd.tool);
       const spot = this.provider.findToolBlockSpot && this.provider.findToolBlockSpot(item);
       if (spot && spot.ref) this.overlay.mask(spot.ref);
+      // Also hide the model's rendered command code block (covers void-luau,
+      // which the provider's JSON-shaped detector misses).
+      if (this.overlay.maskCommandBlock) this.overlay.maskCommandBlock(item, raw);
       const chip = this.overlay.attachChip(item, { tool: cmd.tool, category, state: "running" });
       this.overlay.setStatus("Running " + cmd.tool + "…", "working");
 

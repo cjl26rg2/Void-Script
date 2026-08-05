@@ -119,8 +119,15 @@ function ZSGeneric(cfg) {
   const classifyText = (item, excludeSel) => textWithout(item, excludeSel);
 
   // ── DOM primitives ────────────────────────────────────────────────────────
-  const allItems = () => [...document.querySelectorAll(S.anyItem)];
-  const assistantItems = () => [...document.querySelectorAll(S.assistantItem)];
+  const notOurs = (e) => !e.closest("#void-root");
+  const allItems = () => [...document.querySelectorAll(S.anyItem)].filter(notOurs);
+  // Heuristic fallback: if the configured selector matches nothing, markdown/prose
+  // blocks are almost always assistant replies (covers sites with hashed classes).
+  const assistantItems = () => {
+    const hit = [...document.querySelectorAll(S.assistantItem)].filter(notOurs);
+    if (hit.length) return hit;
+    return [...document.querySelectorAll('.markdown, .prose, [class*="markdown" i], [class*="prose" i]')].filter(notOurs);
+  };
   const assistantCount = () => assistantItems().length;
   const userCount = () => document.querySelectorAll(S.userItem).length;
 
@@ -128,7 +135,7 @@ function ZSGeneric(cfg) {
   // settings textarea never defeats the "not on a chat page" guard.
   const getEditor = () => {
     for (const e of document.querySelectorAll(S.editor)) {
-      if (!e.closest("#zs-root")) return e;
+      if (notOurs(e)) return e;
     }
     return null;
   };
@@ -188,8 +195,20 @@ function ZSGeneric(cfg) {
 
   // ── Send / stop buttons ───────────────────────────────────────────────────
   const sendButton = () => {
-    const c = composerFrame();
-    return (c && c.querySelector(S.sendBtn)) || document.querySelector(S.sendBtn);
+    const c = composerFrame() || document;
+    // configured selector first
+    let b = c.querySelector(S.sendBtn) || document.querySelector(S.sendBtn);
+    if (b) return b;
+    // fallback: an enabled, visible button in the composer that looks like send
+    const cands = Array.prototype.filter.call(
+      c.querySelectorAll("button, [role='button']"),
+      (x) => !x.disabled && x.offsetParent !== null
+    );
+    return (
+      cands.find((x) => x.type === "submit") ||
+      cands.find((x) => /send|submit/i.test((x.getAttribute("aria-label") || "") + " " + (x.getAttribute("data-testid") || ""))) ||
+      null
+    );
   };
   const stopButton = () => {
     if (!S.stopBtn) return null;
@@ -323,9 +342,13 @@ function ZSGeneric(cfg) {
     }, 8000);
     diag(`${cfg.id}.send`, { enabled, busy: isBusyNow() });
     if (!clickSendButton() && !isBusyNow()) {
+      // Fallback: full Enter key sequence, then form.requestSubmit as a last resort.
       const o = { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true };
       editor.dispatchEvent(new KeyboardEvent("keydown", o));
+      editor.dispatchEvent(new KeyboardEvent("keypress", o));
       editor.dispatchEvent(new KeyboardEvent("keyup", o));
+      const form = editor.closest && editor.closest("form");
+      if (form && form.requestSubmit) { try { form.requestSubmit(); } catch {} }
     }
   }
 
