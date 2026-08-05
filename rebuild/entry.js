@@ -66,8 +66,8 @@
   function paintIdleStatus(s) {
     if (agent.running) return; // never stomp the working status
     if (!s || !s.connected) overlay.setStatus("Bridge offline — run start.bat", "error");
-    else if (s.studio === false) overlay.setStatus("Studio not connected", "paused");
-    else overlay.setStatus("Connected · Studio ready", "ok");
+    else if (s.studio === false) overlay.setStatus("Bridge connected · open Roblox Studio", "paused");
+    else overlay.setStatus(`Studio ready · ${s.tools || 0} tools`, "ok");
   }
   chrome.runtime.onMessage.addListener((msg) => {
     if (msg && msg.type === "zs-status") paintIdleStatus(msg);

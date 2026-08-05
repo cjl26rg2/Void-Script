@@ -5,13 +5,14 @@
  * site's styles. Colours match the VoidScript logo/popup (violet + Roblox red).
  */
 #void-root {
-  /* Floating, parented to <body> so SPA re-renders can't remove it. Bottom-right
-     keeps it clear of the site's centered composer. */
+  /* Floating, parented to <body> so SPA re-renders can't remove it. Pinned as a
+     wide bar at the TOP-CENTER of the chat window. */
   position: fixed;
-  right: 16px;
-  bottom: 96px;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 2147483000;
-  max-width: min(560px, 92vw);
+  width: min(720px, 94vw);
   --v-violet: #7c8cff;
   --v-violet2: #9aa8ff;
   --v-deep: #5b46f0;
@@ -31,9 +32,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 12px;
+  padding: 10px 16px;
   border: 1px solid var(--v-line);
-  border-radius: 12px;
+  border-radius: 14px;
   background: linear-gradient(180deg, var(--v-card), rgba(16, 16, 22, 0.92));
   backdrop-filter: blur(8px);
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
