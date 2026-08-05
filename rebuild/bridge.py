@@ -80,10 +80,11 @@ class McpServer:
                 *argv,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.PIPE,  # surfaced to the log (launch errors etc.)
                 cwd=str(CONFIG_PATH.parent),
                 env=environ,
             )
+            asyncio.ensure_future(self._stderr_loop())
         except Exception as e:  # noqa: BLE001 - report and keep the host alive
             log(f"[{self.name}] could not launch '{self.command}': {e}")
             return False
@@ -121,6 +122,20 @@ class McpServer:
         text = _flatten_content(res.get("content", [])) if isinstance(res, dict) else str(res)
         is_error = bool(isinstance(res, dict) and res.get("isError"))
         return {"ok": not is_error, "output": text}
+
+    async def refresh(self) -> bool:
+        """Re-fetch this server's tools if it is alive. Returns True if the count
+        changed (e.g. Studio just attached and its tools appeared)."""
+        if not self.alive:
+            return False
+        try:
+            result = await self._request("tools/list", {}, timeout=10)
+        except Exception:  # noqa: BLE001
+            return False
+        new = result.get("tools", []) if isinstance(result, dict) else []
+        changed = len(new) != len(self.tools)
+        self.tools = new
+        return changed
 
     # -- JSON-RPC plumbing --
     async def _request(self, method: str, params: dict, timeout: float):
@@ -163,6 +178,20 @@ class McpServer:
                     self._pending[rid].set_result(msg.get("result", {}))
         self.alive = False
         log(f"[{self.name}] disconnected")
+
+    async def _stderr_loop(self) -> None:
+        # StudioMCP / launch_studio_mcp.py print helpful diagnostics here
+        # ("using <path>", "no StudioMCP.exe found ..."). Surface them so a
+        # failed launch is visible instead of silent.
+        if not (self.proc and self.proc.stderr):
+            return
+        while True:
+            line = await self.proc.stderr.readline()
+            if not line:
+                break
+            text = line.decode("utf-8", "replace").rstrip()
+            if text:
+                log(f"[{self.name}:err] {text}")
 
     async def stop(self) -> None:
         if self._reader_task:
@@ -218,6 +247,14 @@ class McpHost:
                 out.append({**t, "_server": name})
         return out
 
+    async def refresh_all(self) -> bool:
+        """Re-list every live server's tools. Roblox's StudioMCP proxies Studio's
+        tool set, which is EMPTY until Studio is open with the MCP server enabled
+        — so re-listing is how tools appear when Studio attaches AFTER the bridge
+        started. Returns True if any server's tool count changed."""
+        results = await asyncio.gather(*(s.refresh() for s in self.servers.values()), return_exceptions=True)
+        return any(r is True for r in results)
+
     async def restart(self, name: str | None) -> None:
         """Restart one server by name, or all when name is falsy. Used by the
         popup's 'Restart Roblox server' action."""
@@ -241,7 +278,15 @@ class McpHost:
 
     def status(self) -> dict:
         servers = [{"id": n, "alive": s.alive, "tools": len(s.tools)} for n, s in self.servers.items()]
-        studio = any(s.alive for n, s in self.servers.items() if "roblox" in n.lower() or "studio" in n.lower())
+        # Studio is "attached" only when a roblox/studio server is alive AND is
+        # exposing tools — StudioMCP proxies Studio's tool set, which is empty
+        # until Studio is open with the MCP server enabled. Server-alive alone is
+        # not enough (it handshakes even with no Studio behind it).
+        studio = any(
+            s.alive and len(s.tools) > 0
+            for n, s in self.servers.items()
+            if "roblox" in n.lower() or "studio" in n.lower()
+        )
         return {
             "connected": True,
             "studio": studio if servers else False,
@@ -262,7 +307,20 @@ class Bridge:
     async def serve(self) -> None:
         async with websockets.serve(self._on_client, HOST, PORT, ping_interval=20):
             log(f"listening on ws://{HOST}:{PORT}")
+            asyncio.ensure_future(self._pulse())
             await asyncio.Future()  # run forever
+
+    async def _pulse(self) -> None:
+        # Re-list tools every few seconds so Studio attaching AFTER the bridge
+        # started is picked up (its tools appear), and broadcast when it changes.
+        while True:
+            await asyncio.sleep(5)
+            try:
+                if await self.host.refresh_all():
+                    log("tools changed -> " + ("Studio attached" if self.host.status()["studio"] else "Studio detached"))
+                    await self.broadcast_status()
+            except Exception:  # noqa: BLE001
+                pass
 
     async def _on_client(self, ws) -> None:
         self.clients.add(ws)
