@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Unit tests for rebuild/config.js. Run: node rebuild/test_config.js
-const C = require("./config.js");
+const C = require("../voidscript-extension/config.js");
 
 let pass = 0, fail = 0;
 const ok = (c, m) => (c ? (pass++, console.log("PASS  " + m)) : (fail++, console.log("FAIL  " + m)));

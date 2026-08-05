@@ -2,9 +2,9 @@
 // Unit test for rebuild/core.js: drives the agent loop with a mock provider,
 // mock overlay, and injected callTool/getTools. No browser. Uses the real
 // parser + config. Run: node rebuild/test_core.js
-const VoidAgent = require("./core.js");
-const parse = require("./parser.js");
-const config = require("./config.js");
+const VoidAgent = require("../voidscript-extension/core.js");
+const parse = require("../voidscript-extension/parser.js");
+const config = require("../voidscript-extension/config.js");
 
 let pass = 0, fail = 0;
 const ok = (c, m) => (c ? (pass++, console.log("PASS  " + m)) : (fail++, console.log("FAIL  " + m)));

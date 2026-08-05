@@ -9,9 +9,8 @@ Protocol (JSON-RPC 2.0 over each server's stdio), and exposes their aggregated
 tools to the browser extension over a WebSocket on 127.0.0.1:<PORT>.
 
 This is an independent implementation built from the public MCP specification
-and the documented Roblox Studio MCP behavior — not derived from the original
-ZeroScript bridge. Extension-facing protocol is VoidScript's own (see
-../REBUILD.md, "Extension <-> Bridge"):
+and the documented Roblox Studio MCP behavior. Extension-facing protocol is
+VoidScript's own (see REBUILD.md, "Extension <-> Bridge"):
 
     ext -> bridge : {"type":"hello",     "version": "..."}         -> ready
     ext -> bridge : {"type":"list_tools"}                          -> tools
@@ -39,7 +38,7 @@ except ImportError:  # pragma: no cover - the launchers install this for the use
 HERE = Path(__file__).resolve().parent
 HOST = "127.0.0.1"
 PORT = int(os.environ.get("ZS_BRIDGE_PORT", "17613"))
-CONFIG_PATH = Path(os.environ.get("VOID_CONFIG", HERE.parent / "config.json"))
+CONFIG_PATH = Path(os.environ.get("VOID_CONFIG", HERE / "config.json"))
 MCP_PROTOCOL_VERSION = "2024-11-05"
 CLIENT_INFO = {"name": "voidscript-bridge", "version": "2.0"}
 
@@ -400,7 +399,7 @@ class Bridge:
 
 # ── entrypoint ─────────────────────────────────────────────────────────────
 async def amain() -> int:
-    log(f"VoidScript bridge (rebuild) starting - port {PORT}")
+    log(f"VoidScript bridge starting - port {PORT}")
     host = McpHost()
     host.load_config()
     bridge = Bridge(host)

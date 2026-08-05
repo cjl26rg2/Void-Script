@@ -13,9 +13,9 @@ const ok = (c, m) => (c ? (pass++, console.log("PASS  " + m)) : (fail++, console
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
 globalThis.__VOID_EXPOSE__ = true;
-globalThis.VoidAgent = require("./core.js");
-globalThis.VoidParse = require("./parser.js");
-globalThis.VoidConfig = require("./config.js");
+globalThis.VoidAgent = require("../voidscript-extension/core.js");
+globalThis.VoidParse = require("../voidscript-extension/parser.js");
+globalThis.VoidConfig = require("../voidscript-extension/config.js");
 
 class MockOverlay {
   constructor(opts) { this.onToggle = (opts && opts.onToggle) || (() => {}); this.calls = { mount: [], status: [], running: [] }; this.root = { nodeType: 1, style: {} }; }
@@ -60,7 +60,7 @@ globalThis.document = { getElementById: () => null, body: { appendChild: (n) => 
 globalThis.window = { addEventListener() {}, innerWidth: 1200, innerHeight: 800 };
 
 // load entry.js (its IIFE runs immediately)
-vm.runInThisContext(fs.readFileSync(path.join(__dirname, "entry.js"), "utf8"));
+vm.runInThisContext(fs.readFileSync(path.join(__dirname, "../voidscript-extension/entry.js"), "utf8"));
 
 (async () => {
   const V = globalThis.__void;

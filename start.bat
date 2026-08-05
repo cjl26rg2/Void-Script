@@ -105,12 +105,11 @@ echo   %CVIO%[3/3]%C0% %CB%Starting the bridge...%C0%
 call :free_port
 
 call :keepopen
-REM Launch the rebuilt (self-made) bridge. It speaks VoidScript's own protocol
-REM and pairs with the voidscript-rebuild extension.
-call :note "launching rebuild\bridge.py"
-%PY% "%~dp0rebuild\bridge.py"
+REM Launch the self-made VoidScript bridge (pairs with the voidscript-extension).
+call :note "launching bridge.py"
+%PY% "%~dp0bridge.py"
 set "RC=%errorlevel%"
-call :note "rebuild\bridge.py exited with code %RC%"
+call :note "bridge.py exited with code %RC%"
 
 echo.
 if "%RC%"=="0" (

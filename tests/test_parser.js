@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Unit tests for rebuild/parser.js. Run: node rebuild/test_parser.js
-const { parse } = require("./parser.js");
+const { parse } = require("../voidscript-extension/parser.js");
 
 let pass = 0, fail = 0;
 function check(name, got, want) {

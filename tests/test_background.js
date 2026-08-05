@@ -34,7 +34,7 @@ globalThis.chrome = {
 };
 
 // load + execute background.js in this context (its connect() runs immediately)
-vm.runInThisContext(fs.readFileSync(path.join(__dirname, "background.js"), "utf8"));
+vm.runInThisContext(fs.readFileSync(path.join(__dirname, "../voidscript-extension/background.js"), "utf8"));
 
 async function main() {
   const ws = MockWS.last;
