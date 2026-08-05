@@ -59,8 +59,33 @@
     (document.body || document.documentElement).appendChild(overlay.root);
     diag("mounted", {});
   }
-  mountBar();
-  setInterval(mountBar, 1500);
+
+  // Find the site's composer box so we can sit just above it.
+  function composerEl() {
+    return (
+      (provider.barAnchor && provider.barAnchor()) ||
+      (provider.composerFrame && provider.composerFrame()) ||
+      (provider.getEditor && provider.getEditor())
+    );
+  }
+  // Pin the bar to hug the top edge of the composer, matching its width.
+  function positionBar() {
+    const el = composerEl();
+    if (!el || !el.getBoundingClientRect) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return;
+    const s = overlay.root.style;
+    s.left = Math.max(8, r.left) + "px";
+    s.width = Math.min(r.width, window.innerWidth - 16) + "px";
+    s.bottom = window.innerHeight - r.top + 8 + "px"; // 8px gap above the composer
+    s.top = "auto";
+    s.transform = "none";
+  }
+  function place() { mountBar(); positionBar(); }
+  place();
+  setInterval(place, 400);
+  window.addEventListener("resize", positionBar, { passive: true });
+  window.addEventListener("scroll", positionBar, { passive: true, capture: true });
 
   // ── reflect bridge/Studio status on the bar while idle ──
   function paintIdleStatus(s) {

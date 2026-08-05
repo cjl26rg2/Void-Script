@@ -57,6 +57,7 @@ globalThis.chrome = {
 };
 const bodyAppends = [];
 globalThis.document = { getElementById: () => null, body: { appendChild: (n) => bodyAppends.push(n) }, documentElement: {} };
+globalThis.window = { addEventListener() {}, innerWidth: 1200, innerHeight: 800 };
 
 // load entry.js (its IIFE runs immediately)
 vm.runInThisContext(fs.readFileSync(path.join(__dirname, "entry.js"), "utf8"));
