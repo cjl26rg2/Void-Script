@@ -403,10 +403,18 @@ async def amain() -> int:
     log(f"VoidScript bridge (rebuild) starting - port {PORT}")
     host = McpHost()
     host.load_config()
-    await host.start_all()
-    await host.probe_studio()
-    log("Studio attached" if host.studio_attached else "no Studio open yet (start it and it'll attach)")
     bridge = Bridge(host)
+
+    # Launch the MCP servers + probe Studio in the BACKGROUND so the WebSocket is
+    # up immediately. Otherwise the ~8s StudioMCP handshake delays 'listening',
+    # the extension's first connect attempts fail, and its service worker sleeps
+    # before retrying — the popup then stays "offline".
+    async def boot():
+        await host.start_all()
+        await host.probe_studio()
+        log("Studio attached" if host.studio_attached else "no Studio open yet (start it and it'll attach)")
+        await bridge.broadcast_status()
+    asyncio.ensure_future(boot())
     try:
         await bridge.serve()
     except OSError as e:
