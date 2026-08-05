@@ -88,21 +88,22 @@
     // feedback) so the human never sees them. Only USER turns are touched, and
     // only when their text carries our marker — assistant replies are never hidden.
     _hideInjected() {
+      // Preferred: the overlay's provider-independent DOM hider (works on every
+      // site by finding our marker, not by matching per-provider selectors).
+      if (this.overlay.hideMarked) {
+        const hidden = this.overlay.hideMarked(this.config.markStem);
+        if (hidden !== this._lastHidden) { this._lastHidden = hidden; this.diag("hide", { hidden }); }
+        return;
+      }
+      // Fallback (used by unit tests with a mock provider + mock overlay).
       const p = this.provider;
       if (!p.allItems || !p.isUserItem) return;
       const re = this.config.hideRe;
       if (!re) return;
-      const items = p.allItems();
-      let hidden = 0;
-      for (const item of items) {
+      for (const item of p.allItems()) {
         if (!p.isUserItem(item)) continue;
         const text = p.itemText ? p.itemText(item) : (item.textContent || "");
-        if (re.test(text)) { this.overlay.mask(item); hidden++; }
-      }
-      // Log when the turn count changes so a selector mismatch (turns: 0) is obvious.
-      if (items.length !== this._lastItemCount) {
-        this._lastItemCount = items.length;
-        this.diag("scan", { turns: items.length, hidden });
+        if (re.test(text)) this.overlay.mask(item);
       }
     }
 

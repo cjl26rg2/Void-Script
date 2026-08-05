@@ -112,6 +112,47 @@
       if (st) st.textContent = done ? (o.ok === false ? "failed" : "done") : "running";
     }
 
+    /** Provider-independent hider: find every turn whose text carries our marker
+     *  (`stem`) and hide the whole message turn — works on any site without
+     *  relying on per-provider selectors. Returns how many turns it hid. */
+    hideMarked(stem) {
+      stem = stem || "⟦VOID";
+      const root = document.body || document.documentElement;
+      if (!root) return 0;
+      const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode: (n) =>
+          n.nodeValue && n.nodeValue.indexOf(stem) >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP,
+      });
+      const nodes = [];
+      let n;
+      while ((n = tw.nextNode())) nodes.push(n);
+      let count = 0;
+      for (const textNode of nodes) {
+        // Climb from the marker text up to the turn-level element: the largest
+        // ancestor still starting with the marker whose PARENT also holds a
+        // separate, unmarked turn (the assistant reply) as a sibling.
+        let el = textNode.parentElement, chosen = null, depth = 0;
+        while (el && depth < 15) {
+          if (!(el.textContent || "").replace(/^\s+/, "").startsWith(stem)) break;
+          chosen = el;
+          const parent = el.parentElement;
+          if (!parent) break;
+          const siblingTurn = Array.prototype.some.call(
+            parent.children,
+            (ch) => ch !== el && (ch.textContent || "").trim().length > 20 && (ch.textContent || "").indexOf(stem) < 0
+          );
+          if (siblingTurn) break; // el is the turn; don't climb into the message list
+          el = parent;
+          depth++;
+        }
+        if (chosen && !chosen.classList.contains(HIDDEN)) {
+          chosen.classList.add(HIDDEN);
+          count++;
+        }
+      }
+      return count;
+    }
+
     /** Hide the raw ```void block the model emitted; the chip replaces it. */
     mask(el) { if (el) el.classList.add(HIDDEN); }
     unmask(el) { if (el) el.classList.remove(HIDDEN); }

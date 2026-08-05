@@ -156,7 +156,7 @@
     truncated: mark(feedbackRaw.truncated),
   };
 
-  const api = { APP_NAME, SYS_MARKER, INJECT_MARK, hideRe: HIDE_RE, toolCategory, formatTools, formatResult, buildSystemPrompt, feedback };
+  const api = { APP_NAME, SYS_MARKER, INJECT_MARK, hideRe: HIDE_RE, markStem: "⟦VOID", toolCategory, formatTools, formatResult, buildSystemPrompt, feedback };
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   root.VoidConfig = api;
 })(typeof globalThis !== "undefined" ? globalThis : this);
