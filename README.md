@@ -9,13 +9,13 @@ CREDITS TO ZEROSCRIPT, THIS IS JUST A BETTER VERSION.
 **VoidScript** is a free browser extension that turns DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot or Mistral into a Roblox Studio AI agent.
 Control Roblox Studio with AI directly from your browser - read/edit scripts, run Luau, generate assets, all from a normal AI chat. No API key, no terminal, no coding needed.
 
-> 🌐 **Website: [void-script.vercel.app](https://void-script.vercel.app/)** the free Lemonade.gg / Luamotion alternative for building Roblox games with AI.
+> 🌐 **Website: [void-script.vercel.app](https://voidstudioai.netlify.app/)** the free Lemonade.gg / Luamotion alternative for building Roblox games with AI.
 
 **Seven fully-supported (hand-tuned) providers:** **DeepSeek** (chat.deepseek.com, recommended), **Google Gemini** (gemini.google.com), **Kimi** (kimi.com, Moonshot AI), **GLM** (chat.z.ai, Z.ai), **Qwen** (chat.qwen.ai), **Arena** (arena.ai, a multi-model playground) and **Meta AI** (meta.ai). Gemini and Kimi can be unstable: Gemini tends to stop using the Roblox tools in long sessions, and Kimi sometimes uses its own native tools instead of the Roblox commands. On Arena, use **Direct** mode (VoidScript only supports Direct; it blocks Start in Battle / Side-by-Side / Agent modes). DeepSeek is the recommended provider.
 
 **Beta providers (generic adapter):** **ChatGPT** (chatgpt.com), **Grok** (grok.com), **Perplexity** (perplexity.ai), **Copilot** (copilot.microsoft.com), **Mistral** (chat.mistral.ai), **Poe** (poe.com), **HuggingChat** (huggingface.co/chat), **Phind** (phind.com), **Blackbox** (blackbox.ai), **You** (you.com), **Groq** (groq.com), **LMArena** (lmarena.ai — use direct chat, not battle), **Doubao** (doubao.com), **Yuanbao** (yuanbao.tencent.com), **Reka** (chat.reka.ai), **Pi** (pi.ai), **Coral** (Cohere, coral.cohere.com), **OpenRouter** (openrouter.ai), **v0** (v0.app), **Genspark** (genspark.ai), **Lambda Chat** (lambda.chat), **ERNIE** (yiyan.baidu.com), **MiniMax** (chat.minimax.io), **Manus** (manus.im) and **Together** (chat.together.ai). These run on a shared selector-driven adapter (`providers/_generic.js`) rather than a hand-tuned provider, so they load and drive the site but may need per-site tuning — timing or the send handshake can be off if the site changed its layout, and the selectors were written from documented patterns rather than validated against each live site. They show a **BETA** notice in the panel; prefer a fully-supported provider for important work, and report any that misbehave so a dedicated provider can be written.
 
-> 💬 **Stuck? Join the [Discord community](https://discord.gg/9aNyZsMWcb)** get help, share feedback, and follow updates.
+> 💬 **Stuck? Join the [Discord community](https://discord.gg/EyGxnp2jaw)** get help, share feedback, and follow updates.
 
 > *Also known as: VoidScript Roblox, VoidScript free download, Roblox DeepSeek agent, Roblox Gemini agent, Roblox Kimi agent, Roblox GLM agent, Roblox Qwen agent, Roblox Arena agent, Roblox Meta AI agent, Roblox Studio AI automation, Luau AI, MCP Roblox, lemonade alternative free, lemonade.gg alternative, free Roblox AI agent, free lemonade roblox alternative*
 
@@ -97,56 +97,3 @@ Go to a supported AI and open a new chat. The VoidScript bar appears above the i
 - Browse and insert from the Creator Store
 - Control play-testing
 - **Remember your project across sessions** persistent project memory saved inside your place
-
-## New in 1.5.0
-
-- **Backgrounding the AI tab no longer strands a command as "not run":** the response watcher now pauses while the tab is hidden and shifts every deadline forward by the time it was paused, instead of burning its inactivity timeout off-screen. The bar shows a **Paused** state while waiting, and resuming is instant (event-driven, not polled).
-- **Gemini: fixed the page freezing on a large tool result** (e.g. a big `http_get`) - outgoing text is now capped and the composer insert yields periodically so the page stays responsive and Stop stays clickable.
-- **Gemini: fixed the system prompt occasionally never leaving the composer on Start**, caused by the wedged-stop-button detector refusing its own first recovery attempt.
-- **Kimi: fixed the model picker looping open/closed** after Kimi's K3 update removed the model it used to default to. The native-agent guard now also correctly detects **K3 Swarm**.
-- **Degraded mode (Roblox Studio closed) starts much faster:** the tool catalogue is now cached briefly instead of being re-fetched (and re-timing-out) three times in a row during boot.
-
-## New in 1.4.9
-
-- **Popup: new Settings button** opens the Switch AI / support panel without needing an already-started conversation, and the footer no longer singles out chat.deepseek.com since seven providers are supported.
-- **Bridge: auto-recovers its own port on relaunch** instead of crashing with a cryptic error when a previous Bridge was still holding it - and gives a clear, actionable message with the exact commands to fix it when the port is held by something else.
-- **Fixed the agent parsing/executing commands while its AI tab was backgrounded or the window minimized** (observed live on GLM), which could run a tool blind or send duplicate feedback. It now pauses - with no time limit - until the AI tab is foreground again, then resumes exactly where it left off.
-
-## New in 1.4.8
-
-- **macOS support:** a new double-clickable `MacOS_Start.command` launcher runs the Bridge on macOS, no Terminal knowledge required.
-- **DeepSeek: fixed a possible stuck send** when a tool result was too long for DeepSeek's input box - it's now trimmed to fit automatically.
-
-## New in 1.4.7
-
-- **Qwen: fixed a rare "done but nothing happened" tool call:** with repeated commands a tool chip could show a green check while the command never actually ran and returned no result. The agent now tracks each Qwen turn by a stable id, so it no longer confuses two similar turns.
-- **Image support that follows the model you pick:** on Qwen, screenshots and image input are enabled only on its vision-capable models and turned off on text-only ones, updating when you switch models. On DeepSeek, choosing the Vision tab now enables screenshots and image input for it.
-- **DeepSeek: fixed image sending:** a captured screenshot used to be attached twice and never sent. It now uploads once and sends correctly.
-- **Qwen: fixed the bar covering the "Expand more models" menu.**
-
-See [CHANGELOG.md](CHANGELOG.md) for older releases.
-
-## Panel status
-
-| Dot | Meaning |
-|-----|---------|
-| Green | Bridge + Studio ready (a place is open) |
-| Yellow | Bridge OK, but Studio isn't usable yet - open Roblox Studio, load a place, or enable its MCP server (hover the dot for the exact reason) |
-| Grey | Bridge offline - run start.bat (Windows) or MacOS_Start.command (macOS) |
-
-## Requirements
-
-- Windows or macOS
-- Roblox Studio (MCP support built-in)
-- A Chromium browser (Chrome, Edge, Brave, Opera, Vivaldi) or Firefox 121+
-- Python 3.9+ (installed automatically on Windows, or install it yourself on macOS - see [python.org/downloads](https://www.python.org/downloads/))
-
-## Support
-
-VoidScript is free. If it saves you time: [Ko-fi](https://ko-fi.com/sebattfg) - Robux tip passes available in the extension panel
-
----
-
-Credit: the idea for connecting other MCP servers (Blender, Sketchfab, etc.) alongside Roblox Studio came from [javnpa](https://github.com/javnpa).
-
-Credit: macOS/Linux support contributed by [archivealf](https://github.com/archivealf).
