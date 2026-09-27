@@ -3335,8 +3335,8 @@
           <button id="vs-stop" hidden>■ Stop</button>
           <button id="vs-pause" hidden>⏸ Pause</button>
           <button id="vs-cowork" hidden aria-pressed="false" title="Co-work: steer the agent while it runs — type a correction and it adjusts its next step"><span class="vs-cw-dot"></span><span class="vs-cw-label">Co-work</span></button>
-          <button id="vs-undo" hidden title="Undo the agent's last script edit (restores the previous source)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg><span class="vs-undo-label">Undo</span></button>
           <div id="vs-steer" hidden>
+            <button id="vs-undo" hidden title="Undo the agent's last script edit (restores the previous source)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg><span class="vs-undo-label">Undo</span></button>
             <input id="vs-steer-input" type="text" autocomplete="off" spellcheck="false" placeholder="Steer the next step…" aria-label="Steer the agent's next step" />
             <button id="vs-steer-send" title="Send this steer to the agent's next step">Steer</button>
           </div>
@@ -5142,9 +5142,15 @@
       }
       const pending = (A.steerQueue && A.steerQueue.length) || 0;
       if (coworkBtn) coworkBtn.classList.toggle("pending", on && pending > 0);
-      // Undo: shown in Co-work once there's an edit to revert.
+      // Undo lives in the steer row now; shown once there's an edit to revert.
       if (undoBtn) undoBtn.hidden = !(on && A.started && _undoStack.length > 0);
       if (steerRow) steerRow.hidden = !(on && A.started);
+      // Focus mode: while Co-work is on, tuck the secondary quick buttons away so
+      // the row stays clean (they return the moment Co-work is toggled off).
+      const focus = on && A.started;
+      if (quickShotBtn) quickShotBtn.hidden = !A.started || focus;
+      if (quickListBtn) quickListBtn.hidden = !A.started || focus;
+      if (voiceBtn) voiceBtn.hidden = !P.voiceAvailable || focus;
       if (steerInput) {
         steerInput.placeholder = pending
           ? `Steer queued (${pending}) — add another…`
