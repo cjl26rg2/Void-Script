@@ -12,6 +12,8 @@
   position: fixed;
   display: flex;
   align-items: center;
+  flex-wrap: wrap;   /* the steer row (flex-basis:100%) always drops to its own line;
+                        ordinary rows never wrap because their items fit on one line */
   gap: 9px;
   box-sizing: border-box;
   padding: 7px 9px 7px 12px;
