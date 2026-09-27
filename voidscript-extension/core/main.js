@@ -70,6 +70,7 @@
     vsShowTokenEstimate: false, // show a live token estimate in the bar while running
     vsTheme: "system",          // UI theme: system | dark | light | soft-light
     vsVoiceLang: "en-US",       // speech recognition language tag for the voice button
+    vsCowork: false,            // Co-work: human-in-the-loop steering of the running agent
   };
   let VS_CFG = { ...VS_CFG_DEFAULTS };
   try {
@@ -464,6 +465,21 @@
   }
 
   async function submitAndGetBase(text, images) {
+    // Co-work steering: if the user queued corrections while the agent was running,
+    // prepend them as a HIGH-PRIORITY note so the model reads them BEFORE the tool
+    // result and adjusts its next action. This is the single choke point every
+    // continuation (results, truncation, parse errors) passes through, so one hook
+    // covers the whole loop. Drained once so a steer applies to exactly one turn.
+    if (VS_CFG.vsCowork && A.steerQueue && A.steerQueue.length) {
+      const steers = A.steerQueue.splice(0).map((s) => "• " + s).join("\n");
+      text = `⟦VOID:STEER⟧\n(System note — the user is STEERING you in Co-work mode. ` +
+        `Treat the following as a high-priority correction to your current plan and ` +
+        `adjust your NEXT action to follow it, even if it changes course. If it says ` +
+        `something you did was wrong, fix that before continuing:\n${steers}\n` +
+        `Do not repeat or quote this note back.)\n\n` + String(text || "");
+      diag("cowork.steerInject", { count: steers.split("\n").length });
+      timeline("event", { name: "steer" });
+    }
     captureSendToken();
     diag("send", { text: String(text).slice(0, 60), busy: P.isBusyNow() });
     A.injecting = true;
@@ -3293,6 +3309,7 @@
     let quickShotBtn = null, quickListBtn = null;
     let openMenuFn = null; // set by build(); lets the popup force the panel open via runtime message
     let pauseBtn = null;    // the bar's "⏸ Pause / ▶ Resume" toggle (#vs-pause)
+    let coworkBtn = null, undoBtn = null, steerRow = null, steerInput = null; // Co-work steering UI
     let bridgeOk = false, studioDown = false, placeDown = false, appDown = false, addonOk = false, studioProcUp = false;
     let wasConnected = false, bridgeBannerEl = null;
     let vsUpdateTag = "";
@@ -3317,6 +3334,12 @@
            <button id="vs-action"></button>
           <button id="vs-stop" hidden>■ Stop</button>
           <button id="vs-pause" hidden>⏸ Pause</button>
+          <button id="vs-cowork" hidden aria-pressed="false" title="Co-work: steer the agent while it runs — type a correction and it adjusts its next step"><span class="vs-cw-dot"></span><span class="vs-cw-label">Co-work</span></button>
+          <button id="vs-undo" hidden title="Undo the agent's last script edit (restores the previous source)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg><span class="vs-undo-label">Undo</span></button>
+          <div id="vs-steer" hidden>
+            <input id="vs-steer-input" type="text" autocomplete="off" spellcheck="false" placeholder="Steer the next step…" aria-label="Steer the agent's next step" />
+            <button id="vs-steer-send" title="Send this steer to the agent's next step">Steer</button>
+          </div>
           <a id="vs-discord" href="https://discord.gg/KmkCKwUbcX" target="_blank" rel="noopener" title="Need help? Join our Discord"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></a>
            <button id="vs-voice" hidden aria-label="Speak to VoidScript" title="Speak to VoidScript (transcribes and inserts)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V21a1 1 0 0 0 2 0v-3.08A7 7 0 0 0 19 11z"/></svg></button>
           <button id="vs-switch" aria-label="Switch AI and options" title="Switch AI, custom prompt, support"><span id="vs-switch-name"></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
@@ -3334,6 +3357,10 @@
       actionBtn = root.querySelector("#vs-action");
       stopBtn = root.querySelector("#vs-stop");
       pauseBtn = root.querySelector("#vs-pause");
+      coworkBtn = root.querySelector("#vs-cowork");
+      undoBtn = root.querySelector("#vs-undo");
+      steerRow = root.querySelector("#vs-steer");
+      steerInput = root.querySelector("#vs-steer-input");
       switchBtn = root.querySelector("#vs-switch");
       supportBtn = root.querySelector("#vs-support");
       discordEl = root.querySelector("#vs-discord");
@@ -3363,6 +3390,73 @@
           updatePauseBtn();
           renderBar();
           ui.toast(A.paused ? "Agent paused." : "Agent resumed.");
+        });
+      }
+      // Co-work (Feature): human-in-the-loop steering. Toggle turns on a steer box;
+      // typed corrections are queued and injected into the agent's NEXT turn (see
+      // submitAndGetBase) so the user can redirect the model or fix a wrong action
+      // without stopping the session.
+      if (coworkBtn) {
+        coworkBtn.addEventListener("click", () => {
+          VS_CFG.vsCowork = !VS_CFG.vsCowork;
+          try { chrome.storage.local.set({ vsCowork: VS_CFG.vsCowork }); } catch {}
+          if (!VS_CFG.vsCowork) A.steerQueue = []; // dropping the mode clears pending steers
+          updateCowork();
+          renderBar();
+          ui.toast(VS_CFG.vsCowork ? "Co-work on — steer the agent as it runs." : "Co-work off.");
+          if (VS_CFG.vsCowork && steerInput) { try { steerInput.focus(); } catch {} }
+        });
+      }
+      const submitSteer = () => {
+        if (!steerInput) return;
+        const v = steerInput.value.trim();
+        if (!v) { try { steerInput.focus(); } catch {} return; }
+        A.steerQueue = A.steerQueue || [];
+        A.steerQueue.push(v);
+        steerInput.value = "";
+        diag("cowork.steerQueued", { len: v.length, pending: A.steerQueue.length });
+        // Applies now if the agent is mid-run; otherwise rides the next send.
+        ui.toast(A.running ? "Steer queued — applied on the next step." : "Steer saved for when the agent runs.");
+        updateCowork();
+      };
+      const steerSendBtn = root.querySelector("#vs-steer-send");
+      if (steerSendBtn) steerSendBtn.addEventListener("click", submitSteer);
+      // Undo (Co-work): revert the agent's most recent script edit immediately, on
+      // the user's command — independent of the AI turn (it just talks to Studio via
+      // the same revert path revert_last uses).
+      if (undoBtn) {
+        undoBtn.addEventListener("click", async () => {
+          if (undoBtn.disabled) return;
+          if (A.toolRunning) { ui.toast("A command is running — try Undo again in a moment."); return; }
+          if (!_undoStack.length) { ui.toast("Nothing to undo yet."); return; }
+          const entry = _undoStack[_undoStack.length - 1];
+          undoBtn.disabled = true;
+          const label = undoBtn.querySelector(".vs-undo-label");
+          const prev = label ? label.textContent : "";
+          if (label) label.textContent = "Undoing…";
+          try {
+            const r = await revertEntry(entry);
+            if (r === "OK") {
+              _undoStack.pop();
+              persistUndoStack();
+              timeline("event", { name: "undo" });
+              ui.toast(`Undid last edit to ${entry.path.split(/[\\/.]/).pop() || entry.path}.`);
+            } else {
+              ui.toast(r.replace(/^ERROR:?\s*/, "Undo failed: ").slice(0, 120));
+            }
+          } catch (e) {
+            ui.toast("Undo failed: " + String((e && e.message) || e).slice(0, 100));
+          } finally {
+            undoBtn.disabled = false;
+            if (label) label.textContent = prev || "Undo";
+            updateCowork();
+          }
+        });
+      }
+      if (steerInput) {
+        steerInput.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") { e.preventDefault(); submitSteer(); }
+          e.stopPropagation(); // don't let the host page hijack typing
         });
       }
       unstableEl = root.querySelector("#vs-unstable");
@@ -3862,6 +3956,7 @@
            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoSummary" /> Summarize what was built at session end</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsHumanizeSend" /> Humanize send timing (experimental)</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsShowTokenEstimate" /> Show token estimate in the bar</label>
+            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsCowork" /> Co-work: steer the agent while it runs</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsPromptPerPlace" /> Per-place prompt (one per open place)</label>
            <label class="vs-menu-note vs-wiz-mp">Approval level
              <select id="vs-trust-level" class="vs-mcp-field">
@@ -4038,6 +4133,7 @@
           try { chrome.storage.local.set({ [key]: box.checked }); } catch {}
           diag("cfg.toggle", { key, on: box.checked });
           if (key === "vsPromptPerPlace") syncMenuPrompt();
+          if (key === "vsCowork") { if (!box.checked) A.steerQueue = []; updateCowork(); renderBar(); }
         });
       });
       const trustSel = menuEl.querySelector("#vs-trust-level");
@@ -5031,6 +5127,30 @@
         quickShotBtn.hidden = !A.started;
         quickListBtn.hidden = !A.started;
       }
+      updateCowork();
+    }
+
+    // Co-work toggle + steer row. The toggle shows once a session is live (steering
+    // only makes sense while the agent is running); the steer box appears under the
+    // bar when Co-work is ON. The dot lights when a steer is queued and waiting.
+    function updateCowork() {
+      const on = !!VS_CFG.vsCowork;
+      if (coworkBtn) {
+        coworkBtn.hidden = !A.started;
+        coworkBtn.classList.toggle("on", on);
+        coworkBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      }
+      const pending = (A.steerQueue && A.steerQueue.length) || 0;
+      if (coworkBtn) coworkBtn.classList.toggle("pending", on && pending > 0);
+      // Undo: shown in Co-work once there's an edit to revert.
+      if (undoBtn) undoBtn.hidden = !(on && A.started && _undoStack.length > 0);
+      if (steerRow) steerRow.hidden = !(on && A.started);
+      if (steerInput) {
+        steerInput.placeholder = pending
+          ? `Steer queued (${pending}) — add another…`
+          : "Steer the next step…";
+      }
+      if (bar) bar.classList.toggle("vs-bar-cowork", !!(on && A.started));
     }
 
     // A gentle, one-time nudge: the user typed on a fresh chat without starting

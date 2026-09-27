@@ -218,6 +218,89 @@ html.vs-light #vs-unstable {
 html.vs-light #vs-pause { background: rgba(0, 0, 0, 0.06); color: #1f2937; border-color: rgba(0, 0, 0, 0.15); }
 html.vs-light #vs-pause:hover { background: rgba(0, 0, 0, 0.10); color: #111827; }
 
+/* ── Co-work: steer the running agent (human-in-the-loop) ─────────────────── */
+/* When Co-work is on and a session is live, the bar wraps so the steer row sits
+   on its own full-width line just under the controls. */
+#vs-bar.vs-bar-cowork { flex-wrap: wrap; row-gap: 8px; }
+
+/* Co-work toggle: neutral when off, warm VoidScript gradient when armed. */
+#vs-cowork {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 10px;
+  background: rgba(255, 255, 255, 0.07); color: #d7dae4;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px;
+  font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+}
+#vs-cowork:hover { background: rgba(255, 255, 255, 0.13); color: #fff; }
+#vs-cowork .vs-cw-dot {
+  width: 7px; height: 7px; border-radius: 50%; flex: none;
+  background: #6b7280; transition: background 0.14s ease, box-shadow 0.14s ease;
+}
+#vs-cowork.on {
+  background: linear-gradient(135deg, rgba(255, 138, 61, 0.24), rgba(255, 92, 138, 0.20));
+  color: #fff; border-color: rgba(255, 138, 61, 0.55);
+  box-shadow: 0 2px 12px rgba(255, 110, 80, 0.30);
+}
+#vs-cowork.on .vs-cw-dot { background: #ff8a3d; box-shadow: 0 0 7px rgba(255, 138, 61, 0.9); }
+#vs-cowork.on .vs-cw-label::after { content: " ON"; opacity: 0.85; }
+/* a queued steer pulses the dot so the user knows a correction is pending */
+#vs-cowork.pending .vs-cw-dot { animation: vs-cw-pulse 1.3s ease-out infinite; }
+@keyframes vs-cw-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 138, 61, 0.6); }
+  100% { box-shadow: 0 0 0 6px rgba(255, 138, 61, 0); }
+}
+html.vs-light #vs-cowork { background: rgba(0, 0, 0, 0.06); color: #374151; border-color: rgba(0, 0, 0, 0.14); }
+html.vs-light #vs-cowork:hover { background: rgba(0, 0, 0, 0.10); color: #111827; }
+
+/* Undo button (Co-work): neutral pill with an icon + label. */
+#vs-undo {
+  flex: none; display: inline-flex; align-items: center; gap: 6px;
+  height: 28px; padding: 0 11px 0 9px;
+  background: rgba(255, 255, 255, 0.07); color: #d7dae4;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px;
+  font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+#vs-undo:hover { background: rgba(255, 255, 255, 0.13); color: #fff; border-color: rgba(255, 255, 255, 0.22); }
+#vs-undo:disabled { opacity: 0.55; cursor: progress; }
+#vs-undo svg { opacity: 0.85; }
+html.vs-light #vs-undo { background: rgba(0, 0, 0, 0.06); color: #374151; border-color: rgba(0, 0, 0, 0.14); }
+html.vs-light #vs-undo:hover { background: rgba(0, 0, 0, 0.10); color: #111827; }
+#vs-undo:focus-visible { outline: 2px solid rgba(255, 138, 61, 0.9); outline-offset: 2px; }
+
+/* Steer row: full-width second line with the input + send button. */
+#vs-steer {
+  flex: 0 0 100%; width: 100%; order: 99;
+  display: flex; align-items: center; gap: 8px;
+  padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.10);
+}
+html.vs-light #vs-steer { border-top-color: rgba(20, 23, 32, 0.12); }
+#vs-steer-input {
+  flex: 1; min-width: 0; height: 30px; padding: 0 11px;
+  background: rgba(255, 255, 255, 0.06); color: #f1f2f8;
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 9px;
+  font-size: 12.5px; font-family: inherit; outline: none;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+#vs-steer-input::placeholder { color: rgba(255, 255, 255, 0.42); }
+#vs-steer-input:focus { border-color: rgba(255, 138, 61, 0.7); background: rgba(255, 255, 255, 0.09); }
+html.vs-light #vs-steer-input { background: rgba(0, 0, 0, 0.04); color: #111827; border-color: rgba(0, 0, 0, 0.16); }
+html.vs-light #vs-steer-input::placeholder { color: rgba(20, 23, 32, 0.45); }
+#vs-steer-send {
+  flex: none; height: 30px; padding: 0 14px;
+  background: linear-gradient(135deg, #ff5c8a, #ff8a3d); color: #fff;
+  border: 0; border-radius: 9px;
+  font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  box-shadow: 0 2px 12px rgba(255, 110, 80, 0.35);
+  transition: filter 0.14s ease, transform 0.12s ease;
+}
+#vs-steer-send:hover { filter: brightness(1.08); transform: translateY(-1px); }
+#vs-steer-send:active { transform: translateY(1px); }
+#vs-cowork:focus-visible, #vs-steer-input:focus-visible, #vs-steer-send:focus-visible {
+  outline: 2px solid rgba(255, 138, 61, 0.9); outline-offset: 2px;
+}
+
 /* bar controls: one neutral icon-button family (Discord, support, switch, voice,
    quick screenshot, quick list) */
 #vs-discord, #vs-support, #vs-voice, #vs-quick-shot, #vs-quick-list {

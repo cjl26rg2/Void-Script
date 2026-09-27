@@ -2,6 +2,19 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.0.1] - 2026-09-27
+
+### Added
+- **Co-work mode** — human-in-the-loop steering. Toggle it on in the bar (or Settings) and a **Steer the next step…** box appears while a session runs. Type a correction and it's injected into the agent's next turn as a high-priority note, so the model changes course or fixes a wrong action without stopping the session. Queue multiple steers; the toggle's dot pulses while a steer is pending.
+- **Undo button** — one-click revert of the agent's most recent script edit (same restore path as `revert_last`), available in Co-work whenever there's an edit to undo. Runs immediately, independent of the AI turn.
+
+### Changed
+- **Extension version → 5.0.1.**
+- **Bar connects to the composer on every site** — all generic-adapter providers (ChatGPT, Grok, Perplexity, Copilot, and ~80 more) plus GLM and Meta now inside-mount the status bar into the chat box like DeepSeek, instead of the detached floating pill. `placeBar` anchors to the composer before ever floating.
+
+### Fixed
+- Fixed a corrupted voice-button icon that rendered as a broken glyph; gave the quick-screenshot / quick-list buttons clean, consistent SVG icons (unified icon-button family with light-mode variants).
+
 ## [5.0.0] - 2026-09-27
 
 ### Added
