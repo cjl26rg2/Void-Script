@@ -2,6 +2,16 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.0.3] - 2026-09-27
+
+### Fixed
+- **Chrome/Edge crash.** Inside-mounting the bar into framework-reconciled composers (ChatGPT, etc.) could start a per-frame insert↔reconcile fight that pegged the CPU and crashed the tab. Generic sites with rich contenteditable editors now use anchored mode (no DOM insertion into the framework's tree), the bar re-inserts only when it has actually detached, and a runtime thrash guard falls back to anchored if any mount still fights.
+- **Co-work steer row layout.** The steer box could push the VoidScript controls off the right edge because the bar wasn't wrapping reliably. Wrapping is now built into the base bar, so the steer row always drops to its own line on top with the full controls row below.
+
+### Changed
+- **Extension version → 5.0.3.**
+- **Co-work steer row sits on top** of the VoidScript bar when Co-work is on, and hides when off.
+
 ## [5.0.2] - 2026-09-27
 
 ### Added
