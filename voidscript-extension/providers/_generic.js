@@ -186,6 +186,14 @@ function VSGeneric(cfg) {
   function barMount() {
     const ed = getEditor();
     if (!ed) return null;
+    // Only inside-mount into a STABLE, plain composer (a real <textarea>/<input>).
+    // Rich contenteditable composers (ProseMirror/Lexical on ChatGPT, Claude, Grok,
+    // etc.) are aggressively reconciled by their framework - inserting our node into
+    // their subtree starts a re-render fight that can peg the CPU and crash the tab -
+    // so those return null and the core uses anchored mode (hugs the composer top at
+    // full width WITHOUT touching the framework's DOM). The core also has a runtime
+    // thrash guard that falls back to anchored if any inside-mount still fights.
+    if (!isTextField(ed)) return null;
     const send = sendButton();
     let box = ed.parentElement;
     let rounded = null;

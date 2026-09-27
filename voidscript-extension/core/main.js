@@ -5229,7 +5229,16 @@
     // The provider decides the exact mount (it knows which element is the input
     // box and where a child reflows cleanly). If a provider doesn't supply one,
     // we fall back to the floating bar rather than risk overlapping its layout.
+    // Thrash guard: inside-mounting our bar into a framework-reconciled composer
+    // (React/Vue) can start a fight - the framework moves/removes our node, the rAF
+    // loop re-inserts it, every single frame. That pegs the CPU and can crash the
+    // tab. If we detect a sustained re-insert storm, we permanently drop to anchored
+    // mode for this page (hug the composer WITHOUT inserting into its tree), which is
+    // safe on every site. Occasional re-inserts (a real SPA re-render) never trip it.
+    let _mountUnstable = false;
+    let _mountHits = [];
     function computeBarMount() {
+      if (_mountUnstable) return null; // fell back to anchored after a thrash storm
       if (!P.barMount) return null;
       const m = P.barMount();
       return (m && m.parent && m.parent.isConnected) ? m : null;
@@ -5299,8 +5308,24 @@
       const mount = computeBarMount();
       if (mount) {
         clearAnchorPad();
-        if (bar.parentElement !== mount.parent || bar.nextElementSibling !== mount.before) {
+        // Re-insert ONLY when the bar has actually fallen OUT of the composer - never
+        // just because the framework reordered our node among its siblings. Fighting
+        // a reorder every frame is what pegs the CPU and crashes the tab; tolerating
+        // the position keeps the bar inside the composer without the fight.
+        if (bar.parentElement !== mount.parent) {
           try { mount.parent.insertBefore(bar, mount.before || null); } catch {}
+          const now = Date.now();
+          _mountHits.push(now);
+          if (_mountHits.length > 40) _mountHits.shift();
+          // >24 real re-attaches inside 2s ⇒ the framework is fighting us: bail to
+          // anchored mode for good (safe everywhere) instead of risking a crash.
+          const recent = _mountHits.filter((t) => now - t < 2000).length;
+          if (recent > 24) {
+            _mountUnstable = true;
+            bar.classList.remove("vs-bar-inline", "vs-bar-inside");
+            diag("mount.thrash", { recent, provider: P.id });
+            return; // next frame uses the anchored branch below
+          }
         }
         if (!bar.classList.contains("vs-bar-inline")) {
           bar.classList.add("vs-bar-inline");
