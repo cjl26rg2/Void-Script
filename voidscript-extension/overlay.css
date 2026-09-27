@@ -135,6 +135,13 @@ html.vs-light #vs-unstable {
 #vs-state.vs-state-warn { opacity: 1; color: #ff8b94; }
 #vs-state.vs-state-warn b { color: #ffc2c8; }
 #vs-bar.tone-active #vs-state b { color: #ff9a5c; }
+/* live session timer: monospace-ish, dimmer than the state line, no wrapping */
+#vs-live {
+  flex: 0 0 auto;
+  font-size: 11px; line-height: 1.3; opacity: 0.62;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 /* warm ember hairline along the bar's top edge while the agent is working */
 #vs-bar.tone-active {
   background-image: linear-gradient(180deg, rgba(255, 150, 110, 0.22), rgba(255, 150, 110, 0) 5px);
@@ -199,8 +206,21 @@ html.vs-light #vs-unstable {
 }
 #vs-stop[data-state="stopping"]:hover { background: #b45309; }
 
-/* bar controls: one neutral icon-button family (Discord, support, switch) */
-#vs-discord, #vs-support {
+/* pause/resume button (next to Stop, shown only while the loop is running) */
+#vs-pause {
+  flex: none; padding: 7px 13px;
+  background: rgba(255, 255, 255, 0.10); color: #e8eaf2;
+  border: 1px solid rgba(255, 255, 255, 0.18); border-radius: 10px;
+  font-size: 12.5px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+}
+#vs-pause:hover { background: rgba(255, 255, 255, 0.17); color: #fff; border-color: rgba(255, 255, 255, 0.26); }
+html.vs-light #vs-pause { background: rgba(0, 0, 0, 0.06); color: #1f2937; border-color: rgba(0, 0, 0, 0.15); }
+html.vs-light #vs-pause:hover { background: rgba(0, 0, 0, 0.10); color: #111827; }
+
+/* bar controls: one neutral icon-button family (Discord, support, switch, voice,
+   quick screenshot, quick list) */
+#vs-discord, #vs-support, #vs-voice, #vs-quick-shot, #vs-quick-list {
   flex: none; width: 28px; height: 28px; padding: 0;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255, 255, 255, 0.07); color: #c6cad6;
@@ -208,7 +228,15 @@ html.vs-light #vs-unstable {
   cursor: pointer; text-decoration: none;
   transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
 }
-#vs-discord:hover, #vs-support:hover { background: rgba(255, 255, 255, 0.13); color: #fff; border-color: rgba(255, 255, 255, 0.22); }
+#vs-discord:hover, #vs-support:hover, #vs-voice:hover,
+#vs-quick-shot:hover, #vs-quick-list:hover { background: rgba(255, 255, 255, 0.13); color: #fff; border-color: rgba(255, 255, 255, 0.22); }
+#vs-voice svg, #vs-quick-shot svg, #vs-quick-list svg { width: 16px; height: 16px; }
+html.vs-light #vs-discord, html.vs-light #vs-support, html.vs-light #vs-voice,
+html.vs-light #vs-quick-shot, html.vs-light #vs-quick-list {
+  background: rgba(0, 0, 0, 0.05); color: #4b5563; border-color: rgba(0, 0, 0, 0.12);
+}
+html.vs-light #vs-discord:hover, html.vs-light #vs-support:hover, html.vs-light #vs-voice:hover,
+html.vs-light #vs-quick-shot:hover, html.vs-light #vs-quick-list:hover { background: rgba(0, 0, 0, 0.09); color: #111827; }
 
 /* model switcher: names the current AI and opens the panel at Switch AI */
 #vs-switch {
@@ -224,7 +252,7 @@ html.vs-light #vs-unstable {
 
 /* focus-visible rings (keyboard accessibility + polish) */
 #vs-action:focus-visible, #vs-stop:focus-visible, #vs-switch:focus-visible,
-#vs-discord:focus-visible, #vs-support:focus-visible,
+#vs-discord:focus-visible, #vs-support:focus-visible, #vs-voice:focus-visible,
 .vs-site-opt:focus-visible, .vs-tip-opt:focus-visible,
 #vs-set-save:focus-visible, #vs-setup-copy:focus-visible,
 #vs-setup-video:focus-visible, #vs-setup-dismiss:focus-visible,
@@ -321,6 +349,14 @@ button.vs-site-opt:hover .vs-site-go { opacity: 1; transform: translateX(0); }
   flex: none; font-size: 10px; font-weight: 500; color: #ffb07a;
   border: 1px solid rgba(255, 138, 61, 0.35); padding: 1px 7px; border-radius: 999px;
 }
+.vs-site-badge-best {
+  color: #ffd479; border-color: rgba(255, 196, 86, 0.45);
+  background: rgba(255, 196, 86, 0.10);
+}
+.vs-site-badge-recommended {
+  color: #7fd6c2; border-color: rgba(98, 208, 180, 0.4);
+  background: rgba(98, 208, 180, 0.08);
+}
 
 #vs-set-text {
   width: 100%; box-sizing: border-box; resize: vertical; min-height: 58px;
@@ -367,6 +403,26 @@ button.vs-site-opt:hover .vs-site-go { opacity: 1; transform: translateX(0); }
   background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.10);
   border-radius: 9px;
 }
+.vs-backup-item {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 7px 10px; margin: 0 0 5px;
+  background: rgba(255, 255, 255, 0.045); border: 1px solid rgba(255, 255, 255, 0.10);
+  border-radius: 9px; font-size: 12px;
+}
+.vs-backup-name { flex: 1; min-width: 0; color: #e6e8f0; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-backup-meta { color: #8a90a0; font-size: 11px; }
+.vs-set-note { margin-top: 6px; color: #8a90a0; }
+.vs-prov-stab { display: flex; align-items: baseline; gap: 8px; padding: 5px 2px; }
+.vs-stab-lvl { flex: none; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 999px; }
+.vs-stab-excellent { color: #083a2a; background: #3ddc97; }
+.vs-stab-good { color: #083a2a; background: #6ee7a8; }
+.vs-stab-fair { color: #4a3000; background: #fcd34d; }
+.vs-stab-low { color: #4a0d10; background: #fca5a5; }
+.vs-stab-name { flex: none; font-weight: 600; color: #d5d8e2; min-width: 84px; text-transform: capitalize; }
+.vs-stab-note { flex: 1; color: #a9adbb; font-size: 12px; }
+html.vs-light .vs-backup-item { background: #ffffff; border-color: rgba(20, 23, 32, 0.10); }
+html.vs-light .vs-backup-name { color: #1a1f2e; }
+html.vs-light .vs-stab-name { color: #1a1f2e; }
 .vs-mcp-health {
   flex: none; width: 7px; height: 7px; border-radius: 50%; background: #6b7280;
 }
@@ -394,6 +450,21 @@ button.vs-site-opt:hover .vs-site-go { opacity: 1; transform: translateX(0); }
   padding: 7px 9px; font-size: 12px; font-family: inherit; margin-bottom: 6px;
 }
 .vs-mcp-field:focus { outline: none; border-color: rgba(255, 138, 61, 0.55); box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.15); }
+
+/* runtime picker + uvx guide button share a row next to the addon template */
+.vs-mcp-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.vs-mcp-row .vs-mcp-field { margin-bottom: 0; }
+#vs-uvx-help {
+  flex: 0 0 auto; margin: 0; padding: 6px 10px; font-size: 11px; font-weight: 600;
+  color: #a5f3e2; background: rgba(98, 208, 180, 0.10);
+  border: 1px solid rgba(98, 208, 180, 0.35); border-radius: 8px; cursor: pointer;
+  transition: background 0.13s ease;
+}
+#vs-uvx-help:hover { background: rgba(98, 208, 180, 0.18); }
+html.vs-light #vs-uvx-help {
+  color: #0f7a68; background: rgba(15, 122, 104, 0.08); border-color: rgba(15, 122, 104, 0.35);
+}
+html.vs-light #vs-uvx-help:hover { background: rgba(15, 122, 104, 0.14); }
 
 /* small inline spinner shown next to #vs-mcp-add while the bridge restarts */
 .vs-mcp-spin-row { display: inline-flex; align-items: center; gap: 6px; }
@@ -450,6 +521,13 @@ div[contenteditable='true'].vs-typing {
 
 /* ── tool cards (replace tool JSON / sys prompt / results) ──────── */
 .vs-hidden > *:not(.vs-chip) { display: none !important; }
+/* Also blank the turn's own text (some sites render user text as direct text
+   nodes at the item root, bypassing the child-element hide above). The chip
+   carries the visible label ("Starting Up" / "· result"), so the raw text is
+   fully redundant — blanking it guarantees the ⟦VS-SYS⟧ marker and tool JSON
+   never flash during the camouflage race. */
+.vs-hidden { color: transparent !important; }
+.vs-hidden .vs-chip { color: inherit !important; }
 /* hide the code block / paragraph(s) containing the raw tool call */
 .vs-tool-hide { display: none !important; }
 /* Gemini: Angular recreates the <code-block> elements inside a reply (once at
@@ -630,6 +708,7 @@ ol.flex-col-reverse > div.w-full:not(.mx-auto) > .vs-chip {
 /* semantic state kept as a thin accent edge rather than a bright bar */
 .vs-banner.limit { border-left: 2px solid rgba(239, 68, 68, 0.6); }
 .vs-banner.warn { border-left: 2px solid rgba(245, 185, 66, 0.55); }
+.vs-banner.ok { border-left: 2px solid rgba(61, 220, 151, 0.6); }
 .vs-banner-t { font-weight: 600; color: #f8f9fd; margin-bottom: 6px; }
 .vs-banner-m { color: #a6acbd; line-height: 1.5; margin-bottom: 12px; }
 .vs-banner-acts { display: flex; gap: 8px; }
@@ -814,12 +893,14 @@ html.vs-light #vs-state.vs-state-warn { color: #b91c1c; }
 html.vs-light #vs-bar.tone-active #vs-state b { color: #d96b1f; }
 html.vs-light #vs-discord,
 html.vs-light #vs-support,
+html.vs-light #vs-voice,
 html.vs-light #vs-switch {
   background: rgba(20, 23, 32, 0.06); color: #4b5563;
   border-color: rgba(20, 23, 32, 0.13);
 }
 html.vs-light #vs-discord:hover,
 html.vs-light #vs-support:hover,
+html.vs-light #vs-voice:hover,
 html.vs-light #vs-switch:hover { background: rgba(20, 23, 32, 0.11); color: #20242e; }
 html.vs-light #vs-action:disabled {
   background: rgba(20, 23, 32, 0.06); color: rgba(20, 23, 32, 0.35); border-color: rgba(20, 23, 32, 0.09);
@@ -874,6 +955,14 @@ html.vs-light .vs-site-name > span:first-child { color: #20242e; }
 html.vs-light .vs-site-host { color: #9ca3af; }
 html.vs-light button.vs-site-opt:hover { background: rgba(20, 23, 32, 0.06); }
 html.vs-light .vs-site-badge { color: #c05621; border-color: rgba(20, 23, 32, 0.16); }
+html.vs-light .vs-site-badge-best {
+  color: #8a5a00; border-color: rgba(146, 98, 12, 0.35);
+  background: rgba(255, 196, 86, 0.16);
+}
+html.vs-light .vs-site-badge-recommended {
+  color: #0f7a68; border-color: rgba(15, 122, 104, 0.35);
+  background: rgba(98, 208, 180, 0.14);
+}
 html.vs-light .vs-site-go { color: #d96b1f; }
 html.vs-light #vs-set-save,
 html.vs-light #vs-mcp-add,
@@ -889,3 +978,54 @@ html.vs-light .vs-tip-sub,
 html.vs-light .vs-rbx-cur,
 html.vs-light .vs-tip-sep { color: #6b7280; }
 html.vs-light .vs-tip-rbx { color: #374151; }
+
+/* ── UI theme variants (Feature: vsTheme picker) ──────────────────────────── */
+/* Applied to <html data-vs-theme="..."> by core/main.js applyTheme(). */
+[data-vs-theme="dark"] #vs-bar {
+  background: rgba(17, 19, 27, 0.92);
+  color: #f1f2f8;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+[data-vs-theme="dark"] .vs-menu-sec { background: #1a1c26; }
+[data-vs-theme="dark"] .vs-chip { background: rgba(30, 32, 42, 0.95); color: #e6e7f0; border-color: rgba(255, 255, 255, 0.08); }
+
+[data-vs-theme="light"] #vs-bar {
+  background: rgba(255, 255, 255, 0.94);
+  color: #1a1c26;
+  border-color: rgba(20, 23, 32, 0.14);
+  box-shadow: inset 0 1px 0 rgba(20, 23, 32, 0.08), 0 10px 34px rgba(6, 7, 12, 0.12);
+}
+[data-vs-theme="light"] .vs-menu-sec { background: #f5f6fa; }
+[data-vs-theme="light"] .vs-chip { background: rgba(255, 255, 255, 0.95); color: #1a1c26; border-color: rgba(20, 23, 32, 0.12); }
+
+[data-vs-theme="soft-light"] #vs-bar {
+  background: rgba(253, 240, 226, 0.92);
+  color: #4a4037;
+  border-color: rgba(200, 140, 80, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 10px 34px rgba(6, 7, 12, 0.06);
+}
+[data-vs-theme="soft-light"] .vs-menu-sec { background: #fff8f0; }
+[data-vs-theme="soft-light"] .vs-chip { background: rgba(255, 255, 255, 0.88); color: #4a4037; border-color: rgba(200, 140, 80, 0.16); }
+
+/* Voice button recording state */
+#vs-voice.vs-voice-rec { background: rgba(231, 76, 60, 0.2); }
+#vs-voice.vs-voice-rec::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 4px; background: #e74c3c; border-radius: 50%; box-shadow: 0 0 6px #e74c3c; }
+
+/* Quick action buttons (Feature) */
+#vs-quick-shot, #vs-quick-list {
+  font-size: 14px; padding: 4px 8px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.2); color: #fff; cursor: pointer; transition: opacity .15s;
+}
+#vs-quick-shot:hover, #vs-quick-list:hover { opacity: 0.85; }
+html[data-vs-theme="light"] #vs-quick-shot, html[data-vs-theme="light"] #vs-quick-list {
+  background: rgba(255, 255, 255, 0.9); color: #1a1c26;
+}
+
+/* Code block action buttons (Feature: Copy Luau / Run in Studio) */
+.vs-code-actions { display: flex; gap: 6px; margin: 4px 0; }
+.vs-code-btn {
+  font-size: 10px; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.3); color: #fff; cursor: pointer;
+}
+html[data-vs-theme="light"] .vs-code-btn { background: rgba(255, 255, 255, 0.9); color: #1a1c26; border-color: rgba(20, 23, 32, 0.16); }
+.vs-code-btn:hover { opacity: 0.85; }

@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "VoidScript Free × Roblox Studio Agent",
-  "version": "2.0.0",
-  "description": "Turn 57 AI sites - DeepSeek, Gemini, Kimi, GLM, Qwen, Arena, Meta AI, ChatGPT, Claude, Grok, Perplexity, Copilot, Mistral and more - into a Roblox Studio agent that drives Studio through a local bridge.",
-  "permissions": ["storage"],
+  "version": "5.0.0",
+  "description": "Turn 99 AI sites - DeepSeek, Gemini, Kimi.ai, GLM, Qwen, Arena, Meta AI, ChatGPT, Claude, Grok, Perplexity, Copilot, Mistral, T3 Chat, Poolside, Twinny, Cody, Chatbase and more - into a Roblox Studio agent that drives Studio through a local bridge.",
+  "permissions": ["storage", "notifications"],
   "host_permissions": [
     "https://chat.deepseek.com/*",
     "https://deepseek.com/*",
     "https://gemini.google.com/*",
     "https://www.kimi.com/*",
     "https://kimi.com/*",
+    "https://kimi.ai/*",
     "https://chat.z.ai/*",
     "https://chat.qwen.ai/*",
     "https://arena.ai/*",
@@ -65,11 +66,34 @@
     "https://www.theb.ai/*",
     "https://theb.ai/*",
     "https://wonderseek.com/*",
+    "https://replicate.com/*",
     "https://felo.ai/*",
     "https://writesonic.com/*",
     "https://www.jasper.ai/*",
     "https://consensus.app/*",
     "https://chathub.gg/*",
+    "https://t3.chat/*",
+    "https://poolside.ai/*",
+    "https://www.inflection.com/*",
+    "https://hume.ai/*",
+    "https://twinny.ai/*",
+    "https://sourcegraph.com/*",
+    "https://chatbase.io/*",
+    "https://botstack.com/*",
+    "https://flowise.ai/*",
+    "https://lobe.github.io/*",
+    "https://chatai.commander.ai/*",
+    "https://levera.ai/*",
+    "https://mage.space/*",
+    "https://friend.com/*",
+    "https://app.humane.com/*",
+    "https://bolt.new/*",
+    "https://bolt.ai/*",
+    "https://windsurf.ai/*",
+    "https://pool.smallstep.com/*",
+    "https://ramp.com/*",
+    "https://www.phind.com/*",
+    "https://phind.com/*",
     "https://api.github.com/*",
     "http://127.0.0.1/*",
     "ws://127.0.0.1/*"
@@ -443,6 +467,264 @@
     {
       "matches": ["https://chathub.gg/*"],
       "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/chathub.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://t3.chat/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/t3chat.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://poolside.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/poolside.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.inflection.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/inflection.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://hume.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/hume.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://twinny.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/twinny.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://sourcegraph.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/cody.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chatbase.io/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/chatbase.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://botstack.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/botstack.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://flowise.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/flowise.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lobe.github.io/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/lobe.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chatai.commander.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/chatai.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://levera.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/levera.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://mage.space/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/mage.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://friend.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/friend.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://app.humane.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/humane.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://bolt.new/*", "https://bolt.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/bolt.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.perplexity.ai/*", "https://perplexity.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/perplexity.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://windsurf.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/windsurf.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://pool.smallstep.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/poolside.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://ramp.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/ramp.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.phind.com/*", "https://phind.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/phind.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://copilot.microsoft.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/copilot.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.mistral.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/mistral.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://poe.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/poe.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://huggingface.co/chat/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/huggingchat.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.reka.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/reka.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://pi.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/pi.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://coral.cohere.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/coral.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://openrouter.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/openrouter.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://v0.app/*", "https://v0.dev/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/v0.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.genspark.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/genspark.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lambda.chat/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/lambda.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://yiyan.baidu.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/yiyan.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.minimax.io/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/minimax.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://manus.im/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/manus.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://chat.together.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/together.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://lmarena.ai/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/lmarena.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://www.doubao.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/doubao.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://yuanbao.tencent.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/yuanbao.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://moonshot.cn/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/moonshot.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://jupi.io/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/jupi.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://wonderseek.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/wonderseek.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://replicate.com/*"],
+      "js": ["core/config.js", "core/parser.js", "providers/_generic.js", "providers/replicate.js", "core/main.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
     }

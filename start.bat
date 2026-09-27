@@ -54,12 +54,21 @@ call :scan_python_dirs                       && goto :have_python
 
 :: none found -> try to install it
 call :note "no usable Python on PATH or in the usual install folders."
-where winget >nul 2>nul || (
-    call :fail "Python is not installed, and winget is unavailable to install it."
-    echo   Install Python 3.9+ yourself: https://www.python.org/downloads/
-    echo   Tick %CB%"Add python.exe to PATH"%C0% during setup, then rerun start.bat.
-    call :note "ABORT: no Python and no winget."
-    call :halt 1
+where winget >nul 2>nul
+if errorlevel 1 (
+    :: winget missing (stripped-down / older Windows) -> auto-install by
+    :: downloading the official installer straight from python.org.
+    echo         %CWARN%Not found and winget is unavailable - downloading Python%C0%
+    echo         from python.org and installing it silently...
+    call :install_python_direct
+    if errorlevel 1 (
+        call :fail "Python is not installed, and the automatic install failed."
+        echo   Install Python 3.9+ yourself: https://www.python.org/downloads/
+        echo   Tick %CB%"Add python.exe to PATH"%C0% during setup, then rerun start.bat.
+        call :note "ABORT: no Python and no winget / auto-install failed."
+        call :halt 1
+    )
+    goto :have_python
 )
 echo         %CWARN%Not found - installing Python via winget...%C0%
 winget install --id Python.Python.3.12 --source winget --accept-package-agreements --accept-source-agreements
@@ -84,21 +93,50 @@ call :note "python: %PY% (!PYVER!)"
 :: Downloads and applies a newer GitHub release on every launch, then restarts
 :: this launcher so the NEW bridge.py is the one that runs. Silent when nothing
 :: is newer; offline/API errors are silent too and never block startup.
-if exist "%~dp0update.py" (
-    for /f "delims=" %%u in ('call %PY% "%~dp0update.py" --auto 2^>nul') do set "UPAUTO=%%u"
-    if defined UPAUTO (
-        if /i "!UPAUTO:~0,15!"=="UPDATE_APPLIED" (
-            echo.
-            echo   %COK%UPDATE INSTALLED%C0%  !UPAUTO!
-            echo   Reload the extension at chrome://extensions after this restarts.
-            call :note "auto-update applied: !UPAUTO!"
-            echo.
-            echo   %CVIO%Restarting VoidScript with the new version...%C0%
-            start "VoidScript Update" /d "%~dp0" cmd /c "%~f0"
-            call :halt 0
+::
+:: The restart window is launched with --skip-update so it NEVER runs the
+:: updater again: the update was just applied, and re-running it is what used
+:: to spawn one new window per restart (an unbounded chain when the updater
+:: kept reporting UPDATE_APPLIED). The old window exits for real after
+:: spawning, instead of continuing on to start its own bridge.
+if "%~1"=="--skip-update" set "SKIP_UPDATE=1"
+if not defined SKIP_UPDATE (
+    if exist "%~dp0update.py" (
+        for /f "delims=" %%u in ('call %PY% "%~dp0update.py" --auto 2^>nul') do set "UPAUTO=%%u"
+        if defined UPAUTO (
+            if /i "!UPAUTO:~0,14!"=="UPDATE_APPLIED" (
+                echo.
+                echo   %COK%UPDATE INSTALLED%C0%  !UPAUTO!
+                echo   Reload the extension at chrome://extensions after this restarts.
+                call :note "auto-update applied: !UPAUTO!"
+                echo.
+                echo   %CVIO%Restarting VoidScript with the new version...%C0%
+                :: Restart-loop guard: count consecutive auto-restarts. If the new
+                :: window somehow re-triggers an update anyway, stop after 3
+                :: instead of opening a window per restart forever.
+                set "RESTART_COUNT=0"
+                if exist "%TEMP%\vs_restart_count" set /p RESTART_COUNT=<"%TEMP%\vs_restart_count"
+                set /a RESTART_COUNT+=1
+                > "%TEMP%\vs_restart_count" echo !RESTART_COUNT!
+                if !RESTART_COUNT! GTR 3 (
+                    del "%TEMP%\vs_restart_count" >nul 2>nul
+                    echo.
+                    echo   %CRED%ERROR:%C0% Auto-update kept restarting (!RESTART_COUNT!x^) - stopping to
+                    echo   avoid an endless loop. Run start.bat again in a minute, or check the
+                    echo   Void-Script releases on GitHub for a broken update.
+                    call :note "ABORT: update restart loop detected (!RESTART_COUNT! restarts)."
+                    pause >nul
+                    exit /b 1
+                )
+                start "VoidScript Update" /d "%~dp0" cmd /c ""%~f0" --skip-update"
+                exit /b 0
+            )
         )
     )
 )
+:: The skip-update window (and any normal launch) clears the restart counter, so
+:: the next launch starts from zero.
+del "%TEMP%\vs_restart_count" >nul 2>nul
 
 :: ---- 2. dependency: websockets --------------------------------------------
 echo.
@@ -167,6 +205,37 @@ for %%D in ("%LOCALAPPDATA%\Programs\Python" "%ProgramFiles%" "%ProgramFiles(x86
         )
     )
 )
+exit /b 1
+
+:: :install_python_direct  - no winget available: download the official Python
+:: installer from python.org and run it silently (per-user, PrependPath so a
+:: re-run of this launcher finds it). Requires an internet connection.
+:install_python_direct
+set "PY_URL=https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
+set "PY_INST=%TEMP%\voidscript-python-setup.exe"
+if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "PY_URL=https://www.python.org/ftp/python/3.12.10/python-3.12.10-arm64.exe"
+echo         Downloading the Python installer...
+curl.exe -L --fail --silent --show-error -o "%PY_INST%" "%PY_URL%" || (
+    powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PY_URL%' -OutFile '%PY_INST%'"
+)
+if not exist "%PY_INST%" (
+    call :note "ABORT: direct Python download failed (curl and PowerShell both)."
+    exit /b 1
+)
+call :note "downloaded Python installer from %PY_URL%."
+echo         Installing Python 3.12 (silent, per-user)...
+"%PY_INST%" /quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1 Include_test=0 Include_doc=0 Include_tcltk=1
+set "RC_INST=%errorlevel%"
+del "%PY_INST%" >nul 2>nul
+if not "%RC_INST%"=="0" (
+    call :note "ABORT: silent Python install exited with code %RC_INST%."
+    exit /b 1
+)
+call :note "silent Python install completed (code %RC_INST%)."
+echo         Re-checking...
+call :try_python "py -3"      && exit /b 0
+call :try_python "python"     && exit /b 0
+call :scan_python_dirs        && exit /b 0
 exit /b 1
 
 :: :free_port  - if a previous bridge is still holding PORT, replace it. A

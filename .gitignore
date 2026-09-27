@@ -17,3 +17,6 @@ logs/
 Thumbs.db
 desktop.ini
 __pycache__/
+
+# Editor/AI tooling scratch
+.kilo/

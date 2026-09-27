@@ -14,7 +14,7 @@ const LINKS = {
 // Both the header pill and the "is this a supported AI tab?" test derive from it.
 const PROVIDERS = [
   ["DeepSeek", /deepseek\.com/], ["Gemini", /gemini\.google\.com/],
-  ["Kimi", /kimi\.com/], ["GLM", /z\.ai/], ["Qwen", /qwen\.ai/],
+     ["Kimi", /kimi\.(com|ai)/], ["GLM", /z\.ai/], ["Qwen", /qwen\.ai/],
   ["Arena", /(^|\/\/)arena\.ai/], ["Meta AI", /meta\.ai/],
   ["ChatGPT", /chatgpt\.com|chat\.openai\.com/], ["Grok", /grok\.com/],
   ["Perplexity", /perplexity\.ai/], ["Copilot", /copilot\.microsoft\.com/],
@@ -38,17 +38,59 @@ const PROVIDERS = [
   ["Wonderseek", /wonderseek\.com/], ["Felo", /felo\.ai/],
   ["Writesonic", /writesonic\.com/], ["Jasper", /(^|\/\/)jasper\.ai/],
   ["Consensus", /consensus\.app/], ["ChatHub", /chathub\.gg/],
+  ["T3 Chat", /t3\.chat/], ["Poolside AI", /poolside\.ai/],
+  ["Inflection AI", /inflection\.com/], ["Hume AI", /hume\.ai/],
+  ["Twinny", /twinny\.ai/],
+  ["Cody", /sourcegraph\.com/], ["Chatbase", /chatbase\.io/],
+  ["Botstack", /botstack\.com/], ["Flowise", /flowise\.ai/],
+  ["Lobe", /lobe\.github\.io/],
+  ["Chat.AI", /chatai\.commander\.ai/], ["Levera AI", /levera\.ai/],
+  ["Mage", /(^|\/\/)mage\.space/], ["Friend", /friend\.com/],
+  ["Humane", /app\.humane\.com/], ["Bolt", /bolt\.(new|ai)/],
+  ["Perplexity AI", /perplexity\.ai/], ["Windsurf", /windsurf\.ai/],
+  ["Pool", /pool\.smallstep\.com/], ["Ramp", /ramp\.com/],
+  ["Phind", /phind\.com/], ["Copilot", /copilot\.microsoft\.com/],
+  ["Mistral", /chat\.mistral\.ai/], ["Poe", /poe\.com/],
+  ["HuggingChat", /huggingface\.co\/chat/], ["Reka", /chat\.reka\.ai/],
+  ["Pi", /pi\.ai/], ["Coral", /coral\.cohere\.com/],
+  ["OpenRouter", /openrouter\.ai/], ["v0", /v0\.(app|dev)/],
+  ["Genspark", /genspark\.ai/], ["Lambda", /lambda\.chat/],
+  ["Yiyan", /yiyan\.baidu\.com/], ["Minimax", /chat\.minimax\.io/],
+  ["Manus", /manus\.im/], ["Together", /chat\.together\.ai/],
+  ["LM Arena", /lmarena\.ai/], ["Doubao", /doubao\.com/],
+  ["Yuanbao", /yuanbao\.tencent\.com/], ["Moonshot", /moonshot\.cn/],
+  ["Jupi", /jupi\.io/],   ["Wonderseek", /wonderseek\.com/], ["Replicate", /replicate\.com/],
 ];
 const providerName = (url) => (PROVIDERS.find(([, re]) => re.test(url || "")) || [])[0];
 const isProviderTab = (url) => PROVIDERS.some(([, re]) => re.test(url || ""));
+
+// Editorial pick labels, shown next to a provider's name (menu + popup tag).
+const SITE_LABELS = {
+  "Claude": "best",
+  "DeepSeek": "recommended",
+  "GLM": "recommended",
+  "Qwen": "recommended",
+};
 
 const $ = (id) => document.getElementById(id);
 const send = (msg, cb) => chrome.runtime.sendMessage(msg, cb);
 
 // ── header ────────────────────────────────────────────────────────────────
-$("version").textContent = "v" + chrome.runtime.getManifest().version;
+const versionEl = $("version");
+if (versionEl) versionEl.textContent = "v" + chrome.runtime.getManifest().version;
+let activeTab = null;
 chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-  $("provider-tag").textContent = providerName(tab && tab.url) || "Ready";
+  activeTab = tab || null;
+  const tag = $("provider-tag");
+  const name = providerName(tab && tab.url) || "Ready";
+  tag.textContent = name;
+  const label = SITE_LABELS[name];
+  if (label) {
+    const b = document.createElement("span");
+    b.className = `tag-label tag-label-${label}`;
+    b.textContent = label;
+    tag.appendChild(b);
+  }
 });
 
 // ── status rendering ────────────────────────────────────────────────────────
@@ -68,10 +110,55 @@ function paint(s) {
     : studioMissing
     ? "Studio not connected · enable its MCP server"
     : "Bridge OK · open Roblox Studio";
-  $("tool-count").textContent = s.connected ? `${s.tools || 0} tools available` : "Run start.bat to launch the bridge";
+  $("tool-count").textContent = s.connected
+    ? `${s.tools || 0} tools available${s.placeName ? " · " + s.placeName : ""}`
+    : "Run start.bat to launch the bridge";
   $("server-list").textContent = s.connected
     ? servers.map((x) => `${x.alive ? "●" : "○"} ${x.id} (${x.alive ? x.tools + " tools" : "down"})`).join("\n")
     : "";
+
+  // Provider name + success rate (Feature: per-provider stats from leaderboard).
+  const provTag = $("provider-tag");
+  if (provTag) {
+    const name = providerName(activeTab && activeTab.url) || "";
+    if (name) {
+      // Reset the tag content first (in case paint runs again, e.g. on poll).
+      provTag.textContent = "";
+      const label = document.createElement("span");
+      label.textContent = name;
+      provTag.appendChild(label);
+      const lbSub = document.createElement("span");
+      lbSub.className = "tag-label";
+      lbSub.id = "prov-sub";
+      lbSub.textContent = "…";
+      provTag.appendChild(lbSub);
+      const siteLabel = SITE_LABELS[name];
+      if (siteLabel) {
+        const b = document.createElement("span");
+        b.className = `tag-label tag-label-${siteLabel}`;
+        b.textContent = siteLabel;
+        provTag.appendChild(b);
+      }
+      chrome.storage.local.get("vsLeaderboard", (r) => {
+        const lb = (r && r.vsLeaderboard) || {};
+        const entry = lb[name];
+        if (entry && entry.ok !== undefined) {
+          const total = entry.ok + entry.err;
+          if (total > 0) {
+            const pct = Math.round((entry.ok / total) * 100);
+            lbSub.textContent = pct + "% ok";
+            lbSub.title = `${entry.ok} ok, ${entry.err} errors across ${total} commands`;
+          } else {
+            lbSub.textContent = "";
+          }
+        } else {
+          lbSub.textContent = "";
+        }
+      });
+    } else {
+      provTag.textContent = "Ready";
+    }
+  }
 
   const up = $("update-row");
   if (up) up.hidden = !s.updateAvailable;
@@ -95,6 +182,63 @@ $("btn-restart").onclick = (e) => {
 };
 
 $("btn-site").onclick = () => chrome.tabs.create({ url: LINKS.site });
+
+// Quick round-trip test (Feature): times a list_tools round trip and reports
+// the bridge latency + Studio state in one line.
+$("btn-test").onclick = async () => {
+  const out = $("test-result");
+  out.textContent = "Testing bridge round-trip…";
+  const t0 = performance.now();
+  const r = await new Promise((res) => send({ type: "list_tools" }, res));
+  const ms = Math.round(performance.now() - t0);
+  if (!r || !r.ok) {
+    out.textContent = "No response from the bridge (run start.bat).";
+    return;
+  }
+  const s = await new Promise((res) => send({ type: "status" }, res));
+  const tools = (r.tools || []).length;
+  const studio = s && s.studio ? "place loaded" : s && s.studioApp ? "Studio open, no place" : "Studio not connected";
+  out.textContent = `${tools} tools · ${ms}ms round-trip · ${studio}`;
+};
+
+// Copy diagnostics (Feature): pulls the full bridge diagnostics payload, keeps
+// the long log tail out of the human-readable summary but includes everything
+// for pasting into a bug report.
+$("btn-diag").onclick = async () => {
+  const btn = $("btn-diag");
+  const original = btn.innerHTML;
+  btn.textContent = "Collecting…";
+  const r = await new Promise((res) => send({ type: "diagnostics" }, res));
+  if (!r || !r.ok || !r.diagnostics) {
+    btn.innerHTML = original;
+    $("test-result").textContent = "Could not collect diagnostics (bridge offline).";
+    return;
+  }
+  const d = r.diagnostics;
+  const summary = [
+    `VoidScript bridge v${d.bridge_version} (pid ${d.pid}, up ${Math.round((d.uptime_s || 0) / 60)}m)`,
+    `Platform: ${d.platform} · Python ${d.python} · ws://${d.host}:${d.port}`,
+    `Origin auth: ${d.origin_auth ? "on" : "OFF"} · Token auth: ${d.token_auth ? "on" : "off"}`,
+    `Studio: app=${d.studio && d.studio.app} place=${d.studio && d.studio.place} proc=${d.studio_proc}`,
+    `MCP servers: ${(d.servers || []).map((x) => `${x.id}=${x.alive ? "up" : "down"}:${x.tools}tools`).join(", ") || "none"}`,
+    `Env: ${Object.entries(d.env || {}).map(([k, v]) => `${k}=${v}`).join(" ")}`,
+    `Config servers: ${(d.config_mcp_servers || []).join(", ") || "none"}`,
+  ].join("\n");
+  const full = summary + "\n\n--- servers ---\n" + JSON.stringify(d.servers, null, 2) +
+    "\n--- log tail ---\n" + (d.log_tail || []).join("\n");
+  try {
+    await navigator.clipboard.writeText(full);
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = full;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+  }
+  btn.innerHTML = original;
+  $("test-result").textContent = "Diagnostics copied to clipboard.";
+};
 
 const btnUpdate = $("btn-update");
 if (btnUpdate) btnUpdate.onclick = () => chrome.tabs.create({ url: LINKS.releases });
@@ -181,3 +325,29 @@ function renderLeaderboard() {
 }
 renderLeaderboard();
 setInterval(renderLeaderboard, 4000);
+
+// Leaderboard export (Feature): copy the current provider success-rate ranking as
+// plain text so it can be pasted into a bug report or shared.
+const lbCopy = $("lb-copy");
+if (lbCopy) {
+  lbCopy.title = "Copy leaderboard to clipboard";
+  lbCopy.style.cursor = "pointer";
+  lbCopy.addEventListener("click", (e) => {
+    e.stopPropagation();
+    chrome.storage.local.get("vsLeaderboard", (r) => {
+      const lb = (r && r.vsLeaderboard) || {};
+      const rows = Object.values(lb)
+        .filter((e) => e.runs > 0)
+        .map((e) => ({ name: e.name, runs: e.runs, ok: e.ok || 0, err: e.err || 0,
+                        rate: ((e.ok || 0) + (e.err || 0)) ? (e.ok / ((e.ok || 0) + (e.err || 0))) : 0 }))
+        .sort((a, b) => b.rate - a.rate || b.runs - a.runs);
+      const lines = rows.map((e, i) =>
+        `${i + 1}. ${e.name} - ${e.ok}/${e.runs} ok (${Math.round(e.rate * 100)}%)`);
+      const text = lines.length ? lines.join("\n") : "No builds recorded yet.";
+      navigator.clipboard.writeText(text).then(() => {
+        lbCopy.textContent = "copied ✓";
+        setTimeout(() => { lbCopy.textContent = "✓ copy"; }, 1600);
+      });
+    });
+  });
+}

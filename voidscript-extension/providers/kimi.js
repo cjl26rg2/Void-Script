@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// providers/kimi.js - the Kimi (www.kimi.com, Moonshot AI) provider.
+// providers/kimi.js - the Kimi (kimi.ai, Moonshot AI) provider.
 // Exports the same VSProvider interface as providers/deepseek.js and gemini.js;
 // the core (core/main.js) is provider-agnostic. To DISABLE Kimi support, remove
 // this file from manifest.json (and its URL from background.js PROVIDER_URLS +
@@ -519,7 +519,19 @@ const VSProvider = (() => {
   // "Swarm" actually breaks the command protocol, so that is the only thing we
   // match. Anything else is left strictly alone, in any language.
   const SWARM_RE = /swarm|集群|蜂群/i;
-  const currentModelIsUsable = () => !SWARM_RE.test((modelBtn() || {}).textContent || "");
+  // Preferred model forced by the user (menu's "Preferred model" field). When
+  // set, applyDefaultModel drives the picker to it; otherwise it only avoids
+  // Swarm (the one model that breaks the command protocol).
+  let _prefModel = "";
+  function setPreferredModel(m) { _prefModel = String(m || "").trim(); }
+  const currentModelMatches = (cur) => {
+    const t = String(cur || "").trim();
+    return !!(_prefModel && t && t.toLowerCase() === _prefModel.toLowerCase());
+  };
+  const currentModelIsUsable = () => {
+    const cur = (modelBtn() || {}).textContent || "";
+    return _prefModel ? currentModelMatches(cur) : !SWARM_RE.test(cur);
+  };
   const MAX_PICKER_TRIES = 6;
   const visibleModelItems = () =>
     [...document.querySelectorAll(".model-item")].filter(
@@ -538,11 +550,19 @@ const VSProvider = (() => {
     if (!chatIsEmpty() || !getEditor() || overlayBlocking() || isGenerating()) return;
     if (currentModelIsUsable()) { defaultArmed = false; return; } // already fine, no UI
 
-    // Only reached when the CURRENT model is Swarm. The picker needs a click to
+    // Only reached when the model needs switching. The picker needs a click to
     // open, then its rows render a tick later, so this spans two sweeps: open the
-    // dropdown on one, click the target on the next. "Any row that is not Swarm"
-    // is language-independent, unlike naming the model we want.
-    const target = visibleModelItems().find((el) => !SWARM_RE.test(el.textContent || ""));
+    // dropdown on one, click the target on the next. With a user preference we
+    // target exactly that row (a language-independent case-insensitive text match,
+    // which also covers localized spellings); without one we fall back to "any row
+    // that is not Swarm".
+    const prefTarget = _prefModel
+      ? visibleModelItems().find((el) => {
+          const t = String(el.textContent || "").trim();
+          return t && t.toLowerCase() === _prefModel.toLowerCase();
+        })
+      : null;
+    const target = prefTarget || visibleModelItems().find((el) => !SWARM_RE.test(el.textContent || ""));
     if (target) { target.click(); defaultArmed = false; return; } // picker auto-closes
     // Nothing usable on offer (Kimi renamed things again): give up rather than
     // re-opening the picker forever. modeWarning() still tells the user what to do.
@@ -805,6 +825,7 @@ const VSProvider = (() => {
     setInputLock, typeAndSend, stopGeneration,
     isGenerating, isBusyNow, isHardGenerating,
     enforceComposer, ensureComposerReady, modeWarning, overlayBlocking,
+    setPreferredModel,
     turnHalted, findContinueBtn, clickContinueBtn,
     scanError, isTooLongMsg, isBusyMsg,
     // actions

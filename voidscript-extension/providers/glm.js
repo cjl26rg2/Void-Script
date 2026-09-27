@@ -199,6 +199,17 @@ const VSProvider = (() => {
     return (ed && ed.closest('.flex-col[class*="rounded"]')) || null;
   }
 
+  // Inside-mount (DeepSeek-style): drop the bar in as the FIRST child of the rounded
+  // composer card so it reads as ONE unit with the input box. Returns null when the
+  // card can't be resolved, so the core falls back to anchored mode (still connected).
+  function barMount() {
+    const card = barAnchor();
+    if (!card || !card.isConnected) return null;
+    let before = card.firstElementChild;
+    if (before && before.id === "vs-bar") before = before.nextElementSibling;
+    return { parent: card, before, inside: true };
+  }
+
   // ── Input lock ────────────────────────────────────────────────────────────
   // The textarea is a real <textarea>: `readonly` blocks the user but is ignored
   // by the native prototype setter used in setTextareaValue(), so our own
@@ -599,7 +610,7 @@ const VSProvider = (() => {
     assistantCount, userCount, lastAssistant, lastAssistantId, readAssistant,
     streamLen, snapshot,
     // composer / state
-    getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barAnchor,
+    getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barAnchor, barMount,
     setInputLock, typeAndSend, stopGeneration,
     isGenerating, isBusyNow, isHardGenerating,
     enforceComposer, ensureComposerReady,

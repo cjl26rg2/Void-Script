@@ -80,6 +80,7 @@ const VSProvider = (() => {
     visionMode: /vision|视觉|图像|多模态/i,
     deepThink: /pensée profonde|pensee profonde|profonde|réflexion|reflexion|deep ?think|深度思考|r1/i,
     searchMode: /recherche intelligente|smart search|search|web|搜索/i,
+    instantMode: /instant|即时|instantan/i,
   };
 
   // Completion-detection windows, calibrated on DeepSeek's DeepThink behaviour.
@@ -302,6 +303,16 @@ const VSProvider = (() => {
   // is "Instant"/"Expert"/"Vision"). Throttled + latched so the badge scan stops
   // once a value is known.
   let _visLatch = false, _visLatchSet = false, _visAt = 0, _visCache = false;
+  // Preferred model forced by the user (set via the menu's "Preferred model"
+  // field). One of "" (default → Expert), "expert", "instant", "vision".
+  let _prefModel = "";
+  function setPreferredModel(m) { _prefModel = String(m || "").trim().toLowerCase(); }
+  function driveRadio(r, target) {
+    if (r && r.getAttribute("aria-checked") !== "true") {
+      try { r.click(); return true; } catch (e) { diag("mode_fallback", { reason: "drive", target, error: String(e && e.message || e) }); }
+    }
+    return false;
+  }
   function badgeVision() {
     const els = [...document.querySelectorAll("div,span")].filter(
       (e) => e.childElementCount === 0 &&
@@ -363,16 +374,22 @@ const VSProvider = (() => {
     // off) without VoidScript reverting their choice every frame.
     if (!reason) return composerModeState();
     try {
-      // Pick the most powerful model for the agent: Expert (deep reasoning). In
-      // the current DeepSeek V4 UI, Expert IS the thinking model; the three tabs
-      // are Instant / Expert / Vision and there is no separate DeepThink toggle.
-      // EXCEPTION: if the user deliberately chose the Vision tab, RESPECT it (don't
-      // force Expert back) - that's the only way to feed DeepSeek images, and
-      // supportsVision then flips true so screen_capture is allowed for that turn.
-      if (!isVisionSelected()) {
-        const expert = findExpertRadio();
-        if (expert && expert.getAttribute("aria-checked") !== "true") {
-          try { expert.click(); } catch (e) { diag("mode_fallback", { reason, target: "expert", error: String(e && e.message || e) }); }
+      // Pick the model the agent should run. Default: the most powerful for the
+      // agent, Expert (deep reasoning) - in the current DeepSeek V4 UI the three
+      // tabs are Instant / Expert / Vision and there is no separate DeepThink
+      // toggle. The user can override via the "Preferred model" menu field:
+      // "instant" drives the default tab, "vision" forces the Vision tab (the
+      // only way DeepSeek can see images, and supportsVision then flips true so
+      // screen_capture is allowed). Without a preference, a user who deliberately
+      // picked the Vision tab is respected (we never force Expert over it).
+      const want = _prefModel || "";
+      if (want === "vision") {
+        driveRadio(findVisionRadio(), "vision");
+      } else if (want === "instant") {
+        driveRadio(findModeRadio("default", RE.instantMode), "instant");
+      } else {
+        if (!isVisionSelected()) {
+          driveRadio(findExpertRadio(), "expert");
         }
       }
 
@@ -415,20 +432,20 @@ const VSProvider = (() => {
     return { ...state, ready: state.expertOn || state.visionOn };
   }
 
-  // DeepSeek's footer button doubles as SEND (an upward arrow) and STOP (a
-  // filled rounded square). Older builds drew the stop glyph with a <rect>; the
-  // current V4 build draws BOTH as a <path>: the send arrow's path starts
-  // mid-glyph ("M8.31…"), the stop square's path starts at a corner near the
-  // origin ("M2 …"). We treat the button as "stop" when it carries a <rect> OR a
-  // square-ish path (leading move to x ≤ 3) - never the M8 arrow. One-liner to
-  // update if DeepSeek reskins the footer button.
-  function isStopBtn(btn) {
-    if (!btn) return false;
-    if (btn.querySelector("rect")) return true; // legacy stop square
-    const p = btn.querySelector("path");
-    if (!p) return false;
-    return /^\s*M\s*[0-3][\s.]/.test(p.getAttribute("d") || "");
-  }
+   // DeepSeek's footer button doubles as SEND (an upward arrow) and STOP (a
+   // filled rounded square). Older builds drew the stop glyph with a <rect>; the
+   // current V4 build draws BOTH as a <path>: the send arrow's path starts
+   // mid-glyph ("M8.31…"), the stop square's path starts at a corner near the
+   // origin ("M2…"). We treat the button as "stop" when it carries a <rect> OR a
+   // square-ish path (leading move to x ≤ 5) - never the M8 arrow. One-liner to
+   // update if DeepSeek reskins the footer button.
+   function isStopBtn(btn) {
+     if (!btn) return false;
+     if (btn.querySelector("rect")) return true; // legacy stop square
+     const p = btn.querySelector("path");
+     if (!p) return false;
+     return /^\s*M\s*[0-5][\s.]/.test(p.getAttribute("d") || "");
+   }
 
   // ── Generation / completion detection ────────────────────────────────────
   // Everything DeepSeek is streaming for a turn: its reasoning + its answer.
@@ -867,7 +884,31 @@ const VSProvider = (() => {
     );
   }
 
-  // ── Tool-block location for camouflage ────────────────────────────────────
+   // ── Overlay / bot-check detection ──────────────────────────────────────────
+   // DeepSeek shows a bot-detection challenge (captcha or a "Checking your
+   // browser..." overlay) that renders as a full-screen fixed mask. The core
+   // hides the bar while overlayBlocking() is true so it can't intercept clicks
+   // on the challenge's buttons. Detected by real visibility (offsetParent /
+   // bounding rect), not just class presence.
+   function overlayBlocking() {
+     try {
+       for (const el of document.querySelectorAll(
+         '[class*="captcha"],[class*="challenge"],[class*="bot-check"],[role="dialog"],[class*="modal"]'
+       )) {
+         if (el.closest(S.chatItem)) continue; // inside a chat turn ⇒ model content
+         if (el.offsetParent === null) continue; // not visible
+         const r = el.getBoundingClientRect();
+         if (r.width > 0 && r.height > 0) {
+           // Only block if it covers a meaningful part of the viewport.
+           const vw = Math.max(r.width / window.innerWidth, r.height / window.innerHeight);
+           if (vw > 0.3) return true;
+         }
+       }
+     } catch {}
+     return false;
+   }
+
+   // ── Tool-block location for camouflage ────────────────────────────────────
   // Hide the raw tool call so nothing of it leaks beside the core's chip.
   // DeepSeek markdown often SPLITS a ###LUA### … ###END_LUA### block across
   // several <p> paragraphs, so we hide the whole CONTIGUOUS RUN of block-level
@@ -945,11 +986,13 @@ const VSProvider = (() => {
     streamLen, snapshot,
     // composer / state
     getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barMount,
-    setInputLock, typeAndSend, stopGeneration,
+    setInputLock, typeAndSend,     stopGeneration,
     isGenerating, isBusyNow, isHardGenerating, genDebug,
     enforceComposer, ensureComposerReady,
+    setPreferredModel,
     turnHalted, findContinueBtn, clickContinueBtn,
     scanError, isTooLongMsg, isBusyMsg,
+    overlayBlocking,
     // actions
     attachImages, clearAttachments, conversationKey,
     installSendHooks, findToolBlockSpot,

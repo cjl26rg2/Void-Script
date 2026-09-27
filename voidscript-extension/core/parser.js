@@ -338,6 +338,18 @@ const VSParse = (() => {
            /^\s*\(System note:/.test(txt);
   }
 
+  // Extract the raw Lua source from a ###LUA### … ###END_LUA### block (the bare
+  // marker form, no JSON envelope). Returns "" when no block is present. Used by
+  // the code-block action buttons (Copy Luau / Run in Studio) in the chat replay.
+  function extractLua(text) {
+    if (!text) return "";
+    const { pos: ls, len } = findLuaStart(text);
+    if (ls === -1) return "";
+    const le = findLuaEnd(text, ls + len);
+    if (le === -1) return stripCodeChrome(text.slice(ls + len).trim());
+    return stripCodeChrome(text.slice(ls + len, le).trim());
+  }
+
   // The assistant emitted a VoidScript command (JSON or a ###LUA### block).
   function hasCommandShape(txt) {
     return txt.includes(START_M) ||
@@ -349,6 +361,6 @@ const VSParse = (() => {
     START_M, END_M, LUA_START_RE, LUA_END_RE, CMD_KEY_RE,
     findLuaStart, findLuaEnd, matchBrace, extractJson, normalizeCall,
     hasToolSignature, hasOpenToolBlock, parseToolCalls, salvageCutOff, toolNameFromText,
-    isInjectedFeedback, hasCommandShape,
+    isInjectedFeedback, hasCommandShape, extractLua,
   };
 })();

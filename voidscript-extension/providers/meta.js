@@ -304,6 +304,18 @@ const VSProvider = (() => {
     return (ed && ed.parentElement) || null;
   }
 
+  // Inside-mount (DeepSeek-style): drop the bar in as the FIRST child of the rounded
+  // composer card so it reads as ONE unit with the input box. coverTarget() finds the
+  // editor band by walking up to the card (not by child index), so the extra first
+  // child is safe. Returns null if the card can't be resolved (→ core anchored mode).
+  function barMount() {
+    const card = barAnchor();
+    if (!card || !card.isConnected) return null;
+    let before = card.firstElementChild;
+    if (before && before.id === "vs-bar") before = before.nextElementSibling;
+    return { parent: card, before, inside: true };
+  }
+
   // The element the "Agent is working…" cover is sized to: the text-entry band
   // ONLY, never the controls row. The rounded composer card has two children -
   // [0] the scroller band that holds the editor, [1] the controls row (attach /
@@ -737,7 +749,7 @@ const VSProvider = (() => {
     assistantCount, userCount, lastAssistant, lastAssistantId, readAssistant,
     streamLen, snapshot,
     // composer / state
-    getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barAnchor,
+    getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barAnchor, barMount,
     // The "Agent is working…" cover is sized to coverTarget() so it blankets the
     // whole text-entry band (blocking clicks that would otherwise focus the editor
     // and let the user type behind it) WITHOUT covering the controls row - the

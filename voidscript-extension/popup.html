@@ -25,7 +25,12 @@
     -webkit-background-clip:text; background-clip:text; color:transparent}
   #version{font-size:10px; color:var(--dim); font-weight:600}
   #provider-tag{font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
-    color:var(--acc-txt); background:rgba(255,138,61,.16); padding:3px 7px; border-radius:999px}
+    color:var(--acc-txt); background:rgba(255,138,61,.16); padding:3px 7px; border-radius:999px;
+    display:flex; align-items:center; gap:4px}
+  .tag-label{font-size:8px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+    padding:1px 5px; border-radius:999px}
+  .tag-label-best{color:#ffd479; border:1px solid rgba(255,196,86,.5); background:rgba(255,196,86,.14)}
+  .tag-label-recommended{color:#7fd6c2; border:1px solid rgba(98,208,180,.45); background:rgba(98,208,180,.12)}
 
   .status{display:flex; align-items:center; gap:9px; background:var(--card);
     border:1px solid var(--line); border-radius:13px; padding:11px 13px; margin-bottom:11px;
@@ -61,6 +66,13 @@
   button:active{transform:translateY(1px); box-shadow:none}
   button:focus-visible{outline:2px solid rgba(255,138,61,.85); outline-offset:2px}
   button .g{opacity:.85}
+  button.btn-primary{
+    background:linear-gradient(135deg,rgba(255,138,61,.18),rgba(255,92,138,.14));
+    border-color:rgba(255,138,61,.45); color:var(--fg)}
+  button.btn-primary .g{opacity:1; color:var(--acc-txt)}
+  button.btn-primary:hover{
+    background:linear-gradient(135deg,rgba(255,138,61,.26),rgba(255,92,138,.20));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 4px 14px rgba(255,138,61,.22)}
 
   .hint{margin-top:13px; font-size:11px; line-height:1.5; color:var(--dim)}
   .hint code{background:rgba(255,255,255,.08); padding:1px 5px; border-radius:4px;
@@ -70,7 +82,6 @@
     border-radius:13px; padding:10px 12px}
   .tl-head{font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
     color:var(--muted); margin-bottom:7px; display:flex; align-items:center; gap:6px}
-
   #lb{font-size:10.5px; font-family:ui-monospace,monospace}
   .lb-row{display:flex; align-items:center; gap:8px; padding:3px 0; border-top:1px solid var(--line); margin-top:3px}
   .lb-rank{color:var(--acc2); font-weight:700; width:14px; flex:0 0 auto}
@@ -125,13 +136,16 @@
     </div>
   </div>
 
+  <button id="btn-restart" class="btn-primary"><span class="g">▶</span> Start VoidScript</button>
   <button id="btn-reconnect"><span class="g">↻</span> Reconnect bridge</button>
-  <button id="btn-restart"><span class="g">⟳</span> Restart Roblox server</button>
+  <button id="btn-test"><span class="g">⏱</span> Run quick test</button>
+  <button id="btn-diag"><span class="g">🔎</span> Copy diagnostics</button>
+  <span id="test-result" style="display:block;font-size:11px;color:var(--dim);margin-top:7px;min-height:14px"></span>
   <button id="btn-settings"><span class="g">⚙</span> Settings &amp; switch AI</button>
-  <button id="btn-site"><span class="g">🌐</span> Open the VoidScript website</button>
+  <button id="btn-site" class="btn-primary"><span class="g">🌐</span> Open the VoidScript website</button>
 
   <div class="tl">
-    <div class="tl-head">Provider leaderboard</div>
+    <div class="tl-head">Provider leaderboard<div id="lb-copy" style="float:right;font-size:9px;color:var(--dim)">✓ copy</div></div>
     <div id="lb"><span style="color:var(--dim);font-size:10.5px">No builds recorded yet.</span></div>
   </div>
 

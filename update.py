@@ -51,12 +51,21 @@ def is_newer(a, b):
 
 
 def read_installed_version():
+    # The manifest version, OR the last successfully APPLIED release tag
+    # (whichever is higher). A maintainer may tag V2.0.1 but ship a zip whose
+    # manifest still says 2.0.0; we apply the tag anyway, and remembering it
+    # here stops the updater from re-applying the same release every launch.
     p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "voidscript-extension", "manifest.json")
+    manifest = "0.0.0"
     try:
         with open(p, "r", encoding="utf-8") as f:
-            return json.load(f).get("version", "0.0.0")
+            manifest = json.load(f).get("version", "0.0.0")
     except Exception:
-        return "0.0.0"
+        pass
+    applied = read_state().get("applied_tag", "")
+    if applied and is_newer(applied, manifest):
+        return applied
+    return manifest
 
 
 def read_state():
@@ -114,7 +123,8 @@ def check_mode():
             tag = state.get("last_tag", "")
             url = state.get("last_url", "")
         if tag:
-            write_state({"last_check": now, "last_tag": tag, "last_url": url})
+            write_state({"last_check": now, "last_tag": tag, "last_url": url,
+                         "applied_tag": state.get("applied_tag", "")})
     if tag and is_newer(tag, installed):
         log(f"UPDATE_AVAILABLE {tag}")
     return 0
@@ -183,7 +193,18 @@ def perform_swap(tag, url, quiet=False):
         except Exception:
             pass
         installed = read_installed_version()
-        if not is_newer(new_version, installed):
+        # The GitHub release TAG is the source of truth for "is this newer?" -
+        # a maintainer can tag V2.0.1 and forget to bump the manifest inside the
+        # zip, and the extracted manifest would then read the old number and
+        # wrongly abort the update. Compare the tag first; fall back to the
+        # extracted manifest only when the tag has no digits at all.
+        if is_newer(tag, installed):
+            if not quiet:
+                log(f"[update] Extracted release is newer (tag {tag} > installed {installed}). Proceeding.")
+        elif is_newer(new_version, installed):
+            if not quiet:
+                log(f"[update] Extracted release is newer (manifest {new_version} > installed {installed}). Proceeding.")
+        else:
             if not quiet:
                 log(f"[update] Extracted release is not newer than installed ({installed}). Aborting.")
             return False
@@ -226,9 +247,9 @@ def perform_swap(tag, url, quiet=False):
         for keep in restore:
             if not os.path.exists(os.path.join(root, keep)) and os.path.exists(os.path.join(backup, keep)):
                 shutil.move(os.path.join(backup, keep), os.path.join(root, keep))
-        write_state({"last_check": int(time.time()), "last_tag": tag, "last_url": url})
+        write_state({"last_check": int(time.time()), "last_tag": tag, "last_url": url, "applied_tag": tag})
         if not quiet:
-            log(f"[update] Done! Updated to v{new_version}.")
+            log(f"[update] Done! Updated to v{new_version} (release tag {tag}).")
             log("Reload the extension in chrome://extensions, then run start.bat again.")
             if git_parked:
                 log("(Local git history preserved - working tree now shows the release as uncommitted changes.)")
@@ -257,7 +278,12 @@ def auto_mode():
         except Exception:
             return 0
         if tag:
-            write_state({"last_check": now, "last_tag": tag, "last_url": url})
+            # Preserve applied_tag: this write replaces the whole state file, and
+            # dropping the tag of an already-applied release would let a future
+            # launch re-download + re-apply it (and re-trigger start.bat's
+            # restart chain) because read_installed_version() would no longer see it.
+            write_state({"last_check": now, "last_tag": tag, "last_url": url,
+                         "applied_tag": state.get("applied_tag", "")})
     if not tag or not url or not is_newer(tag, installed):
         return 0
     if perform_swap(tag, url, quiet=True):

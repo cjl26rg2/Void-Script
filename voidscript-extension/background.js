@@ -10,6 +10,17 @@
 const PORT = 17613;
 const URL = `ws://127.0.0.1:${PORT}`;
 
+// Optional shared bridge secret (matches bridge.py VS_BRIDGE_TOKEN). Read from
+// storage; appended to the socket URL as ?token=... so the bridge can enforce
+// it. Empty = no token (the default). A non-default value is only useful when
+// the user also sets VS_BRIDGE_TOKEN when launching the bridge.
+let bridgeToken = "";
+try {
+  chrome.storage.local.get("vsBridgeToken", (r) => {
+    if (r && r.vsBridgeToken) bridgeToken = String(r.vsBridgeToken).slice(0, 128);
+  });
+} catch {}
+
 // ── Update check (GitHub releases) ─────────────────────────────────────────
 // The extension cannot replace its own unpacked files - the actual update is
 // done by update.bat / update.py. This only detects a newer release and lets
@@ -73,7 +84,7 @@ function currentUpdate() {
 // Chat sites where a VoidScript provider content script runs. Status pushes go
 // to every tab matching these. Add the new provider's URL pattern here (and in
 // manifest.json content_scripts + host_permissions) when integrating another AI.
-const PROVIDER_URLS = ["https://chat.deepseek.com/*", "https://gemini.google.com/*", "https://www.kimi.com/*", "https://kimi.com/*", "https://chat.z.ai/*", "https://chat.qwen.ai/*", "https://arena.ai/*", "https://www.meta.ai/*", "https://meta.ai/*", "https://chatgpt.com/*", "https://chat.openai.com/*", "https://grok.com/*", "https://www.perplexity.ai/*", "https://perplexity.ai/*", "https://copilot.microsoft.com/*", "https://chat.mistral.ai/*", "https://poe.com/*", "https://huggingface.co/chat/*", "https://www.phind.com/*", "https://www.blackbox.ai/*", "https://you.com/*", "https://groq.com/*", "https://lmarena.ai/*", "https://www.doubao.com/*", "https://yuanbao.tencent.com/*", "https://chat.reka.ai/*", "https://pi.ai/*", "https://coral.cohere.com/*", "https://openrouter.ai/*", "https://v0.app/*", "https://v0.dev/*", "https://www.genspark.ai/*", "https://lambda.chat/*", "https://yiyan.baidu.com/*", "https://chat.minimax.io/*", "https://manus.im/*", "https://chat.together.ai/*"];
+const PROVIDER_URLS = ["https://chat.deepseek.com/*", "https://gemini.google.com/*", "https://kimi.ai/*", "https://www.kimi.com/*", "https://kimi.com/*", "https://chat.z.ai/*", "https://chat.qwen.ai/*", "https://arena.ai/*", "https://www.meta.ai/*", "https://meta.ai/*", "https://chatgpt.com/*", "https://chat.openai.com/*", "https://grok.com/*", "https://www.perplexity.ai/*", "https://perplexity.ai/*", "https://copilot.microsoft.com/*", "https://chat.mistral.ai/*", "https://poe.com/*", "https://huggingface.co/chat/*", "https://www.phind.com/*", "https://www.blackbox.ai/*", "https://you.com/*", "https://groq.com/*", "https://lmarena.ai/*", "https://www.doubao.com/*", "https://yuanbao.tencent.com/*", "https://chat.reka.ai/*", "https://pi.ai/*", "https://coral.cohere.com/*", "https://openrouter.ai/*", "https://v0.app/*", "https://v0.dev/*", "https://www.genspark.ai/*", "https://lambda.chat/*", "https://yiyan.baidu.com/*", "https://chat.minimax.io/*", "https://manus.im/*", "https://chat.together.ai/*", "https://chatai.commander.ai/*", "https://levera.ai/*", "https://mage.space/*", "https://friend.com/*", "https://app.humane.com/*", "https://bolt.new/*", "https://bolt.ai/*", "https://www.perplexity.ai/*", "https://perplexity.ai/*", "https://windsurf.ai/*", "https://pool.smallstep.com/*", "https://ramp.com/*", "https://www.phind.com/*", "https://phind.com/*", "https://copilot.microsoft.com/*", "https://chat.mistral.ai/*", "https://poe.com/*", "https://huggingface.co/chat/*", "https://grok.com/*", "https://chat.reka.ai/*", "https://pi.ai/*", "https://coral.cohere.com/*", "https://openrouter.ai/*", "https://v0.app/*", "https://v0.dev/*", "https://www.genspark.ai/*", "https://lambda.chat/*", "https://yiyan.baidu.com/*", "https://chat.minimax.io/*", "https://manus.im/*", "https://chat.together.ai/*", "https://lmarena.ai/*", "https://www.doubao.com/*", "https://yuanbao.tencent.com/*", "https://moonshot.cn/*", "https://jupi.io/*", "https://wonderseek.com/*", "https://replicate.com/*"];
 
 const RECONNECT_MIN = 1000;
 const RECONNECT_MAX = 5000;
@@ -111,6 +122,8 @@ let studioApp = null;
 // Assistant Settings > MCP Servers inside Studio (validated live 3x), which
 // "open Roblox Studio" wording completely fails to convey.
 let studioProc = null;
+// Name of the currently open place (Feature: per-project prompts / bar label).
+let placeName = null;
 
 function log(...a) {
   console.log("[vs-bg]", ...a);
@@ -122,8 +135,11 @@ function connect() {
     return;
   }
   clearTimeout(reconnectTimer);
+  let socketUrl = URL;
+  const t = bridgeToken ? bridgeToken.replace(/[^A-Za-z0-9._-]/g, "") : "";
+  if (t) socketUrl += "?token=" + encodeURIComponent(t);
   try {
-    ws = new WebSocket(URL);
+    ws = new WebSocket(socketUrl);
   } catch (e) {
     log("WebSocket ctor failed", e);
     scheduleReconnect();
@@ -277,6 +293,12 @@ function handleBridgeMessage(msg) {
   if ("studio_proc" in msg && (typeof msg.studio_proc === "boolean" || msg.studio_proc === null)) {
     studioProc = msg.studio_proc;
   }
+  if ("place_name" in msg && typeof msg.place_name === "string") {
+    if (placeName !== msg.place_name) {
+      placeName = msg.place_name;
+      broadcastStatus();
+    }
+  }
   if (msg.type === "studio_status") {
     resolvePending(msg.id, { ok: true, studio: studioConnected });
     broadcastStatus();
@@ -291,6 +313,22 @@ function handleBridgeMessage(msg) {
   }
   if (msg.type === "pong") {
     resolvePending(msg.id, { ok: true });
+    return;
+  }
+  if (msg.type === "diagnostics") {
+    resolvePending(msg.id, msg);
+    return;
+  }
+  if (msg.type === "backup_place" || msg.type === "backup_restore" || msg.type === "backup_delete") {
+    resolvePending(msg.id, { ok: !!msg.ok, error: msg.error || null, path: msg.path, message: msg.message });
+    return;
+  }
+  if (msg.type === "backup_list") {
+    resolvePending(msg.id, { ok: true, backups: msg.backups || [] });
+    return;
+  }
+  if (msg.type === "log_written") {
+    resolvePending(msg.id, { ok: !!msg.ok, error: msg.error || null });
     return;
   }
   if (msg.type === "tools") {
@@ -347,7 +385,7 @@ function failAllPending(reason) {
 // ── status push to any open DeepSeek tab + popup ─────────────────────────
 function statusObj() {
   const updateTag = currentUpdate();
-  return { type: "vs-status", connected, mcpAlive, studio: studioConnected, studioApp, studioProc, tools: toolsCache.length, servers: serversCache, updateAvailable: !!updateTag, updateTag };
+  return { type: "vs-status", connected, mcpAlive, studio: studioConnected, studioApp, studioProc, placeName, tools: toolsCache.length, servers: serversCache, updateAvailable: !!updateTag, updateTag };
 }
 
 function broadcastStatus() {
@@ -401,6 +439,66 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case "remove_server": {
         const r = await send({ type: "remove_server", server_id: msg.server_id }, 15000);
         sendResponse(r);
+        break;
+      }
+      case "diagnostics": {
+        const r = await send({ type: "diagnostics" }, 20000);
+        if (r.ok) sendResponse({ ok: true, diagnostics: r });
+        else sendResponse({ ok: false, error: r.error });
+        break;
+      }
+      case "backup_place": {
+        const r = await send({ type: "backup_place" }, 45000);
+        sendResponse({ ok: !!r.ok, error: r.error || null, path: r.path || null });
+        break;
+      }
+      case "list_backups": {
+        const r = await send({ type: "list_backups" }, 15000);
+        sendResponse({ ok: !!r.ok, backups: r.backups || [] });
+        break;
+      }
+      case "restore_backup": {
+        const r = await send({ type: "restore_backup", name: msg.name }, 20000);
+        sendResponse({ ok: !!r.ok, error: r.error || null, message: r.message || null });
+        break;
+      }
+      case "delete_backup": {
+        const r = await send({ type: "delete_backup", name: msg.name }, 15000);
+        sendResponse({ ok: !!r.ok, error: r.error || null });
+        break;
+      }
+      case "startup_status": {
+        const r = await send({ type: "startup_status" }, 8000);
+        sendResponse({ ok: !!r.ok, enabled: !!r.enabled, error: r.error || null });
+        break;
+      }
+      case "startup_enable": {
+        const r = await send({ type: "startup_enable" }, 8000);
+        sendResponse({ ok: !!r.ok, error: r.error || null, message: r.message || null });
+        break;
+      }
+      case "startup_disable": {
+        const r = await send({ type: "startup_disable" }, 8000);
+        sendResponse({ ok: !!r.ok, error: r.error || null, message: r.message || null });
+        break;
+      }
+      case "write_log": {
+        const r = await send({ type: "write_log", text: msg.text || "" }, 15000);
+        sendResponse({ ok: !!r.ok, error: r.error || null });
+        break;
+      }
+      case "notify": {
+        // System notification for a hidden-tab session end (Feature).
+        try {
+          await chrome.notifications.create("", {
+            type: "basic",
+            iconUrl: chrome.runtime.getURL("icon.png"),
+            title: String(msg.title || "VoidScript"),
+            message: String(msg.message || ""),
+            priority: 1,
+          });
+        } catch {}
+        sendResponse({ ok: true });
         break;
       }
       case "reconnect":

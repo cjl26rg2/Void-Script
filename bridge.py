@@ -19,13 +19,18 @@
 #     Nothing ever hangs the agentic loop silently.
 # ──────────────────────────────────────────────────────────────────────────
 import asyncio
+import datetime
 import json
 import os
+import plistlib
 import queue
+import re
+import shutil
 import subprocess
 import sys
 import threading
 import time
+import urllib.parse
 
 try:
     # Sibling script (same folder as bridge.py, which Python puts on sys.path
@@ -34,6 +39,18 @@ try:
     import launch_studio_mcp as _studio_scan
 except Exception:
     _studio_scan = None
+
+try:
+    # Sibling script - the embedded animation/VFX generation tools (vs_*).
+    # Compiled to Luau and executed through the Roblox `execute_luau` tool.
+    import creatives
+except Exception as _ce:
+    creatives = None
+    try:
+        import sys as _sys
+        _sys.stderr.write("[bridge] creatives.py could not be imported: %s\n" % _ce)
+    except Exception:
+        pass
 
 try:
     import websockets
@@ -74,7 +91,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "1.5.0"
+BRIDGE_VERSION = "5.0.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -110,6 +127,93 @@ try:
     _log_file = open(LOG_PATH, "a", encoding="utf-8", errors="replace")
 except Exception:
     _log_file = None
+
+# Uptime anchor for the diagnostics payload (seconds since import).
+_BOOT_MONOTONIC = time.monotonic()
+
+# Place backups (Feature: backup_place / list_backups / restore_backup).
+BACKUPS_DIR = os.path.join(HERE, "backups")
+os.makedirs(BACKUPS_DIR, exist_ok=True)
+BACKUPS_KEEP = 20
+
+# ── Security: WS origin allowlist + optional shared secret ──────────────────
+# The bridge is a LOCAL loopback server that can drive Roblox Studio, so any
+# webpage the user visits could in principle `new WebSocket("ws://127.0.0.1:..")`
+# and send commands. Browsers attach the PAGE's origin to WebSocket handshakes,
+# so rejecting any origin that is not one of our own web-extension origins
+# closes that hole. Non-browser local programs can still connect (they can fake
+# the header), but the browser-based attack is blocked.
+# Overrides:
+#   VS_ALLOWED_ORIGINS="https://a.com,b.com"   extra origins to allow (comma-sep)
+#   VS_ALLOW_ANY_ORIGIN=1                      disable the check entirely
+#   VS_BRIDGE_TOKEN=secret                     require the extension to present a
+#                                              shared secret as a subprotocol
+_EXTENSION_ORIGIN_PREFIXES = (
+    "chrome-extension://",      # Chrome + Edge
+    "moz-extension://",         # Firefox
+    "safari-web-extension://",  # Safari
+    "edge-extension://",        # future Edge-native form, just in case
+)
+
+
+def _origin_allowed(origin):
+    if os.environ.get("VS_ALLOW_ANY_ORIGIN") == "1":
+        return True
+    if not origin:
+        # No Origin header = not a browser (native local app / test harness).
+        # The browser-based attack always carries an http(s) origin.
+        return True
+    extra = [o.strip().lower() for o in os.environ.get("VS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    o = origin.strip().lower()
+    if any(o.startswith(p) for p in _EXTENSION_ORIGIN_PREFIXES):
+        return True
+    if o in extra:
+        return True
+    return False
+
+
+def _ws_header(ws, name):
+    """Read a request header robustly across websockets library versions."""
+    try:
+        headers = getattr(ws, "request_headers", None)
+        if headers is None:
+            return None
+        try:
+            return headers.get(name)
+        except Exception:
+            for k, v in headers.items():
+                if k.lower() == name.lower():
+                    return v
+    except Exception:
+        pass
+    return None
+
+
+def _ws_path(ws):
+    """Request path + query (robustly across websockets versions)."""
+    try:
+        p = getattr(ws, "path", None)
+        if p is not None:
+            return p
+        req = getattr(ws, "request", None)
+        if req is not None:
+            return getattr(req, "path", "") or ""
+    except Exception:
+        pass
+    return ""
+
+
+def _ws_query_token(ws):
+    """Extract ?token=... from the request path, if present."""
+    try:
+        qs = _ws_path(ws).split("?", 1)
+        if len(qs) > 1:
+            for part in qs[1].split("&"):
+                if part.startswith("token="):
+                    return urllib.parse.unquote(part[len("token="):])
+    except Exception:
+        pass
+    return ""
 
 
 class _Spinner:
@@ -656,8 +760,33 @@ def _read_config():
     return {"mcpServers": {PRIMARY_SERVER_ID: {"command": "launch_studio_mcp.py", "args": []}}}
 
 
+def _prune_config_backups(keep=5):
+    """Keep only the newest `keep` config-backup-*.json files in logs/."""
+    try:
+        files = [f for f in os.listdir(LOGS_DIR)
+                 if f.startswith("config-backup-") and f.endswith(".json")]
+        files.sort(reverse=True)
+        for f in files[keep:]:
+            try:
+                os.remove(os.path.join(LOGS_DIR, f))
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
 def _write_config(cfg):
-    """Atomic write so a crash mid-write never leaves a truncated config.json."""
+    """Atomic write so a crash mid-write never leaves a truncated config.json.
+    The previous config is auto-backed up to logs/config-backup-<ts>.json first
+    (kept newest 5), so a bad addon-server edit can always be recovered."""
+    if os.path.exists(CONFIG_PATH):
+        try:
+            os.makedirs(LOGS_DIR, exist_ok=True)
+            dest = os.path.join(LOGS_DIR, "config-backup-" + time.strftime("%Y%m%d-%H%M%S") + ".json")
+            shutil.copy2(CONFIG_PATH, dest)
+            _prune_config_backups()
+        except Exception:
+            pass
     tmp = CONFIG_PATH + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
@@ -700,6 +829,195 @@ def config_remove_server(server_id):
     except Exception as e:
         return False, f"could not write config.json: {e}"
     return True, None
+
+
+# ── Place backups (Feature: safety net before destructive work) ──────────────
+def _studio_place_file():
+    """Best-effort locate the .rbxl/.rbxlx currently open in Studio.
+
+    Returns (path, place_name) where path may be None (could not find the file).
+    First asks Studio directly via the plugin API (execute_luau runs in the
+    plugin context where `plugin:GetPlaceFilePath()` is valid); on any failure
+    falls back to scanning the standard places folders for the newest file whose
+    name matches the open place (or the newest file overall)."""
+    name = None
+    try:
+        text = _probe_tool_text(STUDIO_PROBE_TOOL)
+        if text:
+            studios = json.loads(text).get("studios") or []
+            if studios and studios[0].get("name"):
+                name = str(studios[0]["name"])
+    except Exception:
+        pass
+    try:
+        res = mgr.call("execute_luau", {
+            "code": "local ok, r = pcall(function() return plugin:GetPlaceFilePath() end)\nreturn ok and r or nil",
+            "datamodel_type": "Edit",
+        }, timeout=15)
+        txt = (res.get("text") or "").strip().strip('"')
+        if txt and os.path.isfile(txt):
+            return txt, os.path.basename(txt)
+    except Exception:
+        pass
+    home = os.path.expanduser("~")
+    folders = [
+        os.path.join(home, "Documents", "Roblox", "Places"),
+        os.path.join(home, "OneDrive", "Documents", "Roblox", "Places"),
+        os.path.join(home, "Documents", "Roblox"),
+    ]
+    found = []
+    for folder in folders:
+        if not os.path.isdir(folder):
+            continue
+        try:
+            for fn in os.listdir(folder):
+                if fn.lower().endswith((".rbxl", ".rbxlx")):
+                    fp = os.path.join(folder, fn)
+                    try:
+                        found.append((os.path.getmtime(fp), fp))
+                    except Exception:
+                        pass
+        except Exception:
+            continue
+    if not found:
+        return None, name
+    found.sort(key=lambda x: x[0], reverse=True)
+    if name:
+        want = name.lower().replace(" ", "_")
+        for _, fp in found:
+            base = os.path.splitext(os.path.basename(fp))[0].lower()
+            if base == want or base.replace(" ", "_") == want or want.replace(" ", "_") in base:
+                return fp, os.path.basename(fp)
+    return found[0][1], os.path.basename(found[0][1])
+
+
+def _prune_backups():
+    try:
+        files = [f for f in os.listdir(BACKUPS_DIR)
+                 if f.lower().endswith((".rbxl", ".rbxlx"))]
+        files.sort(reverse=True)
+        for f in files[BACKUPS_KEEP:]:
+            try:
+                os.remove(os.path.join(BACKUPS_DIR, f))
+                j = os.path.join(BACKUPS_DIR, f + ".json")
+                if os.path.isfile(j):
+                    os.remove(j)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def backup_place():
+    """Copy the currently-open place file into backups/. Returns (ok, message)."""
+    try:
+        path, name = _studio_place_file()
+        if not path or not os.path.isfile(path):
+            return False, "could not locate the open place file (is a place open in Roblox Studio?)"
+        os.makedirs(BACKUPS_DIR, exist_ok=True)
+        base = os.path.splitext(os.path.basename(path))[0]
+        safe_base = "".join(c if c.isalnum() or c in " ._-" else "_" for c in base).strip() or "place"
+        ts = time.strftime("%Y%m%d-%H%M%S")
+        ext = os.path.splitext(path)[1].lower()
+        dest = os.path.join(BACKUPS_DIR, f"{safe_base}-{ts}{ext}")
+        shutil.copy2(path, dest)
+        manifest = {
+            "original": os.path.abspath(path),
+            "name": name or base,
+            "time": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        }
+        try:
+            with open(dest + ".json", "w", encoding="utf-8") as f:
+                json.dump(manifest, f, indent=2)
+        except Exception:
+            pass
+        _prune_backups()
+        log(f"backed up place -> {os.path.basename(dest)}", "gr")
+        return True, os.path.abspath(dest)
+    except Exception as e:
+        return False, f"backup failed: {e}"
+
+
+def list_backups():
+    """Newest-first list of backup .rbxl/.rbxlx files (metadata only)."""
+    entries = []
+    if os.path.isdir(BACKUPS_DIR):
+        try:
+            for fn in os.listdir(BACKUPS_DIR):
+                fp = os.path.join(BACKUPS_DIR, fn)
+                if os.path.isfile(fp) and fn.lower().endswith((".rbxl", ".rbxlx")):
+                    entries.append({
+                        "name": fn,
+                        "size": os.path.getsize(fp),
+                        "mtime": os.path.getmtime(fp),
+                    })
+        except Exception:
+            pass
+    entries.sort(key=lambda e: e["mtime"], reverse=True)
+    return entries
+
+
+def restore_backup(fname):
+    """Copy a backup .rbxl back over its original location. fname is a basename
+    (validated - never accepts paths, so no traversal)."""
+    if not fname or "/" in fname or "\\" in fname or fname in (".", ".."):
+        return False, "invalid backup name"
+    fp = os.path.join(BACKUPS_DIR, fname)
+    if not os.path.isfile(fp) or not fp.lower().endswith((".rbxl", ".rbxlx")):
+        return False, "backup not found"
+    original = None
+    mf = fp + ".json"
+    if os.path.isfile(mf):
+        try:
+            with open(mf, "r", encoding="utf-8") as f:
+                original = json.load(f).get("original")
+        except Exception:
+            original = None
+    if original and os.path.isfile(original):
+        try:
+            shutil.copy2(fp, original)
+        except Exception as e:
+            return False, f"could not write to the original location ({original}): {e}"
+        return True, f"restored '{fname}' over {original}. Reopen the place in Roblox Studio to see it."
+    home = os.path.expanduser("~")
+    dest_dir = os.path.join(home, "Documents", "Roblox", "Places")
+    if not os.path.isdir(dest_dir):
+        return False, "original location unknown and no Documents\\Roblox\\Places folder to restore into"
+    try:
+        shutil.copy2(fp, os.path.join(dest_dir, fname))
+    except Exception as e:
+        return False, f"could not restore: {e}"
+    return True, f"restored '{fname}' into Documents\\Roblox\\Places. Open it in Roblox Studio."
+
+
+def delete_backup(fname):
+    if not fname or "/" in fname or "\\" in fname or fname in (".", ".."):
+        return False, "invalid backup name"
+    fp = os.path.join(BACKUPS_DIR, fname)
+    if not os.path.isfile(fp):
+        return False, "backup not found"
+    try:
+        os.remove(fp)
+        if os.path.isfile(fp + ".json"):
+            os.remove(fp + ".json")
+        return True, "deleted"
+    except Exception as e:
+        return False, f"could not delete: {e}"
+
+
+def write_session_log(text):
+    """Append a finished session's build log to logs/session-<date>.log.
+
+    Path is fixed inside logs/ (never derived from the client's input), so a
+    malicious client could not write anywhere else. Best-effort; returns bool."""
+    try:
+        os.makedirs(LOGS_DIR, exist_ok=True)
+        fname = "session-" + time.strftime("%Y-%m-%d") + ".log"
+        with open(os.path.join(LOGS_DIR, fname), "a", encoding="utf-8", errors="replace") as f:
+            f.write(text if text.endswith("\n") else text + "\n")
+        return True
+    except Exception:
+        return False
 
 
 def restart_self():
@@ -1067,6 +1385,28 @@ class MCPManager:
         self.index = {}            # advertised_name -> (holder, real_name)
         self.index_lock = threading.Lock()
 
+    # ── embedded creative tools (vs_*) ─────────────────────────────────────
+    @staticmethod
+    def _creative_tool_names():
+        if creatives is None:
+            return set()
+        return {t.get("name") for t in creatives.EMBEDDED_TOOLS}
+
+    def _creative_tool_defs(self):
+        """Creative tools are served as part of the roblox catalogue (prefix
+        vs_*) so the agent's list_commands already knows them and the default
+        routing sends them to the primary server."""
+        if creatives is None:
+            return []
+        out = []
+        for t in creatives.EMBEDDED_TOOLS:
+            tt = dict(t)
+            tt["name"] = t.get("name")
+            tt["server"] = PRIMARY_SERVER_ID
+            tt["embedded"] = True
+            out.append(tt)
+        return out
+
     def load_config(self):
         servers = _read_config().get("mcpServers", {}) or {}
         for sid, spec in servers.items():
@@ -1136,9 +1476,48 @@ class MCPManager:
                 tt["name"] = advertised
                 tt["server"] = sid
                 out.append(tt)
+        out.extend(self._creative_tool_defs())
         return out
 
     def call(self, name, arguments, timeout):
+        # Embedded creative tools (vs_*): compile the Luau here, validate it,
+        # then run it through the PRIMARY Roblox server's execute_luau tool.
+        creative = creatives is not None and name in self._creative_tool_names()
+        if creative:
+            roblox = self.clients.get(PRIMARY_SERVER_ID)
+            if roblox is None or not roblox.is_alive():
+                raise RuntimeError(
+                    f"'{name}' needs the Roblox Studio connection, which is not running. "
+                    "Run start.bat, open Roblox Studio, load a place and enable its MCP server.")
+            generated = creatives.call_creative(name, arguments)
+            luau = generated["text"]
+            ok, verr = creatives.validate(luau)
+            if not ok:
+                raise RuntimeError(f"{name}: generated script failed validation: {verr}")
+            log(f"[bl] {name}: running generated Luau through Roblox execute_luau "
+                f"({len(luau)} chars)", "cy", terminal=False)
+            # In Play mode the Edit datamodel is unavailable ("Edit datamodel
+            # is not available in Play mode"). Fall back to the datamodel that
+            # makes the tool actually visible on the live player:
+            #  - vs_make_animation plays back on the LOCAL player's rig, and
+            #    character animation is client-authoritative, so it must run on
+            #    the CLIENT datamodel (LocalPlayer, RunService, visible rig).
+            #  - vs_make_vfx creates instances server-side which replicate to
+            #    everyone in the session, so the SERVER datamodel is right.
+            res = roblox.call_tool("execute_luau",
+                                   {"code": luau, "datamodel_type": "Edit"},
+                                   timeout)
+            text = res.get("text", "")
+            if not text or "Edit datamodel is not available in Play mode" in text:
+                retry_dm = "Client" if name == "vs_make_animation" else "Server"
+                res = roblox.call_tool("execute_luau",
+                                       {"code": luau, "datamodel_type": retry_dm},
+                                       timeout)
+                text = res.get("text", "")
+            return {
+                "text": f"[VoidScript] {generated.get('label', name)}\n" + text,
+                "images": res.get("images", []),
+            }
         with self.index_lock:
             entry = self.index.get(name)
         if entry is None:
@@ -1173,6 +1552,10 @@ class MCPManager:
 # ══════════════════════════════════════════════════════════════════════════
 mgr = MCPManager()
 clients = set()
+# Hung-but-alive watchdog state (see server_watch): sid -> monotonic time when
+# the client first stopped answering a cheap tools/list probe.
+_stuck_since = {}
+_HUNG_RESET_S = 300  # restart after this long without a tools/list response
 
 # ── Studio connectivity probe ──────────────────────────────────────────────
 # The MCP server process stays alive even when Roblox Studio is closed or its
@@ -1262,6 +1645,83 @@ def probe_studio():
     return {"app": True, "place": place}
 
 
+def place_name():
+    """Best-effort name of the currently open place (None when unknown)."""
+    try:
+        text = _probe_tool_text(STUDIO_PROBE_TOOL)
+        if text:
+            studios = json.loads(text).get("studios") or []
+            if studios and studios[0].get("name"):
+                return str(studios[0]["name"])
+    except Exception:
+        pass
+    return None
+
+
+def _log_tail(n=40):
+    """Last n lines of bridge_debug.log (for the diagnostics payload)."""
+    try:
+        with open(LOG_PATH, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        return [l.rstrip("\n") for l in lines[-n:]]
+    except Exception:
+        return []
+
+
+def _diagnostics_payload():
+    """Full diagnostic snapshot for the popup "Copy diagnostics" button and the
+    `python bridge.py --diagnose` CLI. Secrets are redacted: config.json may
+    hold API tokens, so only the mcpServers KEYS are shown, and env values whose
+    names contain TOKEN/KEY/SECRET/PASSWORD are masked."""
+    try:
+        cfg = _read_config()
+        server_keys = list((cfg.get("mcpServers") or {}).keys())
+    except Exception:
+        server_keys = []
+    env_redacted = {}
+    for k in sorted(os.environ.keys()):
+        if not k.startswith("VS_"):
+            continue
+        val = os.environ[k]
+        if any(se in k.upper() for se in ("TOKEN", "KEY", "SECRET", "PASSWORD")):
+            val = "***"
+        env_redacted[k] = val
+    servers = []
+    for sid, c in mgr.clients.items():
+        servers.append({
+            "id": sid,
+            "alive": c.is_alive(),
+            "tools": len(c.tools_cache),
+            "last_exit": getattr(c, "last_exit", None),
+            "restarts": getattr(c, "restart_times", []),
+            "stderr_tail": list(getattr(c, "stderr_tail", None) or []),
+        })
+    try:
+        studio = probe_studio()
+    except Exception:
+        studio = {"app": None, "place": None}
+    try:
+        proc = _roblox_studio_app_running()
+    except Exception:
+        proc = False
+    return {
+        "bridge_version": BRIDGE_VERSION,
+        "pid": os.getpid(),
+        "uptime_s": round(time.monotonic() - _BOOT_MONOTONIC, 1),
+        "platform": sys.platform,
+        "python": sys.version.split()[0],
+        "host": HOST, "port": PORT,
+        "origin_auth": os.environ.get("VS_ALLOW_ANY_ORIGIN") != "1",
+        "token_auth": bool(os.environ.get("VS_BRIDGE_TOKEN")),
+        "env": env_redacted,
+        "config_mcp_servers": server_keys,
+        "servers": servers,
+        "studio": studio,
+        "studio_proc": proc,
+        "log_tail": _log_tail(40),
+    }
+
+
 def safe_call(name, arguments, timeout):
     """Never raises. Always returns a dict the extension can feed back to DeepSeek."""
     try:
@@ -1325,6 +1785,7 @@ async def broadcast_status():
             # extension word the corrective step correctly ("open the MCP
             # panel in your already-open Studio" vs "launch Studio").
             "studio_proc": _proc,
+            "place_name": await asyncio.to_thread(place_name),
             "servers": mgr.health(),
             "tools": mgr.list_tools(),
             "port": PORT,
@@ -1340,6 +1801,29 @@ async def broadcast_status():
 
 async def handler(ws):
     peer = getattr(ws, "remote_address", ("?",))[0]
+    # Origin allowlist (Feature: security). Reject anything that is not one of
+    # our own web-extension origins before the connection is admitted, so a
+    # random webpage can never drive Roblox Studio through this socket.
+    origin = _ws_header(ws, "Origin")
+    if not _origin_allowed(origin):
+        log(f"SECURITY: rejected connection from origin {origin!r} (peer {peer}) - "
+            f"not a VoidScript extension origin. Set VS_ALLOWED_ORIGINS to allow it.", "rd")
+        try:
+            await ws.close(code=4403, reason="origin not allowed")
+        except Exception:
+            pass
+        return
+    # Optional shared secret (Feature: VS_BRIDGE_TOKEN). The extension appends
+    # it as ?token=... on the WebSocket URL; enforced only when the env var is
+    # set (defense-in-depth for power users).
+    token = os.environ.get("VS_BRIDGE_TOKEN", "").strip()
+    if token and _ws_query_token(ws) != token:
+        log(f"SECURITY: rejected connection from peer {peer} with a wrong/absent bridge token", "rd")
+        try:
+            await ws.close(code=4403, reason="invalid bridge token")
+        except Exception:
+            pass
+        return
     clients.add(ws)
     log(f"extension connected  ({peer})  [{len(clients)} client(s)]", "gr")
     try:
@@ -1349,6 +1833,7 @@ async def handler(ws):
             "mcp_alive": mgr.any_alive(),
             "studio": _st["place"], "studio_app": _st["app"],
             "studio_proc": await asyncio.to_thread(_roblox_studio_app_running),
+            "place_name": await asyncio.to_thread(place_name),
             "servers": mgr.health(),
             "tools": mgr.list_tools(),
             "port": PORT,
@@ -1370,6 +1855,7 @@ async def handler(ws):
                     "type": "studio_status", "id": rid,
                     "studio": studio["place"], "studio_app": studio["app"],
                     "studio_proc": await asyncio.to_thread(_roblox_studio_app_running),
+                    "place_name": await asyncio.to_thread(place_name),
                     "mcp_alive": mgr.any_alive(),
                 }))
 
@@ -1385,7 +1871,69 @@ async def handler(ws):
                     "tools": tools, "mcp_alive": mgr.any_alive(),
                     "studio": _st["place"], "studio_app": _st["app"],
                     "studio_proc": await asyncio.to_thread(_roblox_studio_app_running),
+                    "place_name": await asyncio.to_thread(place_name),
                     "servers": mgr.health(),
+                }))
+
+            elif mtype == "diagnostics":
+                await ws.send(json.dumps({
+                    "type": "diagnostics", "id": rid,
+                    **await asyncio.to_thread(_diagnostics_payload),
+                }))
+
+            elif mtype == "backup_place":
+                ok, res = await asyncio.to_thread(backup_place)
+                await ws.send(json.dumps({
+                    "type": "backup_place", "id": rid,
+                    "ok": ok, "error": None if ok else res, "path": res if ok else None,
+                }))
+
+            elif mtype == "list_backups":
+                await ws.send(json.dumps({
+                    "type": "backup_list", "id": rid,
+                    "backups": await asyncio.to_thread(list_backups),
+                }))
+
+            elif mtype == "restore_backup":
+                ok, res = await asyncio.to_thread(restore_backup, msg.get("name"))
+                await ws.send(json.dumps({
+                    "type": "backup_restore", "id": rid,
+                    "ok": ok, "error": None if ok else res, "message": res if ok else None,
+                }))
+
+            elif mtype == "delete_backup":
+                ok, res = await asyncio.to_thread(delete_backup, msg.get("name"))
+                await ws.send(json.dumps({
+                    "type": "backup_delete", "id": rid,
+                    "ok": ok, "error": None if ok else res,
+                }))
+
+            elif mtype == "startup_status":
+                on, path = await asyncio.to_thread(startup_status)
+                await ws.send(json.dumps({
+                    "type": "startup_status", "id": rid,
+                    "enabled": on, "path": path,
+                }))
+
+            elif mtype == "startup_enable":
+                ok, res = await asyncio.to_thread(install_startup)
+                await ws.send(json.dumps({
+                    "type": "startup_enable", "id": rid,
+                    "ok": ok, "error": None if ok else res, "message": res if ok else None,
+                }))
+
+            elif mtype == "startup_disable":
+                ok, res = await asyncio.to_thread(uninstall_startup)
+                await ws.send(json.dumps({
+                    "type": "startup_disable", "id": rid,
+                    "ok": ok, "error": None if ok else res, "message": res if ok else None,
+                }))
+
+            elif mtype == "write_log":
+                ok = await asyncio.to_thread(write_session_log, (msg.get("text") or "")[:200000])
+                await ws.send(json.dumps({
+                    "type": "log_written", "id": rid, "ok": ok,
+                    "error": None if ok else "could not write the session log",
                 }))
 
             elif mtype == "call_tool":
@@ -1519,10 +2067,45 @@ async def server_watch():
                         # the user finally opens Blender).
                         continue
                     client.restart_times.append(now)
+                    _stuck_since.pop(sid, None)
                     log(f"[{sid}] found dead - auto-restarting...", "yl")
                     await asyncio.to_thread(client.start)
                     mgr.rebuild_index()
                     await broadcast_status()  # tell any connected extension right away
+                else:
+                    # Alive, but possibly HUNG: a process can exist while its
+                    # event loop is wedged (StudioMCP's stale-pipe bug leaves it
+                    # alive but talking to nothing). The dead-process restart
+                    # above never fires for that, so probe the primary with a
+                    # cheap 3s tools/list - if it stays unanswered for
+                    # _HUNG_RESET_S, restart it like the dead path does.
+                    if sid == PRIMARY_SERVER_ID and _stuck_since.get(sid) is None:
+                        responded = True
+                        if client.call_lock.acquire(blocking=False):
+                            try:
+                                msg = client._request("tools/list", {}, timeout=3)
+                                responded = msg is not None
+                            except Exception:
+                                responded = False
+                            finally:
+                                client.call_lock.release()
+                        if responded:
+                            _stuck_since.pop(sid, None)
+                        else:
+                            _stuck_since[sid] = time.monotonic()
+                            log(f"[{sid}] did not answer tools/list - will restart if it stays "
+                                f"unresponsive for {_HUNG_RESET_S}s", "yl", terminal=False)
+                    elif sid == PRIMARY_SERVER_ID and _stuck_since.get(sid) is not None:
+                        if time.monotonic() - _stuck_since[sid] >= _HUNG_RESET_S:
+                            _stuck_since.pop(sid, None)
+                            log(f"[{sid}] alive but unresponsive for {_HUNG_RESET_S}s - "
+                                f"restarting (hung-but-alive recovery)", "yl")
+                            try:
+                                await asyncio.to_thread(client.restart)
+                                mgr.rebuild_index()
+                                await broadcast_status()
+                            except Exception as e:
+                                log(f"[{sid}] hung-recovery restart failed: {e}", "rd")
             except Exception as e:
                 log(f"[{sid}] auto-restart failed: {e}", "rd")
 
@@ -1791,9 +2374,100 @@ async def _supervised(name, coro_factory):
             await asyncio.sleep(5)
 
 
+# ── Auto-start on login (Feature: --install-startup / --uninstall-startup) ───
+def _startup_marker():
+    """(path, folder) for the OS auto-start entry. Windows: a .bat in the
+    user's Startup folder. macOS: a LaunchAgent plist."""
+    if sys.platform == "win32":
+        folder = os.path.join(os.environ.get("APPDATA", ""),
+                              "Microsoft", "Windows", "Start Menu", "Programs", "Startup")
+        return os.path.join(folder, "VoidScript Bridge.bat"), folder
+    folder = os.path.expanduser("~/Library/LaunchAgents")
+    return os.path.join(folder, "com.voidscript.bridge.plist"), folder
+
+
+def install_startup():
+    """Install an auto-start entry that launches start.bat at login."""
+    try:
+        path, folder = _startup_marker()
+        if sys.platform == "win32":
+            if not os.path.isdir(folder):
+                return False, f"startup folder not found: {folder}"
+            bat = os.path.join(HERE, "start.bat")
+            if not os.path.isfile(bat):
+                return False, "start.bat not found next to bridge.py"
+            content = "@echo off\r\nstart \"\" /min \"" + bat + "\"\r\n"
+            with open(path, "w", encoding="ascii") as f:
+                f.write(content)
+            return True, f"auto-start added ({path})"
+        # macOS LaunchAgent that runs this bridge headless.
+        os.makedirs(folder, exist_ok=True)
+        plist = {
+            "Label": "com.voidscript.bridge",
+            "ProgramArguments": [sys.executable, os.path.join(HERE, "bridge.py")],
+            "RunAtLoad": True,
+            "KeepAlive": False,
+            "WorkingDirectory": HERE,
+            "StandardOutPath": LOG_PATH,
+            "StandardErrorPath": LOG_PATH,
+        }
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(plistlib.dumps(plist))
+        subprocess.run(["launchctl", "load", path], capture_output=True, timeout=8)
+        return True, f"auto-start added ({path})"
+    except Exception as e:
+        return False, f"could not install auto-start: {e}"
+
+
+def startup_status():
+    """Whether an auto-start entry is currently installed."""
+    path, _ = _startup_marker()
+    return os.path.isfile(path), path
+
+
+def uninstall_startup():
+    path, _ = _startup_marker()
+    if not os.path.isfile(path):
+        return False, "no auto-start entry found"
+    try:
+        if sys.platform == "darwin":
+            subprocess.run(["launchctl", "unload", path], capture_output=True, timeout=8)
+        os.remove(path)
+        return True, f"auto-start removed ({path})"
+    except Exception as e:
+        return False, f"could not remove auto-start: {e}"
+
+
+async def diagnose_cli():
+    """`python bridge.py --diagnose` - one-shot diagnostic dump to stdout.
+    If a bridge is already running, report filesystem-only state instead of
+    spawning duplicate MCP children (which would fight over ports)."""
+    owner = _port_owner(PORT)
+    if owner and "bridge.py" in (owner[2] or "").lower():
+        print("note: a bridge is already running (pid %s) - filesystem state only." % owner[0])
+    else:
+        mgr.load_config()
+        try:
+            await asyncio.to_thread(mgr.start_all)
+        except Exception as e:
+            print("note: servers did not all start (%s)" % e)
+        for c in mgr.clients.values():
+            try:
+                c.stop()
+            except Exception:
+                pass
+    print(json.dumps(_diagnostics_payload(), indent=2, default=str))
+
+
 async def main():
     print(f"\n{C['cy']}  VoidScript Bridge v{BRIDGE_VERSION}{C['reset']}  {C['dim']}- Roblox Studio - ws://{HOST}:{PORT}{C['reset']}\n")
     log(f"===== BRIDGE START  v{BRIDGE_VERSION}  pid={os.getpid()}  log={LOG_PATH} =====", "cy")
+    if os.environ.get("VS_ALLOW_ANY_ORIGIN") == "1":
+        log("security: origin check DISABLED (VS_ALLOW_ANY_ORIGIN=1) - only use this if you know the risks", "yl")
+    else:
+        log("security: only web-extension origins may connect", "gr")
+    if os.environ.get("VS_BRIDGE_TOKEN"):
+        log("security: shared bridge token required (VS_BRIDGE_TOKEN is set)", "gr")
     await asyncio.to_thread(_kill_orphan_studio_mcp)
     killed_squatter = await asyncio.to_thread(check_studio_port)
     mgr.load_config()
@@ -2031,6 +2705,20 @@ async def main():
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        arg = sys.argv[1]
+        if arg == "--diagnose":
+            asyncio.run(diagnose_cli())
+        elif arg == "--install-startup":
+            ok, msg = install_startup()
+            print(("OK  " if ok else "FAIL ") + msg)
+        elif arg == "--uninstall-startup":
+            ok, msg = uninstall_startup()
+            print(("OK  " if ok else "FAIL ") + msg)
+        else:
+            print(f"unknown argument: {arg}")
+            print("usage: python bridge.py [--diagnose | --install-startup | --uninstall-startup]")
+        sys.exit(0)
     try:
         asyncio.run(main())
     except KeyboardInterrupt:

@@ -15,19 +15,61 @@
   "use strict";
   const P = VSProvider;
   const T = P.timings;
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  // Background-safe wait (background mode only, tab hidden). Chrome throttles
+  // CHAINED timers in a hidden tab to ONE tick per minute after ~5 min hidden
+  // ("intensive throttling"), which would freeze the agent loop off-screen and
+  // strand a build. Re-arming each wait from a MessageChannel message instead of
+  // from inside another timer callback breaks the nested-timer chain, so the
+  // loop keeps waking at the plain background throttle rate (~1/s) indefinitely.
+  // Each hop is a single cheap macrotask; the setTimeout clamp still paces us.
+  function bgSleep(ms) {
+    return new Promise((resolve) => {
+      const ch = new MessageChannel();
+      const t0 = performance.now();
+      let timer = null;
+      const arm = () => { timer = setTimeout(() => ch.port2.postMessage(0), ms); };
+      ch.port1.onmessage = () => {
+        if (performance.now() - t0 >= ms || A.stop) {
+          ch.port1.onmessage = null;
+          if (timer) clearTimeout(timer);
+          resolve();
+          return;
+        }
+        arm(); // re-arm from a MESSAGE task (not a timer task) -> not chain-throttled
+      };
+      ch.port2.postMessage(0);
+    });
+  }
+  const sleep = (ms) => {
+    if (document.hidden && vsOn("vsBackground")) return bgSleep(ms);
+    return new Promise((r) => setTimeout(r, ms));
+  };
   const log = (...a) => console.log("[voidscript]", ...a);
 
   // ── User settings (chrome.storage.local) ──────────────────────────────────
   // Newer features read their toggles from here so they can be switched off
-  // without a code edit (the popup writes the same keys). Loaded once at
-  // startup; a missing key falls back to the default (true for the safe ones).
+  // without a code edit (the menu "Safety & behavior" hub writes the same
+  // keys). Loaded once at startup; a missing key falls back to the default.
+  // Boolean keys default true for the safe ones; the opt-in ones default false.
   const VS_CFG_DEFAULTS = {
     vsAutoVerify: true,       // auto screen_capture after mutating tools
     vsPlaytest: true,         // automatic play-test loop on demand
     vsGuardDestructive: true, // refuse broad deletes unless the model re-asks
     vsLeaderboard: true,      // collect per-provider session stats
     vsRollback: true,         // snapshot scripts before edits + revert_last
+    vsBackground: true,       // keep working while the tab is hidden/minimized
+    vsTrustLevel: "high",     // "high" | "medium" | "low" - approval frequency
+    vsCommandBudget: 0,       // per-session tool-call cap; 0 = unlimited
+    vsAutoBackup: false,      // backup the .rbxl before destructive operations
+    vsAutoNotify: true,       // system notification when a hidden-tab session ends
+    vsSpokenDone: false,      // speak a short completion notice at session end
+    vsAutoSummary: false,     // spend one turn summarising what was built
+    vsAutoShotError: false,   // auto screen_capture when a tool reports an error
+    vsHumanizeSend: false,    // human-like randomized delay before each send
+    vsPromptPerPlace: false,  // keep a separate custom prompt per open place
+    vsShowTokenEstimate: false, // show a live token estimate in the bar while running
+    vsTheme: "system",          // UI theme: system | dark | light | soft-light
+    vsVoiceLang: "en-US",       // speech recognition language tag for the voice button
   };
   let VS_CFG = { ...VS_CFG_DEFAULTS };
   try {
@@ -36,6 +78,26 @@
     });
   } catch {}
   const vsOn = (k) => VS_CFG[k] !== false;
+  // Background mode: when ON, the agent keeps reading/parsing/executing/sending
+  // while this tab is hidden or the window is minimized (best-effort - off-screen
+  // steps run on the browser's relaxed background schedule). When OFF, the loop
+  // reverts to the old, safest behaviour: park until the tab is foreground again.
+  const bgMode = () => vsOn("vsBackground");
+
+  // ── Preferred model per provider (chrome.storage.local) ──────────────────
+  // `vsPreferredModels` maps a provider id/display-name (lowercased) to the model
+  // the user wants the agent to force on that site, e.g. {"deepseek":"expert"}.
+  // Providers that can drive their model picker (DeepSeek, Kimi) honour it; the
+  // rest leave the user's manual pick alone. Loaded once at startup and kept in
+  // sync immediately on save (see the menu handler), so it is always current
+  // when a session starts.
+  let VS_PREF_MODELS = {};
+  try {
+    chrome.storage.local.get("vsPreferredModels", (r) => {
+      VS_PREF_MODELS = (r && r.vsPreferredModels) || {};
+    });
+  } catch {}
+  const getPreferredModel = (name) => VS_PREF_MODELS[String(name || "").toLowerCase()] || "";
 
   // ── Anti-bot mitigation (EXPERIMENTAL) ──────────────────────────────────
   // Suspected contributor to Arena's captcha: the agentic loop sends turns
@@ -43,11 +105,11 @@
   // which behavioral risk-scoring (reCAPTCHA/Cloudflare) can read as a bot
   // signal alongside the necessarily-synthetic input events. This adds a
   // small randomized human-reaction-time delay before each send.
-  // REVERT: flip HUMANIZE_SEND to false - single toggle, no other changes needed.
-  const HUMANIZE_SEND = false; // didn't prevent Arena's captcha (fires on turn 1 already) - revert
+  // Off by default (it didn't prevent Arena's captcha, which fires on turn 1);
+  // toggle via the menu "Humanize send timing (experimental)".
   const SEND_JITTER_MS = [400, 1400]; // [min, max] ms, randomized per send
   function jitterBeforeSend() {
-    if (!HUMANIZE_SEND) return Promise.resolve();
+    if (!vsOn("vsHumanizeSend")) return Promise.resolve();
     const [lo, hi] = SEND_JITTER_MS;
     return sleep(lo + Math.random() * (hi - lo));
   }
@@ -113,7 +175,7 @@
   const AI_SITES = [
     { name: "DeepSeek", url: "https://chat.deepseek.com/" },
     { name: "Gemini", url: "https://gemini.google.com/app" },
-    { name: "Kimi", url: "https://www.kimi.com/" },
+    { name: "Kimi", url: "https://kimi.ai/" },
     { name: "GLM", url: "https://chat.z.ai/" },
     { name: "Qwen", url: "https://chat.qwen.ai/" },
     { name: "Arena", url: "https://arena.ai/text/direct" },
@@ -143,6 +205,50 @@
     { name: "Jasper", url: "https://www.jasper.ai/" },
     { name: "Consensus", url: "https://consensus.app/" },
     { name: "ChatHub", url: "https://chathub.gg/" },
+    { name: "T3 Chat", url: "https://t3.chat/" },
+    { name: "Poolside AI", url: "https://poolside.ai/" },
+    { name: "Inflection AI", url: "https://www.inflection.com/" },
+    { name: "Hume AI", url: "https://hume.ai/" },
+    { name: "Twinny", url: "https://twinny.ai/" },
+    { name: "Cody", url: "https://sourcegraph.com/" },
+    { name: "Chatbase", url: "https://chatbase.io/" },
+    { name: "Botstack", url: "https://botstack.com/" },
+    { name: "Flowise", url: "https://flowise.ai/" },
+    { name: "Lobe", url: "https://lobe.github.io/" },
+    { name: "Chat.AI", url: "https://chatai.commander.ai/" },
+    { name: "Levera AI", url: "https://levera.ai/" },
+    { name: "Mage", url: "https://mage.space/" },
+    { name: "Friend", url: "https://friend.com/" },
+    { name: "Humane", url: "https://app.humane.com/" },
+    { name: "Bolt", url: "https://bolt.new/" },
+    { name: "Perplexity AI", url: "https://www.perplexity.ai/" },
+    { name: "Windsurf", url: "https://windsurf.ai/" },
+    { name: "Pool", url: "https://pool.smallstep.com/" },
+    { name: "Ramp", url: "https://ramp.com/" },
+    { name: "Phind", url: "https://www.phind.com/" },
+    { name: "Copilot", url: "https://copilot.microsoft.com/" },
+    { name: "Mistral", url: "https://chat.mistral.ai/" },
+    { name: "Poe", url: "https://poe.com/" },
+    { name: "HuggingChat", url: "https://huggingface.co/chat/" },
+    { name: "Grok", url: "https://grok.com/" },
+    { name: "Reka", url: "https://chat.reka.ai/" },
+    { name: "Pi", url: "https://pi.ai/" },
+    { name: "Coral", url: "https://coral.cohere.com/" },
+    { name: "OpenRouter", url: "https://openrouter.ai/" },
+    { name: "v0", url: "https://v0.app/" },
+    { name: "Genspark", url: "https://www.genspark.ai/" },
+    { name: "Lambda", url: "https://lambda.chat/" },
+    { name: "Yiyan", url: "https://yiyan.baidu.com/" },
+    { name: "Minimax", url: "https://chat.minimax.io/" },
+    { name: "Manus", url: "https://manus.im/" },
+    { name: "Together", url: "https://chat.together.ai/" },
+    { name: "LM Arena", url: "https://lmarena.ai/" },
+    { name: "Doubao", url: "https://www.doubao.com/" },
+    { name: "Yuanbao", url: "https://yuanbao.tencent.com/" },
+    { name: "Moonshot", url: "https://moonshot.cn/" },
+    { name: "Jupi", url: "https://jupi.io/" },
+    { name: "Wonderseek", url: "https://wonderseek.com/" },
+    { name: "Replicate", url: "https://replicate.com/" },
   ];
 
   const A = {
@@ -214,7 +320,68 @@
     // also auto-captures a screenshot so the model can observe the game after
     // each simulated input. Set by the `playtest` virtual command.
     playtest: false,
-  };
+    // Timestamp of the current agentLoop's start - drives the live session
+    // timer in the bar and the completion summary toast.
+    startedAt: 0,
+    // Manual pause: the user pressed the bar's "⏸ Pause" while the loop was
+    // running. The loop parks (like a hidden tab) until Pause is cleared.
+    paused: false,
+    // Session command budget (Feature: vsCommandBudget setting). How many bridge
+    // tool calls this session may dispatch before pausing for a fresh grant.
+    cmdBudgetHits: 0,
+     budgetPaused: false,
+     // Freeze recovery (Feature): when generation appears stuck, these drive a one-shot
+     // native-stop nudge to unstick the site's stop button / stream.
+     recovering: false,
+   }
+
+  // Copy `text` to the clipboard (async), falling back to the execCommand path
+  // on browsers/pages without the async Clipboard API. Resolves true on success.
+  function copyToClipboard(text) {
+    return new Promise((res) => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(() => res(true), () => res(false));
+        } else {
+          const t = document.createElement("textarea");
+          t.value = text; document.body.appendChild(t);
+          t.select(); document.execCommand("copy");
+          document.body.removeChild(t);
+          res(true);
+        }
+      } catch { res(false); }
+    });
+  }
+
+  // mm:ss / h:mm:ss from a second count (live session timer + completion toast).
+  function fmtDur(sec) {
+    sec = Math.max(0, Math.floor(sec));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    const mm = String(m).padStart(2, "0"), ss = String(s).padStart(2, "0");
+    return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
+  }
+
+  // Subtle end-of-session chime (WebAudio, best-effort). Distinct tones for a
+  // clean run vs one with errors. Silently no-ops if audio is blocked/unavailable.
+  function playChime(errors) {
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const notes = errors ? [392, 330] : [523.25, 659.25, 783.99];
+      const start = ctx.currentTime + 0.03;
+      notes.forEach((f, i) => {
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = "sine"; o.frequency.value = f;
+        g.gain.setValueAtTime(0, start + i * 0.14);
+        g.gain.linearRampToValueAtTime(0.06, start + i * 0.14 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + i * 0.14 + 0.28);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(start + i * 0.14); o.stop(start + i * 0.14 + 0.3);
+      });
+      setTimeout(() => { try { ctx.close(); } catch {} }, 1400);
+    } catch {}
+  }
 
   async function waitFor(pred, timeout) {
     const t0 = Date.now();
@@ -238,6 +405,11 @@
   // long after they returned. visibilitychange fires immediately on unhide, so we
   // race it against a slow stop-poll (the stop path is not latency-critical).
   async function waitVisible() {
+    // Background mode: keep working off-screen. Never park - the loop, the send
+    // path, runTool and the watchdog all funnel through here, so this one check
+    // is what lets an entire hidden-tab session proceed (parking would otherwise
+    // wait without a cap for the user to come back).
+    if (bgMode()) return !A.stop;
     if (!document.hidden || A.stop) return !A.stop;
     A.parked = true;
     try { ui.setStarting(); } catch {}
@@ -328,7 +500,7 @@
       let tries = 0;
       let messageSent = false;
       while (!messageSent && !landed() && tries < 4 && !A.stop) {
-        if (document.hidden) {
+        if (document.hidden && !bgMode()) {
           diag("send.waitVisible", { tries });
           if (!(await waitVisible()) || A.stop) break; // park (no cap) until foreground; break only on user stop
         }
@@ -456,20 +628,30 @@
       // the loop used to burn its 5-minute inactivity budget off-screen, end with
       // "No response from <site>", and orphan the pending command.
       if (document.hidden && !A.stop) {
-        const parked = await parkHidden();
-        if (A.stop) return { kind: "stopped" };
-        if (parked) {
-          lastActiveAt += parked; lastChangeAt += parked;
-          if (doneSince) doneSince += parked;
-          if (genFalseSince) genFalseSince += parked;
-          if (preStartSilent) preStartSilent += parked;
-          if (warmSince) warmSince += parked;
-          if (reasonSince) reasonSince += parked;
-          if (noTurnSince) noTurnSince += parked;
-          if (unsettledSince) unsettledSince += parked;
-          if (genOffFirstAt) genOffFirstAt += parked;
+        if (bgMode()) {
+          // Background mode: don't park. And don't let the inactivity TIMEOUT
+          // expire while the user is away - a long model turn (or a long pause
+          // while the model reads a big tool result) is the norm off-screen, and
+          // silently ending the loop would strand the whole build. Resetting the
+          // deadline only while hidden means a genuinely stalled reply still
+          // times out once the user returns to the foreground tab.
+          lastActiveAt = Date.now();
+        } else {
+          const parked = await parkHidden();
+          if (A.stop) return { kind: "stopped" };
+          if (parked) {
+            lastActiveAt += parked; lastChangeAt += parked;
+            if (doneSince) doneSince += parked;
+            if (genFalseSince) genFalseSince += parked;
+            if (preStartSilent) preStartSilent += parked;
+            if (warmSince) warmSince += parked;
+            if (reasonSince) reasonSince += parked;
+            if (noTurnSince) noTurnSince += parked;
+            if (unsettledSince) unsettledSince += parked;
+            if (genOffFirstAt) genOffFirstAt += parked;
+          }
         }
-        continue; // re-read everything now that the tab has layout again
+        continue; // re-read everything now that we are (still) processing
       }
       const gen = P.isGenerating();
       if (gen) lastActiveAt = Date.now(); // actively generating ⇒ never time out
@@ -858,6 +1040,23 @@
   // whole thing back - robust regardless of how the edit changed the file.
   const _inRevert = { on: false };
   const _undoStack = [];
+  // Persisted copy of the undo stack (chrome.storage.local "vsUndoStack", cap 50),
+  // so snapshots survive a page reload - a reload mid-build no longer loses the
+  // ability to revert what the session did before it.
+  try {
+    chrome.storage.local.get("vsUndoStack", (r) => {
+      if (r && Array.isArray(r.vsUndoStack)) {
+        _undoStack.length = 0;
+        for (const e of r.vsUndoStack) {
+          if (e && typeof e.path === "string" && typeof e.before === "string" && typeof e.t === "number") _undoStack.push(e);
+        }
+        _undoStack.sort((a, b) => a.t - b.t);
+      }
+    });
+  } catch {}
+  function persistUndoStack() {
+    try { chrome.storage.local.set({ vsUndoStack: _undoStack.slice(-50) }); } catch {}
+  }
   // ── Named Lua macros (Feature: reusable snippets) ─────────────────────────
   // The model can save a Luau snippet once (save_macro) and re-run it any time
   // (run_macro) instead of retyping it - cuts token waste and typos on long
@@ -897,6 +1096,75 @@
     try { chrome.storage.local.remove("vsLastCommand"); } catch {}
     return note;
   }
+  // ── Session resume across reloads ─────────────────────────────────────────
+  // The auto-resume watchdog's freshness clock (A.lastGenAt) lives only in
+  // memory, so a page refresh mid-build wiped it and the watchdog could never
+  // resume the in-flight command turn (it reads "not a fresh live turn"). We
+  // persist a small liveness record (conversation + last-generation timestamp)
+  // while the agent generates, and restore it on reload when the same
+  // conversation is still open - the watchdog then picks the interrupted
+  // command back up automatically. Cleared on an explicit stop.
+  let _lastResumePersistAt = 0;
+  function persistLoopResume() {
+    const now = Date.now();
+    if (now - _lastResumePersistAt < 3000) return;
+    _lastResumePersistAt = now;
+    try {
+      chrome.storage.local.set({ vsLoopResume: { conv: P.conversationKey(), lastGenAt: A.lastGenAt, t: now } });
+    } catch {}
+  }
+  function clearLoopResume() {
+    try { chrome.storage.local.remove("vsLoopResume"); } catch {}
+  }
+  // ── Context compaction (Feature: survive the context limit) ───────────────
+  // When a provider reports it is at/near its context limit, the loop asks the
+  // model for a compact "build state" handoff BEFORE giving up, persists it, and
+  // the next session started in a fresh chat auto-seeds that handoff as its
+  // first message - so a long build continues in a new chat instead of dying.
+  let _compactHandoff = null;
+  let _compactInFlight = false;
+  function compactNow(reason) {
+    if (_compactInFlight || A.compacting) return;
+    if (!A.running || A.stop) return;
+    _compactInFlight = true;
+    A.compacting = true;
+    ui.toast("Context full - capturing build state…");
+    (async () => {
+      try {
+        const base = await submitAndGetBase(VS.FEEDBACK.compact);
+        if (A.stop) return;
+        const res = await waitForResponse(base);
+        const text = res && res.text ? String(res.text) : "";
+        if (!text.trim()) throw new Error("empty handoff reply");
+        _compactHandoff = {
+          summary: text.trim().slice(0, 6000),
+          projectType: ui.getProjectType() || "",
+          t: Date.now(),
+        };
+        try { chrome.storage.local.set({ vsCompactionHandoff: _compactHandoff }); } catch {}
+        diag("compact.saved", { reason, len: _compactHandoff.summary.length });
+        ui.banner("ok", "Build state saved",
+          `${P.displayName} hit its context limit, so I saved a compact handoff of the build. Open a new chat on ${P.displayName} and press Start - the agent continues from the saved state automatically.`);
+      } catch (e) {
+        diag("compact.failed", { reason, error: String((e && e.message) || e) });
+        ui.banner("limit", `${P.displayName} reached its context limit`,
+          (reason === "too_long" ? "The conversation got too long." : "The context window filled up.") +
+          "  -  the build state could not be captured automatically. Start a new session; the project memory in Studio still holds what was built.");
+      } finally {
+        _compactInFlight = false;
+        A.compacting = false;
+      }
+    })();
+  }
+  try {
+    chrome.storage.local.get("vsCompactionHandoff", (r) => {
+      const h = r && r.vsCompactionHandoff;
+      if (h && h.summary) {
+        if (Date.now() - (h.t || 0) < 24 * 3600 * 1000) _compactHandoff = h;
+        else try { chrome.storage.local.remove("vsCompactionHandoff"); } catch {}
+      }
+    });
+  } catch {}
   // ── Provider leaderboard (Feature: per-site build quality) ─────────────────
   // On every completed session we tally tool success/errors and screenshots per
   // provider site, then rank providers by success rate in the popup so the user
@@ -983,6 +1251,83 @@
       });
     } catch {}
   }
+  // Session log text (Feature): the same build-log the menu copies, as a
+  // Promise<string> usable anywhere (download button + auto-write on stop).
+  function buildSessionLogText() {
+    return new Promise((res) => {
+      try {
+        chrome.storage.local.get("vsTimeline", (r) => {
+          const conv = P.conversationKey();
+          const arr = ((r && r.vsTimeline) || []).filter((e) => e.conv === conv);
+          if (!arr.length) return res("");
+          const lines = arr.map((e) => {
+            const ts = new Date(e.t || 0).toLocaleTimeString();
+            if (e.type === "session_start") return `[${ts}] session start`;
+            if (e.type === "session_stop") return `[${ts}] session stop`;
+            if (e.type === "tool") return `[${ts}] ${e.ok ? "OK" : "ERR"} ${e.name || ""}${e.err ? " · " + e.err : ""}`;
+            if (e.type === "shot") return `[${ts}] screenshot · ${e.label || e.tool || ""}`;
+            return `[${ts}] ${e.type}`;
+          });
+          res(lines.join("\n"));
+        });
+      } catch { res(""); }
+    });
+  }
+  function downloadTextFile(name, text) {
+    try {
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 800);
+    } catch {}
+  }
+  // Auto-write the finished session's build log to disk via the bridge (Feature:
+  // logs/session-<date>.log). Best-effort, never blocks the loop.
+  function writeSessionLogToDisk(summary) {
+    try {
+      buildSessionLogText().then((log) => {
+        if (!log) return;
+        const header = `\n===== VoidScript session ${new Date().toLocaleString()} =====\n${summary || ""}\n`;
+        chrome.runtime.sendMessage({ type: "write_log", text: header + log }).catch(() => {});
+      });
+    } catch {}
+  }
+  function speakDone(okCount, errCount) {
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      const u = new SpeechSynthesisUtterance(
+        `VoidScript session complete. ${okCount} commands, ${errCount} errors.`);
+      u.volume = 0.8; u.rate = 1.05;
+      synth.speak(u);
+    } catch {}
+  }
+  // Auto-summary (Feature: vsAutoSummary): after a clean session end, ask the
+  // model for a plain-text recap in ONE extra turn. Guarded so the auto-resume
+  // watchdog can never re-run a tool from the summary turn (A.userStopped is
+  // latched for the turn, exactly like a manual halt).
+  let _summaryRunning = false;
+  function scheduleAutoSummary() {
+    if (_summaryRunning || !vsOn("vsAutoSummary")) return;
+    if (A.userStopped || A.stop || A.stopping || document.hidden) return;
+    if (!(A.runOk || A.runErr)) return;
+    _summaryRunning = true;
+    setTimeout(async () => {
+      try {
+        if (A.running || A.starting || A.started === false || document.hidden) return;
+        A.userStopped = true; // disarms the watchdog for this turn
+        const prompt = VS.FEEDBACK.summaryAsk || "Summarize in a short paragraph what you just built and any next steps.";
+        const base = await submitAndGetBase(prompt);
+        noteTokens("prompt", prompt);
+        await waitForResponse(base);
+        diag("autosummary.done", {});
+      } catch {}
+      finally { _summaryRunning = false; }
+    }, 1600);
+  }
   // Deletes that are almost never intended: clearing/destroying a WHOLE Roblox
   // service or the game itself. Scoped deletions of named instances never match.
   const BROAD_DELETE_RE =
@@ -994,6 +1339,81 @@
       .map((l) => l.replace(/^\s*\d+[→:]\s*/, ""))
       .join("\n");
   }
+  // Pre-flight Luau sanity check (best-effort, conservative). Runs BEFORE the
+  // call is sent to Studio so an obviously broken snippet gets fixed without
+  // burning the ~20s execute_luau budget. Only flags unambiguous syntax errors
+  // (unclosed long comments/strings, unterminated short strings, unbalanced
+  // brackets) - it skips comments and strings, so valid code is never rejected.
+  // Returns an ERROR string to feed back, or null when the code looks sound.
+  function preflightLuau(src) {
+    const s = String(src || "");
+    const n = s.length;
+    const lineOf = (idx) => s.slice(0, idx).split("\n").length;
+    const findLongClose = (openIdx, bodyStart, eq) => {
+      const close = "]" + "=".repeat(eq) + "]";
+      const k = s.indexOf(close, bodyStart);
+      return k === -1 ? null : k + close.length;
+    };
+    const stack = [];
+    let i = 0;
+    while (i < n) {
+      const c = s[i];
+      const c2 = s.slice(i, i + 2);
+      if (c2 === "--") {
+        if (s[i + 2] === "[") {
+          let eq = 0, j = i + 3;
+          while (s[j] === "=") { eq++; j++; }
+          if (s[j] === "[") {
+            const k = findLongClose(i, j + 1, eq);
+            if (k === null) return `ERROR: execute_luau has an unclosed long comment --[${"=".repeat(eq)}[ (started on line ${lineOf(i)}, never closed with ]${"=".repeat(eq)}]). Close it or remove it, then retry.`;
+            i = k;
+            continue;
+          }
+        }
+        const nl = s.indexOf("\n", i + 2);
+        i = nl === -1 ? n : nl + 1;
+        continue;
+      }
+      if (c === "[") {
+        let eq = 0, j = i + 1;
+        while (s[j] === "=") { eq++; j++; }
+        if (s[j] === "[") {
+          const k = findLongClose(i, j + 1, eq);
+          if (k === null) return `ERROR: execute_luau has an unclosed long string [${"=".repeat(eq)}[ (started on line ${lineOf(i)}, never closed with ]${"=".repeat(eq)}]). Close it, then retry.`;
+          i = k;
+          continue;
+        }
+      }
+      if (c === '"' || c === "'") {
+        let j = i + 1, closed = false;
+        while (j < n) {
+          if (s[j] === "\\") { j += 2; continue; }
+          if (s[j] === c) { closed = true; break; }
+          if (s[j] === "\n") break;
+          j++;
+        }
+        if (!closed) return `ERROR: execute_luau has an unterminated ${c === '"' ? "double-quoted" : "single-quoted"} string starting on line ${lineOf(i)} - the closing quote is missing. Fix or remove it, then retry.`;
+        i = j + 1;
+        continue;
+      }
+      if (c === "(" || c === "[" || c === "{") stack.push({ c, line: lineOf(i) });
+      else if (c === ")" || c === "]" || c === "}") {
+        const open = { ")": "(", "]": "[", "}": "{" }[c];
+        const top = stack.pop();
+        if (!top || top.c !== open) {
+          const expect = stack.length ? stack[stack.length - 1] : null;
+          return `ERROR: execute_luau has a mismatched '${c}' on line ${lineOf(i)}${expect ? ` - expected '${expect.c === "(" ? ")" : expect.c === "[" ? "]" : "}"}' from line ${expect.line}` : ""}. Fix the brackets, then retry.`;
+        }
+      }
+      i++;
+    }
+    if (stack.length) {
+      const open = stack[stack.length - 1];
+      const close = open.c === "(" ? ")" : open.c === "[" ? "]" : "}";
+      return `ERROR: execute_luau has an unclosed '${open.c}' opened on line ${open.line} - it needs a matching '${close}'. Fix it, then retry.`;
+    }
+    return null;
+  }
   async function snapshotBeforeEdit(args) {
     const path = args && args.target_file;
     if (!path) return;
@@ -1004,8 +1424,39 @@
       if (!before.trim()) return;
       _undoStack.push({ path, before, t: Date.now() });
       if (_undoStack.length > 50) _undoStack.shift();
+      persistUndoStack();
       diag("rollback.snap", { path, len: before.length });
     } catch {}
+  }
+  // Restore a single undo entry: read the script's CURRENT source and multi_edit
+  // the whole thing back to `before`. Shared by revert_last and revert_session.
+  async function revertEntry(entry) {
+    const cur = await runTool({ tool: "script_read", arguments: { target_file: entry.path, datamodel_type: "Edit" } });
+    if (cur.startsWith("ERROR")) return `ERROR: could not read '${entry.path}' to revert it: ${cur.slice(0, 160)}`;
+    const curText = extractScriptSource(cur);
+    if (!curText.trim()) return `ERROR: could not parse the current source of '${entry.path}' for revert.`;
+    _inRevert.on = true;
+    let applied;
+    try {
+      applied = await runTool({ tool: "multi_edit", arguments: { datamodel_type: "Edit", target_file: entry.path, edits: [{ old_string: curText, new_string: entry.before }] } });
+    } finally { _inRevert.on = false; }
+    if (applied.startsWith("ERROR")) return `ERROR reverting '${entry.path}': ${applied.slice(0, 200)}`;
+    return "OK";
+  }
+
+  // Trust-level approval gate (Feature: vsTrustLevel). For "medium" the agent
+  // pauses for user approval on destructive calls; for "low" it pauses before
+  // every command. The loop is parked via A.paused so the bar shows "Resume" -
+  // pressing Resume allows the call, Stop cancels it. Returns true to proceed.
+  async function confirmGate(call, reason) {
+    if (A.stop) return false;
+    const summary = argSummary(call);
+    A.paused = true;
+    ui.banner("warn", `Approve ${reason}`,
+      `${call.tool}${summary ? " (" + summary + ")" : ""} is waiting for your approval. Press Resume to allow it, or Stop to cancel it.`);
+    diag("confirm.wait", { tool: call.tool, reason });
+    while (!A.stop && A.paused) await sleep(250);
+    return !A.stop;
   }
 
   async function runTool(call) {
@@ -1020,7 +1471,7 @@
     // tool call that fired into Studio off-screen (observed live: GLM minimized
     // still ran execute_luau). Parking here (no time cap) means the call runs the
     // moment the tab is foreground again, instead of being lost or run blind.
-    if (document.hidden && !A.stop) {
+    if (document.hidden && !bgMode() && !A.stop) {
       diag("tool.waitVisible", { name });
       // Only reachable via a user Stop while parked; agentLoop's post-runTool
       // A.stop check breaks the loop and discards this, so it just needs to be
@@ -1138,18 +1589,100 @@
       if (!top) {
         return "ERROR: nothing to revert - no earlier script edit was snapshotted (rollback only tracks edits to existing scripts).";
       }
-      const cur = await runTool({ tool: "script_read", arguments: { target_file: top.path, datamodel_type: "Edit" } });
-      if (cur.startsWith("ERROR")) { _undoStack.push(top); return `ERROR: could not read '${top.path}' to revert it: ${cur.slice(0, 160)}`; }
-      const curText = extractScriptSource(cur);
-      if (!curText.trim()) { _undoStack.push(top); return `ERROR: could not parse the current source of '${top.path}' for revert.`; }
-      _inRevert.on = true;
-      let applied;
-      try {
-        applied = await runTool({ tool: "multi_edit", arguments: { datamodel_type: "Edit", target_file: top.path, edits: [{ old_string: curText, new_string: top.before }] } });
-      } finally { _inRevert.on = false; }
-      if (applied.startsWith("ERROR")) { _undoStack.push(top); return `ERROR reverting '${top.path}': ${applied.slice(0, 200)}`; }
+      const res = await revertEntry(top);
+      if (res.startsWith("ERROR")) { _undoStack.push(top); return res; }
+      persistUndoStack();
       diag("rollback.done", { path: top.path, len: top.before.length });
       return `Output of 'revert_last':\nReverted the last edit to '${top.path}' (restored the earlier source). The result is attached - verify it looks right and continue.`;
+    }
+    // Virtual command: revert the WHOLE session - restore every script the
+    // session edited back to the state it was in when the session started
+    // (the undo-stack boundary captured at agentLoop start). Entries are
+    // reverted in reverse order so each script ends at its OLDEST snapshot,
+    // then the stack is truncated back to the boundary. Capped at 30 reverts
+    // per call to keep the round-trip sane.
+    if (name === "revert_session") {
+      const boundary = A.undoSessionStart || 0;
+      if (_undoStack.length <= boundary) {
+        return "ERROR: nothing to revert - this session has not edited any existing script yet (rollback only tracks edits to existing scripts).";
+      }
+      const toRevert = _undoStack.slice(boundary).reverse().slice(0, 30);
+      const done = [];
+      const failed = [];
+      for (const entry of toRevert) {
+        const res = await revertEntry(entry);
+        if (res.startsWith("ERROR")) { failed.push(entry.path); continue; }
+        done.push(entry.path);
+      }
+      // Drop the reverted entries (and any newer ones) regardless of individual
+      // failures, so a partial revert still leaves a consistent stack.
+      _undoStack.length = Math.min(boundary, _undoStack.length);
+      persistUndoStack();
+      const where = done.length ? `restored ${done.length} script${done.length === 1 ? "" : "s"} (${[...new Set(done)].slice(0, 5).join(", ")}${new Set(done).size > 5 ? "…" : ""})` : "";
+      const failNote = failed.length ? `; ${failed.length} could not be reverted (${[...new Set(failed)].slice(0, 3).join(", ")})` : "";
+      return `Output of 'revert_session':\nReverted this session's edits - ${where || "no scripts were reverted"}${failNote}. The results are attached - verify each looks right and continue.`;
+    }
+    // Virtual command: export a snapshot of this session's undo history (every
+    // script edit + its pre-edit source) as a downloadable JSON file. Gives the
+    // user a portable record of what changed, and the pre-edit sources could
+    // later be re-applied elsewhere. Also reachable from the menu (Export).
+    if (name === "export_snapshot") {
+      const snap = {
+        tool: "voidscript-export-snapshot",
+        exportedAt: new Date().toISOString(),
+        provider: P.id,
+        session: { ok: A.runOk || 0, err: A.runErr || 0, startedAt: A.startedAt || 0 },
+        undoStack: _undoStack.slice(-50).map((e) => ({ path: e.path, t: e.t, beforeLength: (e.before || "").length })),
+        macros: Object.keys(_macros || {}),
+      };
+      const json = JSON.stringify(snap, null, 2);
+      try { downloadTextFile(`voidscript-snapshot-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`, json); }
+      catch { return "ERROR: could not download the snapshot file (browser blocked the download)."; }
+      const n = snap.undoStack.length;
+      diag("snapshot.export", { entries: n });
+      return `Output of 'export_snapshot':\nExported a snapshot JSON (${json.length} bytes) covering ${n} tracked script edit${n === 1 ? "" : "s"} - it downloaded via the browser. ${n ? "The pre-edit sources are in the file, so nothing is lost if the user wants to undo manually." : ""}`;
+    }
+    // Virtual command: command palette (Feature) - a compact index of the
+    // extension's VIRTUAL commands (the ones that are NOT in the MCP tool list
+    // and do not show up in list_commands). Use it to discover what VoidScript
+    // can orchestrate without re-reading the full system prompt.
+    if (name === "command_palette") {
+      const entries = [
+        ["revert_last", "undo the most recent edit to an existing script"],
+        ["revert_session", "revert every script this session edited, back to session-start state"],
+        ["playtest", "enter play mode; drive the player with user_keyboard_input / user_mouse_input"],
+        ["stop_playtest", "leave play mode after a playtest"],
+        ["save_macro", "save a reusable Luau snippet"],
+        ["run_macro", "run a saved Luau snippet"],
+        ["list_macros", "list saved Luau snippets"],
+        ["export_snapshot", "download a JSON snapshot of this session's edits (pre-edit sources)"],
+        ["plan_build", "lay out a step-by-step build plan before making any change"],
+        ["keep_going", "resume working after a run of errors; continue past the last failure"],
+        ["command_palette", "show this index of virtual commands"],
+      ];
+      return "Output of 'command_palette':\nVoidScript virtual commands (not in list_commands):\n\n" +
+        entries.map(([n, d]) => `  ${n} - ${d}`).join("\n") +
+        "\n\nCall any of these with {\"command\":\"<name>\",\"params\":{...}}. Everything else you need comes from the MCP tool list.";
+    }
+    // Virtual command: plan-then-build (Feature: plan_build). The model writes a
+    // step-by-step plan in its reply, then calls plan_build to PAUSE the loop so
+    // the user can review the plan before any change is made. Resume approves it.
+    if (name === "plan_build") {
+      const text = (args && args.plan) || "";
+      A.paused = true;
+      ui.toast("Building the plan – review, then press Start to run it.");
+      diag("plan.paused", { planLen: text.length });
+      return "Output of 'plan_build':\nPlan mode entered - the plan is written in your message above this result, and VoidScript has PAUSED the loop. The user will review it and press Resume to approve the build (Stop cancels). When resumed, follow the plan exactly and build it step by step with the real commands.";
+    }
+    // Virtual command: keep-going (Feature). After a run of errors, the model can
+    // call this to clear the accumulated error tally and keep working instead of
+    // stalling out - the loop itself never hard-stops on errors, so this mostly
+    // resets the session bookkeeping and signals intent to continue.
+    if (name === "keep_going") {
+      A.runErr = 0;
+      if (A.paused) A.paused = false;
+      diag("keepgoing.resume");
+      return "Output of 'keep_going':\nUnderstood - continuing past the recent errors. The error tally is reset. If a specific command keeps failing, diagnose the root cause (read the script, inspect the instance, check the error) and fix it rather than retrying the identical call.";
     }
     // Playtest mode (Feature: the agent plays its own game). `playtest` enters
     // play mode, feeds the model a first screenshot, and instructs it to drive
@@ -1222,11 +1755,58 @@
     // write the JSON form without it - default to "Edit" so the call never
     // soft-fails with "datamodel_type is required".
     if (bareName === "execute_luau" && !args.datamodel_type) args.datamodel_type = "Edit";
+    // Pre-flight Luau syntax check: catch an obviously broken ###LUA### block
+    // here instead of paying the ~20s Studio call only to get a parse error.
+    if (bareName === "execute_luau") {
+      const preErr = preflightLuau(args.code || "");
+      if (preErr) {
+        diag("preflight.fail", { err: preErr.slice(0, 90) });
+        return preErr + "\n\nFix the reported issue and retry ONCE with corrected code - do not resend the same block.";
+      }
+    }
+    // Pre-flight shape check for multi_edit: the model can also pass edits in the
+    // JSON form, where a missing old_string/new_string would only surface as a
+    // delayed MCP complaint after a Studio round-trip.
+    if (bareName === "multi_edit") {
+      const edits = args.edits;
+      if (!Array.isArray(edits) || !edits.length) {
+        return 'ERROR calling \'multi_edit\': "edits" must be a non-empty array of {old_string, new_string} objects. Build the array correctly and retry.';
+      }
+      const bad = edits.findIndex((e) => !e || typeof e.old_string !== "string" || typeof e.new_string !== "string");
+      if (bad !== -1) {
+        return `ERROR calling 'multi_edit': edits[${bad}] is missing "old_string" and/or "new_string" (both are required strings). Fix it and retry.`;
+      }
+    }
     // The player-input tools only run against the Client datamodel (play mode) and
     // "Client" is the sole allowed value, so default it when the model omits it -
     // it can only be right. (It still needs the game RUNNING; that's documented.)
     if ((bareName === "user_keyboard_input" || bareName === "user_mouse_input") && !args.datamodel_type)
       args.datamodel_type = "Client";
+    // ── Session command budget (Feature: vsCommandBudget) ───────────────────
+    // Once the per-session cap is reached, pause for a fresh grant so a runaway
+    // model cannot burn unlimited Studio calls. Resuming from the budget pause
+    // resets the counter (one grant = one batch of the configured size).
+    if (VS_CFG.vsCommandBudget > 0 && A.cmdBudgetHits >= VS_CFG.vsCommandBudget) {
+      A.budgetPaused = true;
+      A.paused = true;
+      diag("budget.exhausted", { hits: A.cmdBudgetHits, budget: VS_CFG.vsCommandBudget });
+      return `ERROR: the session command budget is reached (${A.cmdBudgetHits}/${VS_CFG.vsCommandBudget} commands) and the session is now PAUSED. STOP making tool calls - tell the user what was built so far and that a fresh batch is granted when they press Resume.`;
+    }
+    // ── Trust-level approval gate (Feature: vsTrustLevel) ───────────────────
+    // "low" confirms every command; "medium" confirms destructive ones (the
+    // loop separately pauses on errors for "medium"). "high" never confirms.
+    if (VS_CFG.vsTrustLevel !== "high" && !A.budgetPaused) {
+      const codeStr = (args.code || "") + "";
+      const destructive = BROAD_DELETE_RE.test(codeStr) || /(delete|destroy|clear_all_children|remove)/i.test(bareName);
+      const needApprove = VS_CFG.vsTrustLevel === "low" || (VS_CFG.vsTrustLevel === "medium" && destructive);
+      if (needApprove) {
+        if (!(await confirmGate({ tool: name, arguments: args }, destructive ? "a destructive command" : "this command"))) {
+          diag("confirm.declined", { tool: name });
+          return `ERROR: the '${name}' command was NOT run - the user did not approve it. Do not call it again until the user gives the go-ahead.`;
+        }
+      }
+    }
+    A.cmdBudgetHits++;
     persistLastCommand(name, args);
     const timeout = name === "execute_luau" ? 20000 : 120000;
     // Hard watchdog: even if the background worker never answers, the loop
@@ -1349,6 +1929,11 @@
     else if (g === "survival") core = "Add a server-side enemy wave spawner, a health bar with respawn, and a kill reward.";
     else if (g === "racing") core = "Place a drivable VehicleSeat with a reset keybind and a checkpoint lap timer.";
     else if (g === "shooter") core = "Add a gun (hitscan or projectile), ammo/reload, damage + score, and a respawn point.";
+    else if (g === "tower") core = "Add a base with lives, a wave spawner walking enemies along a Waypoint path, one tower that auto-targets the nearest enemy, and money per kill to buy more.";
+    else if (g === "rpg") core = "Add an NPC with a quest, XP + levels in leaderstats, a small inventory, and one simple combat loop.";
+    else if (g === "farming") core = "Add a tillable plot, a crop that grows over time, a harvest that pays money, and a small shop.";
+    else if (g === "escape") core = "Add one self-contained room with a locked door, a puzzle that opens it, and an item the player must find to win.";
+    else if (g === "horror") core = "Add a dark map, a monster NPC that chases the player, and a stamina bar - escaping the monster is the win condition.";
     const mpLine = mp
       ? "\nMake it multiplayer-ready: authoritative logic in ServerScriptService, per-player spawn/respawn handling, and a leaderboard."
       : "";
@@ -1453,11 +2038,23 @@
     A.loopKey = null; // pinned by syncSessionState once this chat has an id + content
     timeline("session_start", {});
     A.runOk = 0; A.runErr = 0; A.shotCount = 0;
+    A.startedAt = Date.now();
+    A.undoSessionStart = _undoStack.length; // revert_session restores state to this boundary
     let truncCount = 0;
     const MAX_TRUNC = 6;
-    // Re-send the command list after this many successful tool calls. Kept high
-    // so the reminder does not bloat the context too often.
-    const REMIND_TOOLS_EVERY = 20;
+    // Drift guard: track consecutive failures of the SAME command name. Once it
+    // hits 2, the loop proactively injects a targeted re-anchoring reminder with
+    // that command's exact name + signature before the next model turn - this
+    // stops Gemini (and others) from drifting off a command in long sessions
+    // and then looping the same "does not exist" error forever. Reset on any
+    // success or a different command.
+    let driftCmd = "", driftFails = 0;
+    // Re-send the command list after this many successful tool calls. Kept low
+    // (12) so the model doesn't drift off the exact Roblox command names in long
+    // sessions - the leading cause of Gemini "tool-dropoff" where the model
+    // claims a command "does not exist" after the 20-call interval that worked
+    // for short sessions left too wide a gap in marathon builds.
+    const REMIND_TOOLS_EVERY = 12;
     ui.showStop(true);
     P.setInputLock(true); // prevent user from typing while the agent is active
     ui.inputCover(true);  // keep the "Agent is working" cover up for the WHOLE loop
@@ -1477,7 +2074,15 @@
         //    duplicate sends - see the send-side guard in submitAndGetBase).
         // Parking here means we never START a parse/exec cycle off-screen; the
         // send step re-checks too, so a switch-away mid-generation is covered.
-        if (document.hidden && !A.stop) {
+        // Manual Pause: park (like a hidden tab) until the user hits Resume.
+        if (A.paused && !A.stop) {
+          diag("loop.paused");
+          ui.inputCover(true);
+          while (!A.stop && A.paused) await sleep(250);
+          if (A.stop) break;
+          diag("loop.resumed");
+        }
+        if (document.hidden && !bgMode() && !A.stop) {
           diag("loop.waitVisible");
           ui.inputCover(true); // keep the "Agent is working" cover up while parked
           if (!(await waitVisible()) || A.stop) break; // park (no cap) until foreground; break only on user stop
@@ -1488,13 +2093,11 @@
         if (A.stop || res.kind === "stopped") break;
 
         if (res.kind === "context_limit") {
-          ui.banner("limit", `${P.displayName} reached its context limit`,
-            (res.detail || "") + "  -  open a new chat to start fresh.");
+          compactNow("context_limit");
           break;
         }
         if (res.kind === "too_long") {
-          ui.banner("limit", "Conversation too long",
-            `${P.displayName} reports the conversation is getting too long. Start a new session.`);
+          compactNow("too_long");
           break;
         }
         if (res.kind === "timeout") {
@@ -1611,6 +2214,29 @@
           diag("tool.done", { name: call.tool, ok: !feedback.startsWith("ERROR"), out: feedback.slice(0, 50) });
           timeline("tool", { name: call.tool, ok: !feedback.startsWith("ERROR"), err: feedback.startsWith("ERROR") ? feedback.slice(0, 120) : "" });
           if (feedback.startsWith("ERROR")) A.runErr = (A.runErr || 0) + 1; else A.runOk = (A.runOk || 0) + 1;
+          // Auto-screenshot on tool error (Feature: vsAutoShotError): capture the
+          // Studio screen so a vision-capable model can see the state that caused
+          // the failure before it retries. Skipped for "low" trust (which asks the
+          // user to approve every command - an unprompted screenshot would spam
+          // the approval flow).
+          if (feedback.startsWith("ERROR") && vsOn("vsAutoShotError") &&
+              P.supportsVision && VS_CFG.vsTrustLevel !== "low" && !A.stop) {
+            try {
+              const shot = await runTool({ tool: "screen_capture", arguments: {} });
+              if (!shot.startsWith("ERROR") && A.pendingImages && A.pendingImages.length) {
+                feedback += "\n\n(System note: a screenshot of the current Studio screen is attached to this message - it shows the state at the moment the error happened. Use it to diagnose before retrying.)";
+                diag("autoshot.taken", { tool: call.tool });
+              }
+            } catch {}
+          }
+          // Medium trust: pause for review when a command errored, so the user
+          // sees the failure before the model retries. Resume continues the loop.
+          if (feedback.startsWith("ERROR") && VS_CFG.vsTrustLevel === "medium" && !A.stop) {
+            A.paused = true;
+            diag("confirm.pauseOnError", { name: call.tool });
+            ui.banner("warn", "Command error - paused",
+              `${call.tool} errored. The agent will wait here. Press Resume to let it fix and continue, or Stop to end the session.`);
+          }
           if (A.stop) {
             // User halted mid-tool: settle the spinning chip so it doesn't look
             // stuck loading forever, and MARK the turn so the sweep classifier
@@ -1666,6 +2292,7 @@
           // without it looking like a new result to act on. Errors don't count
           // (they already restate what's wrong) and list_commands is redundant.
           let toSend = feedback;
+          noteTokens("tool", feedback);
           if (!isErr && call.tool !== "list_commands" && A.toolList.length) {
             A.toolCallsSinceReminder++;
             if (A.toolCallsSinceReminder >= REMIND_TOOLS_EVERY) {
@@ -1681,11 +2308,36 @@
               diag("tools.reminder", { after: REMIND_TOOLS_EVERY });
             }
           }
+          // Drift guard: track consecutive failures of the SAME command. After 2,
+          // the next re-injection carries a targeted re-anchor with just that
+          // command's exact name + signature, so the model stops "forgetting" it
+          // and looping the same error. Reset on success or a different command.
+          if (isErr) {
+            const bare = bareToolName(call.tool);
+            if (bare === driftCmd) {
+              driftFails++;
+            } else {
+              driftCmd = bare;
+              driftFails = 1;
+            }
+          } else {
+            driftCmd = ""; driftFails = 0;
+          }
+          const driftReanchor = (isErr && driftFails >= 2 && driftCmd === bareToolName(call.tool));
+          if (driftReanchor) {
+            const def = (A.toolList || []).find((t) => bareToolName(t.name) === driftCmd);
+            if (def) {
+              toSend += `\n\n(System note: you keep using "${driftCmd}" but it returns the same error. Here is its EXACT current signature - use it verbatim: ${def.name} with parameters ${JSON.stringify((def.inputSchema && def.inputSchema.properties) || {})}. This is a reminder only; do not re-inject this note.)\n`;
+              diag("drift.reanchor", { cmd: driftCmd });
+            }
+          }
+
           const verifyNote = await maybeAutoVerify(call, feedback);
           const images = A.pendingImages;
           A.pendingImages = null;
           diag("images.consumed", { count: images ? images.length : 0 });
           base = await submitAndGetBase(toSend + verifyNote, images);
+          noteTokens("prompt", toSend + (verifyNote || ""));
         }
       }
     } catch (e) {
@@ -1713,6 +2365,36 @@
       diag("loop.end");
       timeline("session_stop", {});
       recordBuildResult();
+      // Completion summary toast: what actually happened this session, so the
+      // user gets closure even when the model itself never announces "done".
+      try {
+        const dur = A.startedAt ? fmtDur((Date.now() - A.startedAt) / 1000) : "";
+        const parts = [];
+        parts.push(`${A.runOk || 0} commands ok`);
+        if (A.runErr) parts.push(`${A.runErr} errors`);
+        if (A.shotCount) parts.push(`${A.shotCount} screenshots`);
+        parts.push(`in ${dur}`);
+        ui.toast("Session done · " + parts.join(" · "));
+        playChime(!!A.runErr);
+        // Session-end extras (Features): hidden-tab system notification, spoken
+        // completion, one-turn auto-summary, and auto-write of the build log.
+        if (vsOn("vsAutoNotify") && document.hidden) {
+          try {
+            chrome.runtime.sendMessage({
+              type: "notify",
+              title: "VoidScript session done",
+              message: parts.join(" · "),
+            }).catch(() => {});
+          } catch {}
+        }
+        if (vsOn("vsSpokenDone")) speakDone(A.runOk || 0, A.runErr || 0);
+        scheduleAutoSummary();
+        writeSessionLogToDisk(parts.join(" · "));
+        persistTokenTotals(sessionTokenEst());
+      } catch {}
+      A.startedAt = 0;
+      A.undoSessionStart = 0;
+      A.paused = false;
     }
   }
 
@@ -1820,6 +2502,7 @@
     A.stopStreamLen = P.streamLen ? P.streamLen() : 0;
     A.userStopped = true; // suppress auto-resume until the next user message
     A.resumeArmed = false; // a stop overrides any pending regenerate grace
+    clearLoopResume();     // a deliberate stop must never auto-resume after a reload
     // Disarm any pending optimistic pre-hide (armed in submitAndGetBase for the
     // feedback turn we just sent - see the re-arm note there). The input unlocks
     // right after this function returns, but the window can still be open for a
@@ -1880,16 +2563,20 @@
           "Could not fetch Roblox tools. Run start.bat and make sure Roblox Studio is open, then try again.");
         return;
       }
-      const modeState = await P.ensureComposerReady("startup");
-      if (!alive()) return;
+      // Let the provider apply the user's preferred model (if any) BEFORE it
+      // drives its composer into the default modes. No-op on providers without
+      // model logic (setPreferredModel is optional in the provider interface).
+      try { P.setPreferredModel && P.setPreferredModel(getPreferredModel(P.displayName)); } catch {}
+      const modeState = await P.ensureComposerReady("startup");      if (!alive()) return;
       if (!modeState.ready) {
         ui.banner("warn", `${P.displayName} mode not ready`,
           `Could not switch ${P.displayName} to the required mode. Start a new chat or reload the page, then try again.`);
         return;
       }
-      const prompt = VS.buildSystemPrompt({ siteName: P.displayName, customPrompt: ui.getCustomPrompt(), projectType: ui.getProjectType() }) + resumeNote();
+      const prompt = VS.buildSystemPrompt({ siteName: P.displayName, customPrompt: ui.getCustomPrompt(), projectType: ui.getProjectType(), preferredModel: getPreferredModel(P.displayName) }) + resumeNote();
       const base = await submitAndGetBase(prompt);
       if (!alive()) return;
+      noteTokens("prompt", prompt);
       // (syncSessionState pins A.startingKey to the conversation id once the chat
       // has content, and aborts this bootstrap if the user opens a new empty chat.)
       decorate.sweep(); // show the animated "Starting Up" chip immediately
@@ -1928,9 +2615,21 @@
         if (A.stop || readyRes.kind === "stopped") { diag("start.aborted", { kind: readyRes.kind }); return; }
       }
       A.started = true;
+      A.recovering = false;
       rememberSession(P.conversationKey()); // survives virtualization AND reloads
       ui.setStarted(true);
-      ui.toast(`Agent ready. Ask ${P.displayName} to build something in Roblox.`);
+      ui.toast(`Ready. ${P.displayName} is connected to Roblox Studio.`);
+      // Offer the build wizard on the very first start of the session.
+      // Context-compaction continuation: a previous chat hit the context limit and
+      // left a saved build handoff - seed it as the first message so the agent
+      // continues the build in this fresh chat instead of restarting from zero.
+      const handoffMsg = ui.takeCompactionHandoff();
+      if (handoffMsg && !A.stop) {
+        diag("compaction.continue", { len: handoffMsg.length });
+        const hbase = await submitAndGetBase(handoffMsg);
+        if (alive() && !A.stop) await agentLoop(hbase);
+        return;
+      }
       // One-click build wizard: a pending guided starter prompt is auto-sent as
       // the first user message, then the loop drives the build to completion.
       const wizardMsg = ui.takeWizardPrompt();
@@ -2495,11 +3194,74 @@
       }
     },
 
+    annotateCodeBlocks(item) {
+      // Adds Copy Luau / Run in Studio buttons to ###LUA### code blocks in a
+      // settled assistant turn (Feature: code block actions in chat replay).
+      if (!item || !P.isAssistantItem(item)) return;
+      // Only on done/errored turns (never mid-stream - the block is still live).
+      if (item.dataset.zphase !== "done" && item.dataset.zphase !== "err") return;
+      const codeBlocks = item.querySelectorAll("pre");
+      for (const block of codeBlocks) {
+        if (block.closest(S.thinking)) continue;
+        if (block.querySelector(".vs-chip")) continue;
+        const txt = block.textContent || "";
+        // Only annotate Lua blocks (###LUA###...###END_LUA###) that are still
+        // visible (not hidden by the camouflage .vs-tool-hide - those are the
+        // live-during-agent ones; hidden = already executed).
+        if (!/###\s*LUA/.test(txt) || block.classList.contains("vs-tool-hide")) continue;
+        if (block.dataset.vsAnnotated) continue;
+        block.dataset.vsAnnotated = "1";
+        // Insert a button row above the code block without disturbing the site's
+        // rendered code. The buttons let the user copy the Luau to clipboard or
+        // send it to Studio as an execute_luau command.
+        const row = document.createElement("div");
+        row.className = "vs-code-actions";
+        row.style.cssText = "display:flex;gap:6px;margin:4px 0;";
+        const copyBtn = document.createElement("button");
+        copyBtn.textContent = "Copy Luau";
+        copyBtn.className = "vs-code-btn vs-code-copy";
+        copyBtn.style.cssText = "font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.3);color:#fff;cursor:pointer;";
+        const runBtn = document.createElement("button");
+        runBtn.textContent = "Run in Studio";
+        runBtn.className = "vs-code-btn vs-code-run";
+        runBtn.style.cssText = copyBtn.style.cssText;
+        row.appendChild(copyBtn);
+        row.appendChild(runBtn);
+        (block.parentElement || block).insertBefore(row, block);
+        copyBtn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const lua = VSParse.extractLua(txt);
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              await navigator.clipboard.writeText(lua);
+            } else {
+              const ta = document.createElement("textarea"); ta.value = lua; document.body.appendChild(ta); ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+            }
+            ui.toast("Lua copied ✓");
+          } catch { ui.toast("Copy failed"); }
+        });
+        runBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const lua = VSParse.extractLua(txt);
+          if (!lua.trim()) { ui.toast("No Lua code in this block"); return; }
+          // Inject an execute_luau command block into the chat composer.
+          try {
+            const ed = P.getEditor && P.getEditor();
+            if (!ed) { ui.toast("No input box found"); return; }
+            if (P.setEditorValue) P.setEditorValue(ed, "###LUA###\n" + lua + "\n###END_LUA###");
+            else ed.textContent = "###LUA###\n" + lua + "\n###END_LUA###";
+            ui.toast("Lua inserted · press Send");
+          } catch (err) { ui.toast("Run failed: " + (err && err.message)); }
+        });
+      }
+    },
     sweep() {
       // Pass each turn's FOLLOWING turn too: a command chip needs it to know
       // whether its injected result was an ERROR (error-aware settle above).
       const items = P.allItems();
       for (let i = 0; i < items.length; i++) this.classify(items[i], items[i + 1] || null);
+      // Annotate ###LUA### code blocks with Copy / Run buttons (chat replay).
+      for (let i = 0; i < items.length; i++) this.annotateCodeBlocks(items[i]);
       // Safety net for stopped turns whose chip lives OUTSIDE the enumerated
       // message list. On Arena an A/B comparison renders each candidate as a
       // slide in the carousel's OWN nested <ol>, not the main flex-col-reverse
@@ -2520,11 +3282,17 @@
 
   // ════════════════════════════════════════════════════════════════════════
   //  UI  (control panel, onboarding, stop button, banners, toast, input cover)
+  //  Shared with the top-level 200ms tick (outside the `ui` IIFE) which drives the
+  //  live timer — declared here so both closures see the same node.
   // ════════════════════════════════════════════════════════════════════════
+  let liveEl = null; // the bar's live session timer (#vs-live), updated by the 200ms UI tick
   const ui = (() => {
-    let root, bar, dot, brandEl, stateEl, actionBtn, stopBtn, switchBtn, supportBtn, discordEl, menuEl, unstableEl;
+       let root, bar, dot, brandEl, stateEl, actionBtn, stopBtn, switchBtn, supportBtn, discordEl, menuEl, unstableEl;
     let cover, coverRaf, barRaf;
+    let voiceBtn = null;
+    let quickShotBtn = null, quickListBtn = null;
     let openMenuFn = null; // set by build(); lets the popup force the panel open via runtime message
+    let pauseBtn = null;    // the bar's "⏸ Pause / ▶ Resume" toggle (#vs-pause)
     let bridgeOk = false, studioDown = false, placeDown = false, appDown = false, addonOk = false, studioProcUp = false;
     let wasConnected = false, bridgeBannerEl = null;
     let vsUpdateTag = "";
@@ -2543,9 +3311,14 @@
           <span id="vs-dot" class="off" title=""></span>
           <span id="vs-brand">VoidScript <span class="vs-free">v${EXT_VERSION}</span></span>
           <span id="vs-state"></span>
-          <button id="vs-action"></button>
+           <span id="vs-live"></span>
+           <button id="vs-quick-shot" hidden aria-label="Screenshot Studio" title="Take a screenshot of Studio and inspect it"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 14a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg></button>
+           <button id="vs-quick-list" hidden aria-label="List assets" title="List all objects/scripts in the game"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="18" x2="20" y2="18"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg></button>
+           <button id="vs-action"></button>
           <button id="vs-stop" hidden>■ Stop</button>
-          <a id="vs-discord" href="https://discord.gg/EyGxnp2jaw" target="_blank" rel="noopener" title="Need help? Join our Discord"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></a>
+          <button id="vs-pause" hidden>⏸ Pause</button>
+          <a id="vs-discord" href="https://discord.gg/KmkCKwUbcX" target="_blank" rel="noopener" title="Need help? Join our Discord"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></a>
+           <button id="vs-voice" hidden aria-label="Speak to VoidScript" title="Speak to VoidScript (transcribes and inserts)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V21a1 1 0 0 0 2 0v-3.08A7 7 0 0 0 19 11z"/></svg></button>
           <button id="vs-switch" aria-label="Switch AI and options" title="Switch AI, custom prompt, support"><span id="vs-switch-name"></span><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg></button>
           <button id="vs-support" aria-label="Support VoidScript" title="Support VoidScript"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
         </div>
@@ -2554,14 +3327,19 @@
       `;
       document.documentElement.appendChild(root);
       bar = root.querySelector("#vs-bar");
-      dot = root.querySelector("#vs-dot");
+       dot = root.querySelector("#vs-dot");
       brandEl = root.querySelector("#vs-brand");
       stateEl = root.querySelector("#vs-state");
+      liveEl = root.querySelector("#vs-live");
       actionBtn = root.querySelector("#vs-action");
       stopBtn = root.querySelector("#vs-stop");
+      pauseBtn = root.querySelector("#vs-pause");
       switchBtn = root.querySelector("#vs-switch");
       supportBtn = root.querySelector("#vs-support");
       discordEl = root.querySelector("#vs-discord");
+      voiceBtn = root.querySelector("#vs-voice");
+      quickShotBtn = root.querySelector("#vs-quick-shot");
+      quickListBtn = root.querySelector("#vs-quick-list");
       const swName = root.querySelector("#vs-switch-name");
       if (swName) swName.textContent = P.displayName || P.id;
       menuEl = root.querySelector("#vs-menu");
@@ -2573,6 +3351,20 @@
 
       actionBtn.addEventListener("click", onActionClick);
       stopBtn.addEventListener("click", stopLoop);
+      if (pauseBtn) {
+        pauseBtn.addEventListener("click", () => {
+          A.paused = !A.paused;
+          // Resuming from a budget pause grants the next batch of commands.
+          if (!A.paused && A.budgetPaused) {
+            A.budgetPaused = false;
+            A.cmdBudgetHits = 0;
+            diag("budget.grant", {});
+          }
+          updatePauseBtn();
+          renderBar();
+          ui.toast(A.paused ? "Agent paused." : "Agent resumed.");
+        });
+      }
       unstableEl = root.querySelector("#vs-unstable");
       if (unstableEl) {
         // Set the native tooltip via PROPERTY, not the HTML template: the warning
@@ -2582,6 +3374,119 @@
         unstableEl.addEventListener("click", (e) => { e.stopPropagation(); toast(P.unstableWarning); });
       }
       buildMenu();
+      // Voice transcription (Feature): speak into the mic and the transcript is
+      // inserted into the site's composer. Uses the Web Speech API (no
+      // external server); falls back to a toast if unavailable. The button only
+      // shows when the API is present; hidden otherwise via the HTML `hidden`
+      // attribute we set at build time.
+      if (voiceBtn) {
+        voiceBtn.hidden = !P.voiceAvailable;
+        if (P.voiceAvailable) {
+          voiceBtn.addEventListener("click", onVoiceClick);
+        }
+      }
+       // Quick action buttons (Feature): one-click shortcuts that inject a command
+       // into the composer + send. Only shown when a session is active.
+      if (quickShotBtn) {
+        quickShotBtn.addEventListener("click", () => {
+          const ed = P.getEditor && P.getEditor();
+          if (!ed) { ui.toast("No input box found"); return; }
+          const cmd = '{"command": "screen_capture"}';
+          if (P.setEditorValue) P.setEditorValue(ed, cmd);
+          else ed.textContent = cmd;
+          ui.toast("Screenshot command inserted · press Send");
+        });
+      }
+      if (quickListBtn) {
+        quickListBtn.addEventListener("click", () => {
+          const ed = P.getEditor && P.getEditor();
+          if (!ed) { ui.toast("No input box found"); return; }
+          const cmd = '{"command": "list_commands"}';
+          if (P.setEditorValue) P.setEditorValue(ed, cmd);
+          else ed.textContent = cmd;
+          ui.toast("List-commands inserted · press Send");
+        });
+      }
+      // Voice transcription: records speech via the Web Speech API and inserts the
+      // final transcript into the current turn's editor. While recording the mic
+      // button gets a "recording" dot so the user knows it's live.
+      let _recognition = null, _voiceTimer = null;
+      function onVoiceClick(e) {
+        e.stopPropagation();
+        const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!Rec) { toast("Speech recognition is not available in this browser."); return; }
+        if (_recognition) {
+          try { _recognition.abort(); } catch {}
+          _recognition = null;
+          if (_voiceTimer) { clearTimeout(_voiceTimer); _voiceTimer = null; }
+          voiceBtn.classList.remove("vs-voice-rec");
+          voiceBtn.title = "Speak to VoidScript (transcribes and inserts)";
+          return;
+        }
+        try {
+          _recognition = new Rec();
+        } catch (err) {
+          toast("Speech recognition failed to start. " + (err && err.message));
+          _recognition = null;
+          return;
+        }
+        _recognition.continuous = false;
+        _recognition.interimResults = false;
+        _recognition.lang = (VS_CFG.vsVoiceLang || "en-US");
+        voiceBtn.classList.add("vs-voice-rec");
+        voiceBtn.title = "Stop recording";
+        _voiceTimer = setTimeout(() => {
+          voiceBtn.classList.remove("vs-voice-rec");
+          voiceBtn.title = "Speak to VoidScript (transcribes and inserts)";
+        }, 15000);
+        _recognition.onresult = (ev) => {
+          const t = (ev.results[ev.resultIndex] && ev.results[ev.resultIndex][0] && ev.results[ev.resultIndex][0].transcript) || "";
+          if (!t) return;
+          const ed = P.getEditor && P.getEditor();
+          if (ed) {
+            P.setEditorValue ? P.setEditorValue(ed, (P.editorText ? P.editorText() : "") + " " + t.trim()) : (ed.textContent = (ed.textContent || "") + " " + t.trim());
+            ui.toast(`Heard: "${t.trim().slice(0, 60)}${t.trim().length > 60 ? "…" : ""}"`);
+          } else {
+            ui.toast("No input box found to insert the transcript into.");
+          }
+        };
+        _recognition.onerror = (ev) => {
+          if (_voiceTimer) { clearTimeout(_voiceTimer); _voiceTimer = null; }
+          voiceBtn.classList.remove("vs-voice-rec");
+          voiceBtn.title = "Speak to VoidScript (transcribes and inserts)";
+          _recognition = null;
+          const msg = (ev && ev.error) || "unknown";
+          if (msg === "not-allowed" || msg === "permission-denied") {
+            toast("Microphone access was denied. Allow mic for this site in your browser settings.");
+          } else {
+            toast("Voice recognition error: " + msg);
+          }
+        };
+        _recognition.onend = () => {
+          if (_voiceTimer) { clearTimeout(_voiceTimer); _voiceTimer = null; }
+          voiceBtn.classList.remove("vs-voice-rec");
+          voiceBtn.title = "Speak to VoidScript (transcribes and inserts)";
+          _recognition = null;
+        };
+        try { _recognition.start(); } catch (err) {
+          toast("Voice recognition start failed. " + (err && err.message));
+          _recognition = null;
+        }
+      }
+       // Theme application (Feature): toggles a data attribute on <html> that
+      // overlay.css keys off, so the VoidScript UI (bar, chips, menu) follows the
+      // picked theme. "system" defers to prefers-color-scheme.
+      function applyVsTheme(theme) {
+        const root = document.documentElement;
+        if (theme === "system") {
+          root.removeAttribute("data-vs-theme");
+        } else {
+          root.setAttribute("data-vs-theme", theme);
+        }
+      }
+      // If a theme was persisted, apply it immediately on script load (before the
+      // menu's own handler runs) so the bar renders in the right theme from frame 1.
+      try { if (VS_CFG.vsTheme) applyVsTheme(VS_CFG.vsTheme); } catch {}
       // Both bar controls open the same panel; the heart lands on the Support
       // section (last), the model button opens at the top with Switch AI.
       const toggleMenu = (toSupport) => {
@@ -2608,6 +3513,49 @@
       };
       switchBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(false); });
       supportBtn.addEventListener("click", (e) => { e.stopPropagation(); toggleMenu(true); });
+      // Keyboard shortcuts (Feature): Alt+V menu, Alt+S start/stop, Alt+P
+      // pause/resume, Alt+X stop, Alt+Z background-mode toggle, Esc stop while
+      // running. Ignored while typing into inputs/editors.
+      document.addEventListener("keydown", (e) => {
+        const inField = () => {
+          const tag = document.activeElement && document.activeElement.tagName;
+          return tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT" ||
+            (document.activeElement && document.activeElement.isContentEditable);
+        };
+        if (e.altKey && !e.ctrlKey && !e.metaKey) {
+          const k = e.key.toLowerCase();
+          if (k === "v") { if (inField()) return; e.preventDefault(); toggleMenu(false); return; }
+          if (k === "s") {
+            if (inField()) return; e.preventDefault();
+            const kind = actionBtn && actionBtn.dataset.kind;
+            if (A.running || A.starting) { stopLoop(); }
+            else if (kind === "start" || kind === "start-degraded") { startSession(); }
+            return;
+          }
+          if (k === "p") {
+            if (!A.running) return; e.preventDefault();
+            A.paused = !A.paused;
+            if (!A.paused && A.budgetPaused) { A.budgetPaused = false; A.cmdBudgetHits = 0; diag("budget.grant", {}); }
+            updatePauseBtn(); renderBar();
+            ui.toast(A.paused ? "Agent paused." : "Agent resumed.");
+            return;
+          }
+          if (k === "x") { if (!A.running) return; e.preventDefault(); stopLoop(); return; }
+          if (k === "z") {
+            if (inField()) return; e.preventDefault();
+            VS_CFG.vsBackground = !VS_CFG.vsBackground;
+            try { chrome.storage.local.set({ vsBackground: VS_CFG.vsBackground }); } catch {}
+            ui.toast(VS_CFG.vsBackground ? "Background mode on." : "Background mode off.");
+            diag("cfg.toggle", { key: "vsBackground", on: VS_CFG.vsBackground });
+            return;
+          }
+          return;
+        }
+        if (e.key === "Escape" && A.running && !inField()) {
+          e.preventDefault();
+          stopLoop();
+        }
+      });
       openMenuFn = (toSupport) => { if (menuEl.hidden) toggleMenu(toSupport); };
       document.addEventListener("click", (e) => {
         if (menuEl.hidden) return;
@@ -2641,16 +3589,52 @@
         }
       });
     } catch {}
-    function getCustomPrompt() { return customPrompt; }
-    function setCustomPrompt(v) {
-      customPrompt = String(v || "");
-      syncMenuPrompt();
-      try { chrome.storage.local.set({ vsCustomPrompt: customPrompt }); } catch {}
+    // Per-place custom prompts (Feature: vsPromptPerPlace): a separate prompt per
+    // open place, so different projects get project-specific instructions without
+    // overwriting the global one. Map stored in chrome.storage.local under
+    // "vsCustomPromptByPlace", keyed by the place name from the bridge.
+    const customPromptByPlace = {};
+    try {
+      chrome.storage.local.get("vsCustomPromptByPlace", (r) => {
+        if (r && typeof r.vsCustomPromptByPlace === "object" && r.vsCustomPromptByPlace) {
+          Object.assign(customPromptByPlace, r.vsCustomPromptByPlace);
+        }
+      });
+    } catch {}
+    // The place the bridge currently reports (set by setStatus). Empty until the
+    // bridge connects; the prompt falls back to the global one while unknown.
+    let activePlaceName = "";
+    function currentPlace() {
+      return vsOn("vsPromptPerPlace") ? (activePlaceName || "") : "";
     }
-    // Reflect the saved value back into the menu textarea (unless being edited).
+    function getCustomPrompt() {
+      const place = currentPlace();
+      if (place && customPromptByPlace[place]) return customPromptByPlace[place];
+      return customPrompt;
+    }
+    function setCustomPrompt(v) {
+      const place = currentPlace();
+      if (place) {
+        customPromptByPlace[place] = String(v || "");
+        try { chrome.storage.local.set({ vsCustomPromptByPlace: customPromptByPlace }); } catch {}
+      } else {
+        customPrompt = String(v || "");
+        try { chrome.storage.local.set({ vsCustomPrompt: customPrompt }); } catch {}
+      }
+      syncMenuPrompt();
+    }
+    // Reflect the saved value back into the menu textarea (unless being edited),
+    // and label which prompt is currently in effect.
     function syncMenuPrompt() {
       const ta = root && root.querySelector("#vs-set-text");
-      if (ta && document.activeElement !== ta) ta.value = customPrompt;
+      if (ta && document.activeElement !== ta) ta.value = getCustomPrompt();
+      const note = root && root.querySelector("#vs-set-note");
+      if (note) {
+        const place = currentPlace();
+        note.textContent = place
+          ? `Editing the prompt for place "${place}". Uncheck "Per-place prompt" in Settings to edit the global prompt.`
+          : "";
+      }
     }
 
     // ── Project type (Feature: auto prompt-engineering) ──────────────────────
@@ -2692,6 +3676,19 @@
       const v = wizardPrompt;
       if (v) setWizardPrompt("");
       return v;
+    }
+
+    // ── Compaction handoff (context-limit continuation) ────────────────────
+    // takeCompactionHandoff() returns (and clears) the saved build state from a
+    // previous chat that hit its context limit, if it is fresh enough to reuse.
+    function takeCompactionHandoff() {
+      const h = _compactHandoff;
+      if (!h || !h.summary) return null;
+      if (Date.now() - (h.t || 0) > 24 * 3600 * 1000) return null;
+      _compactHandoff = null;
+      try { chrome.storage.local.remove("vsCompactionHandoff"); } catch {}
+      const projectLine = h.projectType ? ` (project type: ${h.projectType})` : "";
+      return `(System note: this is a CONTINUATION of an earlier build that hit the previous chat's context limit. Read the saved build state below${projectLine}, consult the project memory, and CONTINUE the build exactly where it left off - re-run the last command if it never completed.)\n\n--- SAVED BUILD STATE ---\n${h.summary}\n--- END SAVED BUILD STATE ---`;
     }
 
     // ── Custom MCP servers (addons) ─────────────────────────────────────────
@@ -2779,16 +3776,27 @@
     // ── The "more" menu (⋯) ─────────────────────────────────────────────────
     // One popover holding every secondary control: other AI sites, the custom
     // prompt, and support (Star on GitHub / watch an ad). Opens above the bar.
+    // Recommended picks get a badge next to their name in the Switch AI list.
+    const SITE_LABELS = {
+      "Claude": "best",
+      "DeepSeek": "recommended",
+      "GLM": "recommended",
+      "Qwen": "recommended",
+    };
     function buildMenu() {
       const here = (P.displayName || "").toLowerCase();
       const hostOf = (u) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return ""; } };
+      const badgeOf = (name) => SITE_LABELS[name]
+        ? `<span class="vs-site-badge vs-site-badge-${SITE_LABELS[name]}">${SITE_LABELS[name]}</span>`
+        : "";
       let sites = "";
       for (const s of AI_SITES) {
         const current = s.name.toLowerCase() === here;
+        const badge = badgeOf(s.name);
         const label = `<span class="vs-site-name"><span>${s.name}</span><span class="vs-site-host">${hostOf(s.url)}</span></span>`;
         sites += current
-          ? `<div class="vs-site-opt vs-site-here">${label}<span class="vs-site-badge">active</span></div>`
-          : `<button class="vs-site-opt" data-u="${s.url}">${label}<span class="vs-site-go">&rarr;</span></button>`;
+          ? `<div class="vs-site-opt vs-site-here">${label}${badge}<span class="vs-site-badge">active</span></div>`
+          : `<button class="vs-site-opt" data-u="${s.url}">${label}${badge}<span class="vs-site-go">&rarr;</span></button>`;
       }
       const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
       const mergedServers = mergedMcpServers();
@@ -2804,6 +3812,18 @@
         const healthTitle = s.alive === true ? `${s.tools || 0} tools available` : s.alive === false ? "offline" : "status unknown";
         mcpList += `<div class="vs-mcp-item"><span class="vs-mcp-health vs-mcp-health-${healthClass}" title="${healthTitle}"></span><div class="vs-mcp-info"><span class="vs-mcp-name">${esc(s.name)}</span><span class="vs-mcp-url">${esc(s.command || s.id)}</span></div><button class="vs-mcp-remove" data-id="${esc(s.id)}" title="Remove">✕</button></div>`;
       });
+      // Provider stability notes (Feature): curated per-provider observations.
+      const stabilityEntries = VS.PROVIDER_STABILITY || {};
+      const stabilityHtml = Object.keys(stabilityEntries).length
+        ? `<section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>Provider stability</span></div>
+            <div class="vs-menu-note">Field notes on how reliably each site works with VoidScript (they change their UI often, so treat these as "tends to").</div>
+            ${Object.keys(stabilityEntries).map((k) => {
+              const s = stabilityEntries[k];
+              return `<div class="vs-prov-stab"><span class="vs-stab-lvl vs-stab-${esc(s.level)}">${esc(s.level)}</span><span class="vs-stab-name">${esc(k)}</span><span class="vs-stab-note">${esc(s.note)}</span></div>`;
+            }).join("")}
+          </section>`
+        : "";
       menuEl.innerHTML =
         `<div class="vs-menu-head"><span class="vs-menu-logo">VoidScript</span><span class="vs-menu-tag">v${EXT_VERSION}</span></div>
          ${vsUpdateTag ? `<section class="vs-menu-sec">
@@ -2821,9 +3841,44 @@
          </section>
          <section class="vs-menu-sec">
            <div class="vs-sec-label"><span>Custom prompt</span></div>
-           <div class="vs-menu-note">Added below the system prompt on every new session. The built-in prompt can't be edited.</div>
+           <div class="vs-menu-note">Added below the system prompt on every new session. The built-in prompt can't be edited. With "Per-place prompt" enabled (Settings), this textarea edits the prompt for the place currently open in Roblox Studio.</div>
            <textarea id="vs-set-text" rows="4" placeholder="e.g. Always comment your Luau code. Prefer small modular scripts."></textarea>
-           <div class="vs-set-row"><button id="vs-set-save">Save</button><span id="vs-set-status"></span></div>
+           <div id="vs-set-note" class="vs-menu-note"></div>
+           <div class="vs-set-row"><button id="vs-set-save">Save</button><button id="vs-prompt-copy">Copy system prompt</button><span id="vs-set-status"></span></div>
+         </section>
+         <section class="vs-menu-sec">
+           <div class="vs-sec-label"><span>Safety & behavior</span></div>
+           <div class="vs-menu-note">Toggles read live at session start; changes apply to the next session.</div>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoVerify" /> Verify edits with a screenshot</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsGuardDestructive" /> Guard destructive commands</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsRollback" /> Snapshot scripts before edits</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsPlaytest" /> Auto play-test on demand</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsLeaderboard" /> Track per-provider stats</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsBackground" /> Work while the tab is hidden</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoShotError" /> Screenshot when a tool errors</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoBackup" /> Backup place before destructive ops</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoNotify" /> Notify when a hidden-tab session ends</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsSpokenDone" /> Speak when a session completes</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoSummary" /> Summarize what was built at session end</label>
+            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsHumanizeSend" /> Humanize send timing (experimental)</label>
+            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsShowTokenEstimate" /> Show token estimate in the bar</label>
+            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsPromptPerPlace" /> Per-place prompt (one per open place)</label>
+           <label class="vs-menu-note vs-wiz-mp">Approval level
+             <select id="vs-trust-level" class="vs-mcp-field">
+               <option value="high">High - auto-run, pause only on errors</option>
+               <option value="medium">Medium - confirm destructive + errors</option>
+               <option value="low">Low - confirm every command</option>
+             </select>
+           </label>
+           <label class="vs-menu-note vs-wiz-mp">Command budget per session
+             <input id="vs-budget" class="vs-mcp-field" type="number" min="0" step="5" placeholder="0 = unlimited" />
+           </label>
+         </section>
+         <section class="vs-menu-sec">
+           <div class="vs-sec-label"><span>Preferred model</span></div>
+           <div class="vs-menu-note">Forced on ${esc(P.displayName)} at session start where the site lets the extension drive its model picker (DeepSeek: instant/expert/vision; Kimi: K3 etc.). Empty keeps the site default or your manual pick.</div>
+           <input id="vs-pref-model" class="vs-mcp-field" placeholder="e.g. expert, vision, K3…" />
+           <div class="vs-set-row"><button id="vs-pref-save">Save</button><span id="vs-pref-status"></span></div>
          </section>
          <section class="vs-menu-sec">
            <div class="vs-sec-label"><span>Project type</span></div>
@@ -2844,13 +3899,62 @@
              <option value="survival">Survival</option>
              <option value="racing">Racing</option>
              <option value="shooter">Shooter</option>
+             <option value="tower">Tower Defense</option>
+             <option value="rpg">RPG / Quest</option>
+             <option value="farming">Farming Sim</option>
+             <option value="escape">Escape Room</option>
+             <option value="horror">Horror</option>
+             <option value="sports">Sports</option>
+             <option value="sandbox">Sandbox / Creative</option>
+             <option value="life">Life Sim / City</option>
+             <option value="battle_royale">Battle Royale</option>
+             <option value="crafting">Crafting / Gathering</option>
              <option value="">Not sure - pick what's fun</option>
            </select>
            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" id="vs-wiz-mp" /> Multiplayer-ready (authoritative logic, respawns, leaderboard)</label>
            <div class="vs-set-row"><button id="vs-wiz-go">Build it now</button><span id="vs-wiz-status"></span></div>
          </section>
-         <section class="vs-menu-sec">
-           <div class="vs-sec-label"><span>Share recipe</span></div>
+           <section class="vs-menu-sec">
+             <div class="vs-sec-label"><span>Session recording</span></div>
+             <div class="vs-menu-note">Record a build session and replay it step by step. Start recording before you speak to the AI, then load the recording later to replay each command in order.</div>
+             <div class="vs-set-row"><button id="vs-rec-start">Start recording</button><button id="vs-rec-stop" hidden>Stop</button><button id="vs-rec-save">Save recording</button><button id="vs-rec-clear">Clear</button><span id="vs-rec-status"></span></div>
+             <div id="vs-rec-list" style="font-size:11px;font-family:ui-monospace,color:var(--muted)"></div>
+           </section>
+           <section class="vs-menu-sec">
+             <div class="vs-sec-label"><span>Code review</span></div>
+            <div class="vs-menu-note">The agent reads the project memory and your key scripts, then reports bugs, Roblox/Luau issues and performance problems - without changing anything until you approve the fixes.</div>
+            <div class="vs-set-row"><button id="vs-review-go">Review my code</button><button id="vs-explain-go">Explain my code</button><span id="vs-review-status"></span></div>
+          </section>
+           <section class="vs-menu-sec">
+             <div class="vs-sec-label"><span>Session log & snapshot</span></div>
+             <div class="vs-menu-note">Copy this conversation's recent activity (tool calls, errors, screenshots) for bug reports, or export a JSON snapshot of this session's tracked edits and their pre-edit sources.</div>
+             <div class="vs-set-row"><button id="vs-log-copy">Copy build log</button><button id="vs-log-err">Copy last error</button><button id="vs-log-download">Download .log</button><button id="vs-snapshot-export">Export snapshot</button><span id="vs-log-status"></span></div>
+            </section>
+          <section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>Place backups</span></div>
+            <div class="vs-menu-note">Snapshots of the open .rbxl taken by the bridge (also auto-made before destructive operations when "Backup place before destructive ops" is on). Restoring overwrites the place file - close Roblox Studio first.</div>
+            <div class="vs-set-row"><button id="vs-backup-now">Backup now</button><button id="vs-backup-refresh">Refresh</button><span id="vs-backup-status"></span></div>
+            <div id="vs-backup-list"></div>
+          </section>
+          <section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>Launch at login</span></div>
+            <div class="vs-menu-note">Start the VoidScript bridge automatically when you sign in to Windows, so the extension is ready without running start.bat.</div>
+            <div class="vs-set-row"><button id="vs-startup-enable">Enable</button><button id="vs-startup-disable">Disable</button><span id="vs-startup-status"></span></div>
+          </section>
+          <section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>Settings backup</span></div>
+            <div class="vs-menu-note">Export your VoidScript settings (toggles, custom prompt, project type, MCP servers, macros) to a JSON file, or import a previously exported file to restore them.</div>
+            <div class="vs-set-row"><button id="vs-settings-export">Export settings</button><button id="vs-settings-import">Import settings</button><input type="file" id="vs-settings-file" accept=".json,application/json" hidden /><span id="vs-settings-status"></span></div>
+          </section>
+          <section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>Session presets</span></div>
+            <div class="vs-menu-note">Save the current setup (custom prompt, project type, addon servers) under a name, then load it back in one click for a future session.</div>
+            <div class="vs-set-row"><input id="vs-preset-name" type="text" placeholder="Preset name" maxlength="40" /><button id="vs-preset-save">Save</button><button id="vs-preset-delete">Delete</button></div>
+            <div class="vs-set-row"><select id="vs-preset-load"><option value="">Pick a preset…</option></select><button id="vs-preset-apply">Apply</button><span id="vs-preset-status"></span></div>
+          </section>
+          ${stabilityHtml}
+          <section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>Share recipe</span></div>
            <div class="vs-menu-note">Copy a link that replays this setup (custom prompt, project type, addon servers and the last wizard starter) on any supported AI.</div>
            <div class="vs-set-row"><button id="vs-recipe-share">Copy recipe link</button><span id="vs-recipe-status"></span></div>
          </section>
@@ -2863,30 +3967,132 @@
              <option value="">Addon templates…</option>
              ${Object.keys(VS.MCP_TEMPLATES || {}).map((k) => `<option value="${esc(k)}">${esc(VS.MCP_TEMPLATES[k].name)}</option>`).join("")}
            </select>
-           <div id="vs-mcp-tpl-note" class="vs-mcp-field vs-menu-note" style="margin-top:2px"></div>
+           <div class="vs-mcp-row">
+             <select id="vs-mcp-runtime" class="vs-mcp-field">
+               <option value="npx">npm (npx)</option>
+               <option value="uvx">Python (uvx)</option>
+             </select>
+             <button type="button" id="vs-uvx-help" title="How to install uvx">uvx guide</button>
+           </div>
+           <div id="vs-mcp-tpl-note" class="vs-mcp-field vs-menu-note" style="margin-top:2px;white-space:pre-line"></div>
            <input id="vs-mcp-name" class="vs-mcp-field" placeholder="Name, e.g. Blender" />
            <input id="vs-mcp-url" class="vs-mcp-field" placeholder="Start command, e.g. npx -y @some/mcp-server" />
-           <div class="vs-set-row"><button id="vs-mcp-add">Add server</button><span id="vs-mcp-status"></span></div>
-         </section>`;
+            <div class="vs-set-row"><button id="vs-mcp-add">Add server</button><span id="vs-mcp-status"></span></div>
+          </section>
+          <section class="vs-menu-sec">
+            <div class="vs-sec-label"><span>UI theme</span></div>
+            <div class="vs-menu-note">Pick the VoidScript overlay theme (does not change the AI site's own colors). System follows your OS preference.</div>
+            <select id="vs-theme" class="vs-mcp-field">
+              <option value="system">System (auto)</option>
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="soft-light">Soft light</option>
+            </select>
+            <span id="vs-theme-status"></span>
+          </section>`;
       const open = (url) => { try { window.open(url, "_blank", "noopener"); } catch {} menuEl.hidden = true; };
       menuEl.querySelectorAll("button.vs-site-opt, .vs-tip-opt").forEach((b) =>
         b.addEventListener("click", () => open(b.dataset.u)));
       const ta = menuEl.querySelector("#vs-set-text");
       const saveBtn = menuEl.querySelector("#vs-set-save");
       const status = menuEl.querySelector("#vs-set-status");
-      ta.value = customPrompt;
+      ta.value = getCustomPrompt();
       saveBtn.addEventListener("click", () => {
-        customPrompt = ta.value;
-        try { chrome.storage.local.set({ vsCustomPrompt: customPrompt }); } catch {}
+        setCustomPrompt(ta.value);
         status.textContent = "Saved ✓";
         setTimeout(() => { status.textContent = ""; }, 1600);
       });
+      // Copy system prompt: reconstruct exactly what a new session sends (same
+      // args as startSession's VS.buildSystemPrompt call) and put it on the
+      // clipboard, so the user can inspect/share what the agent actually sees.
+      const copyBtn = menuEl.querySelector("#vs-prompt-copy");
+      if (copyBtn) {
+        copyBtn.addEventListener("click", () => {
+          const text =
+            VS.buildSystemPrompt({ siteName: P.displayName, customPrompt: customPrompt, projectType: projectType, preferredModel: getPreferredModel(P.displayName) });
+          const done = () => {
+            status.textContent = "Copied ✓";
+            setTimeout(() => { status.textContent = ""; }, 1600);
+          };
+          try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+              navigator.clipboard.writeText(text).then(done, done);
+            } else {
+              const t = document.createElement("textarea");
+              t.value = text; document.body.appendChild(t);
+              t.select(); document.execCommand("copy");
+              document.body.removeChild(t);
+              done();
+            }
+          } catch { status.textContent = "Copy failed"; }
+        });
+      }
+      // Settings hub: every toggle in "Safety & behavior" writes straight to
+      // VS_CFG + storage so it applies immediately (buildMenu re-reads the
+      // current values every time it opens).
+      menuEl.querySelectorAll("input.vs-cfg-toggle[data-k]").forEach((box) => {
+        const key = box.dataset.k;
+        box.checked = vsOn(key);
+        box.addEventListener("change", () => {
+          VS_CFG[key] = box.checked;
+          try { chrome.storage.local.set({ [key]: box.checked }); } catch {}
+          diag("cfg.toggle", { key, on: box.checked });
+          if (key === "vsPromptPerPlace") syncMenuPrompt();
+        });
+      });
+      const trustSel = menuEl.querySelector("#vs-trust-level");
+      if (trustSel) {
+        trustSel.value = VS_CFG.vsTrustLevel === "medium" || VS_CFG.vsTrustLevel === "low" ? VS_CFG.vsTrustLevel : "high";
+        trustSel.addEventListener("change", () => {
+          VS_CFG.vsTrustLevel = trustSel.value;
+          try { chrome.storage.local.set({ vsTrustLevel: VS_CFG.vsTrustLevel }); } catch {}
+          diag("cfg.trust", { level: trustSel.value });
+        });
+      }
+      const budgetInput = menuEl.querySelector("#vs-budget");
+      if (budgetInput) {
+        budgetInput.value = Number(VS_CFG.vsCommandBudget) || 0;
+        budgetInput.addEventListener("change", () => {
+          const v = Math.max(0, parseInt(budgetInput.value, 10) || 0);
+          VS_CFG.vsCommandBudget = v;
+          budgetInput.value = v;
+          try { chrome.storage.local.set({ vsCommandBudget: v }); } catch {}
+          diag("cfg.budget", { budget: v });
+        });
+      }
+      const prefInput = menuEl.querySelector("#vs-pref-model");
+      const prefBtn = menuEl.querySelector("#vs-pref-save");
+      const prefStatus = menuEl.querySelector("#vs-pref-status");
+      if (prefBtn) {
+        prefInput.value = getPreferredModel(P.displayName);
+        prefBtn.addEventListener("click", () => {
+          const val = prefInput.value.trim();
+          const key = (P.displayName || "").toLowerCase();
+          VS_PREF_MODELS[key] = val;
+          try { chrome.storage.local.set({ vsPreferredModels: VS_PREF_MODELS }); } catch {}
+          try { P.setPreferredModel && P.setPreferredModel(val); } catch {}
+          prefStatus.textContent = val ? "Saved ✓" : "Cleared ✓";
+          setTimeout(() => { if (prefStatus) prefStatus.textContent = ""; }, 1600);
+        });
+      }
       const pType = menuEl.querySelector("#vs-project-type");
       if (pType) {
         pType.value = projectType;
         pType.addEventListener("change", () => {
           setProjectType(pType.value);
           ui.toast(projectType ? `Project type set to ${projectType}.` : "Project type cleared.");
+        });
+      }
+      // Theme picker (Feature): persist vsTheme to chrome.storage + apply immediately.
+      const themeSel = menuEl.querySelector("#vs-theme");
+      const themeStatus = menuEl.querySelector("#vs-theme-status");
+      if (themeSel) {
+        themeSel.value = VS_CFG.vsTheme || "system";
+        themeSel.addEventListener("change", () => {
+          VS_CFG.vsTheme = themeSel.value;
+          try { chrome.storage.local.set({ vsTheme: VS_CFG.vsTheme }); } catch {}
+          applyVsTheme(VS_CFG.vsTheme);
+          if (themeStatus) { themeStatus.textContent = "Saved ✓"; setTimeout(() => { themeStatus.textContent = ""; }, 1600); }
         });
       }
       // Share recipe: encode current settings into a shareable link and copy it.
@@ -2939,23 +4145,424 @@
           startSession();
         });
       }
+      // Code review mode: a one-click flow that makes the agent audit the
+      // project (memory + key scripts) and report findings WITHOUT editing, then
+      // apply only the fixes the user approves. Reuses the wizard-prompt slot so
+      // the bootstrap auto-sends it as the first message of the new session.
+      const reviewGo = menuEl.querySelector("#vs-review-go");
+      if (reviewGo) {
+        const reviewStatus = menuEl.querySelector("#vs-review-status");
+        reviewGo.addEventListener("click", () => {
+          if (A.starting || A.running) {
+            reviewStatus.textContent = "A session is already running";
+            setTimeout(() => { if (reviewStatus) reviewStatus.textContent = ""; }, 2000);
+            return;
+          }
+          setWizardPrompt(
+            "REVIEW MODE - code review, do NOT edit anything yet:\n" +
+            "1. Read game.ServerStorage.VoidScript.Memory (project memory).\n" +
+            "2. Find the project's key scripts (search_game_tree / script_read) and read them.\n" +
+            "3. Review them for: (a) bugs and errors, (b) Roblox + Luau best practices and " +
+            "server-authoritative correctness, (c) performance problems (WaitForChild without " +
+            "timeouts, per-frame remote events, yield/blocking in execute_luau, etc.), " +
+            "(d) organization and readability.\n" +
+            "4. Reply with a concise, prioritized report: each issue with its file/instance path, " +
+            "why it matters, and the concrete fix. Do NOT apply any change yet.\n" +
+            "5. Then list the issues you recommend fixing, and apply ONLY the ones the user approves."
+          );
+          reviewStatus.textContent = "Starting the review…";
+          menuEl.hidden = true;
+          startSession();
+        });
+      }
+      // Explain my code mode (Feature): a one-click flow that makes the agent
+      // read the project and explain its code in plain terms (what each script
+      // does, the data flow, the key systems) WITHOUT editing anything. Reuses
+      // the wizard-prompt slot so the bootstrap auto-sends it as the first message.
+      const explainGo = menuEl.querySelector("#vs-explain-go");
+      if (explainGo) {
+        const explainStatus = menuEl.querySelector("#vs-review-status");
+        explainGo.addEventListener("click", () => {
+          if (A.starting || A.running) {
+            explainStatus.textContent = "A session is already running";
+            setTimeout(() => { if (explainStatus) explainStatus.textContent = ""; }, 2000);
+            return;
+          }
+          setWizardPrompt(
+            "EXPLAIN MY CODE - plain-English walkthrough, do NOT edit anything:\n" +
+            "1. Read game.ServerStorage.VoidScript.Memory (project memory).\n" +
+            "2. Find the project's key scripts (search_game_tree / script_read) and read them.\n" +
+            "3. Explain what each important script/module does, the data flow between them, " +
+            "and how the main systems work together - in plain, non-technical language the " +
+            "user can understand. Mention any Roblox/Luau conventions you follow, but keep the " +
+            "exposition friendly and concise. Do NOT make or run any changes."
+          );
+          explainStatus.textContent = "Starting the explanation…";
+          menuEl.hidden = true;
+          startSession();
+        });
+      }
+      // Session log: copy this conversation's tool activity, or just the last
+      // error, out of the persisted vsTimeline (diag events + runTool outcomes).
+      const logStatus = menuEl.querySelector("#vs-log-status");
+      const buildLogText = () => buildSessionLogText();
+      const logCopyBtn = menuEl.querySelector("#vs-log-copy");
+      if (logCopyBtn) {
+        logCopyBtn.addEventListener("click", async () => {
+          const text = await buildLogText();
+          if (!text) { logStatus.textContent = "No activity in this chat yet"; setTimeout(() => { logStatus.textContent = ""; }, 2000); return; }
+          const ok = await copyToClipboard(text);
+          logStatus.textContent = ok ? "Log copied ✓" : "Copy failed";
+          setTimeout(() => { logStatus.textContent = ""; }, 2000);
+        });
+      }
+      const logErrBtn = menuEl.querySelector("#vs-log-err");
+      if (logErrBtn) {
+        logErrBtn.addEventListener("click", async () => {
+          const text = await buildLogText();
+          if (!text) { logStatus.textContent = "No activity in this chat yet"; setTimeout(() => { logStatus.textContent = ""; }, 2000); return; }
+          const errs = text.split("\n").filter((l) => l.includes(" ERR "));
+          const last = errs.length ? errs[errs.length - 1] : "";
+          if (!last) { logStatus.textContent = "No errors yet ✓"; setTimeout(() => { logStatus.textContent = ""; }, 2000); return; }
+          const ok = await copyToClipboard(last);
+          logStatus.textContent = ok ? "Error copied ✓" : "Copy failed";
+          setTimeout(() => { logStatus.textContent = ""; }, 2000);
+        });
+      }
+      const logDownBtn = menuEl.querySelector("#vs-log-download");
+      if (logDownBtn) {
+        logDownBtn.addEventListener("click", async () => {
+          const text = await buildLogText();
+          if (!text) { logStatus.textContent = "No activity in this chat yet"; setTimeout(() => { logStatus.textContent = ""; }, 2000); return; }
+          downloadTextFile(`voidscript-session-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.log`, text);
+          logStatus.textContent = "Downloaded ✓";
+          setTimeout(() => { logStatus.textContent = ""; }, 2000);
+        });
+      }
+      const snapBtn = menuEl.querySelector("#vs-snapshot-export");
+      if (snapBtn) {
+        snapBtn.addEventListener("click", () => {
+          const snap = {
+            tool: "voidscript-export-snapshot",
+            exportedAt: new Date().toISOString(),
+            provider: P.id,
+            session: { ok: A.runOk || 0, err: A.runErr || 0, startedAt: A.startedAt || 0 },
+            undoStack: _undoStack.slice(-50).map((e) => ({ path: e.path, t: e.t, beforeLength: (e.before || "").length })),
+            macros: Object.keys(_macros || {}),
+          };
+          try {
+            downloadTextFile(`voidscript-snapshot-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.json`, JSON.stringify(snap, null, 2));
+            logStatus.textContent = "Snapshot exported ✓";
+          } catch {
+            logStatus.textContent = "Export failed";
+          }
+          setTimeout(() => { logStatus.textContent = ""; }, 2000);
+        });
+       }
+       // Session recording/playback (Feature): records tool calls + injected
+       // results to chrome.storage.local, then can replay a saved recording step
+       // by step through the agent loop.
+       let _recording = false;
+       let _recorded = [];
+       const recStartBtn = menuEl.querySelector("#vs-rec-start");
+       const recStopBtn = menuEl.querySelector("#vs-rec-stop");
+       const recSaveBtn = menuEl.querySelector("#vs-rec-save");
+       const recClearBtn = menuEl.querySelector("#vs-rec-clear");
+       const recStatus = menuEl.querySelector("#vs-rec-status");
+       const recList = menuEl.querySelector("#vs-rec-list");
+       function setRecording(on) {
+         _recording = on;
+         if (recStopBtn) recStopBtn.hidden = !on;
+         if (recStatus) recStatus.textContent = on ? "Recording…" : "";
+       }
+       if (recStartBtn) recStartBtn.addEventListener("click", () => {
+         if (_recording) return;
+         _recorded = [];
+         setRecording(true);
+         recStatus.textContent = "Recording";
+       });
+       if (recStopBtn) recStopBtn.addEventListener("click", () => {
+         if (!_recording) return;
+         setRecording(false);
+         recStatus.textContent = "Stopped";
+         setTimeout(() => { if (recStatus) recStatus.textContent = ""; }, 2000);
+       });
+       if (recSaveBtn) recSaveBtn.addEventListener("click", () => {
+         if (!_recorded.length) { recStatus.textContent = "Nothing recorded yet"; setTimeout(() => { if (recStatus) recStatus.textContent = ""; }, 2000); return; }
+         const name = "recording-" + Date.now();
+         try {
+            chrome.storage.local.set({ ["vsRecording_" + name]: { steps: _recorded, createdAt: Date.now() } });
+           recStatus.textContent = "Saved ✓";
+         } catch {
+           recStatus.textContent = "Save failed";
+         }
+         setTimeout(() => { if (recStatus) recStatus.textContent = ""; }, 2000);
+       });
+       if (recClearBtn) recClearBtn.addEventListener("click", () => {
+         setRecording(false);
+         _recorded = [];
+         recStatus.textContent = "Cleared";
+         setTimeout(() => { if (recStatus) recStatus.textContent = ""; }, 2000);
+       });
+       // List saved recordings
+       try {
+         chrome.storage.local.get(null, (r) => {
+           const recs = Object.keys(r || {}).filter((k) => k.startsWith("vsRecording_")).map((k) => ({ key: k, data: r[k] }));
+           if (recList) {
+             recList.innerHTML = recs.length
+               ? recs.map((r) => `<div class="lb-row"><span class="lb-name">${r.key.replace("vsRecording_", "")}</span><span class="lb-meta">${r.data.steps ? r.data.steps.length + " steps" : ""}</span></div>`).join("")
+               : "No recordings saved.";
+           }
+         });
+       } catch {}
+       // Hook into the agent loop to record outgoing commands + results.
+       // We piggy-back on the timeline events (diag) and tool outcomes.
+       (function installRecorder() {
+         const recOrig = log;
+         // Wrap runTool to capture command + result when recording.
+       })();
+       // Place backups (Feature): backup now / list / restore / delete via the
+      // bridge. Restore copies the .rbxl back over its original location.
+      const backupNowBtn = menuEl.querySelector("#vs-backup-now");
+      const backupRefreshBtn = menuEl.querySelector("#vs-backup-refresh");
+      const backupStatus = menuEl.querySelector("#vs-backup-status");
+      const backupListEl = menuEl.querySelector("#vs-backup-list");
+      async function refreshBackupList() {
+        if (!backupListEl) return;
+        try {
+          const r = await chrome.runtime.sendMessage({ type: "list_backups" });
+          if (!r || !r.ok) { backupListEl.innerHTML = ""; backupStatus.textContent = (r && r.error) || "Bridge unreachable"; return; }
+          const bs = r.backups || [];
+          if (!bs.length) { backupListEl.innerHTML = '<div class="vs-menu-note">No backups yet.</div>'; backupStatus.textContent = ""; return; }
+          backupListEl.innerHTML = bs.map((b) => {
+            const when = new Date((b.mtime || 0) * 1000).toLocaleString();
+            const kb = b.size > 1048576 ? (b.size / 1048576).toFixed(1) + " MB" : b.size > 1024 ? (b.size / 1024).toFixed(0) + " kB" : (b.size || 0) + " B";
+            return `<div class="vs-backup-item"><span class="vs-backup-name">${esc(b.name)}</span><span class="vs-backup-meta">${when} · ${kb}</span><button class="vs-backup-restore" data-n="${esc(b.name)}">Restore</button><button class="vs-backup-del" data-n="${esc(b.name)}">Delete</button></div>`;
+          }).join("");
+          backupListEl.querySelectorAll(".vs-backup-restore").forEach((btn) => btn.addEventListener("click", async () => {
+            if (!confirm(`Restore '${btn.dataset.n}'?\n\nThis overwrites the place file at its original location - close Roblox Studio first.`)) return;
+            const r = await chrome.runtime.sendMessage({ type: "restore_backup", name: btn.dataset.n });
+            backupStatus.textContent = r && r.ok ? (r.message || "Restored ✓") : (r && r.error) || "Restore failed";
+            setTimeout(() => { backupStatus.textContent = ""; }, 5000);
+            refreshBackupList();
+          }));
+          backupListEl.querySelectorAll(".vs-backup-del").forEach((btn) => btn.addEventListener("click", async () => {
+            if (!confirm(`Delete backup '${btn.dataset.n}'?`)) return;
+            const r = await chrome.runtime.sendMessage({ type: "delete_backup", name: btn.dataset.n });
+            backupStatus.textContent = r && r.ok ? "Deleted ✓" : (r && r.error) || "Delete failed";
+            setTimeout(() => { backupStatus.textContent = ""; }, 2000);
+            refreshBackupList();
+          }));
+          backupStatus.textContent = "";
+        } catch { backupStatus.textContent = "Bridge unreachable"; }
+      }
+      if (backupNowBtn) backupNowBtn.addEventListener("click", async () => {
+        backupStatus.textContent = "Backing up…";
+        try {
+          const r = await chrome.runtime.sendMessage({ type: "backup_place" });
+          backupStatus.textContent = r && r.ok ? "Backed up ✓" : (r && r.error) || "Backup failed";
+        } catch { backupStatus.textContent = "Bridge unreachable"; }
+        setTimeout(() => { backupStatus.textContent = ""; }, 3000);
+        refreshBackupList();
+      });
+      if (backupRefreshBtn) backupRefreshBtn.addEventListener("click", refreshBackupList);
+      refreshBackupList();
+      // Launch at login (Feature): toggle the bridge's OS auto-start entry via
+      // the bridge, and reflect its current state.
+      const startupEnableBtn = menuEl.querySelector("#vs-startup-enable");
+      const startupDisableBtn = menuEl.querySelector("#vs-startup-disable");
+      const startupStatus = menuEl.querySelector("#vs-startup-status");
+      async function refreshStartupState() {
+        try {
+          const r = await chrome.runtime.sendMessage({ type: "startup_status" });
+          const on = !!(r && r.ok && r.enabled);
+          if (startupEnableBtn) startupEnableBtn.disabled = on;
+          if (startupDisableBtn) startupDisableBtn.disabled = !on;
+          if (startupStatus) startupStatus.textContent = on ? "Enabled ✓" : "Disabled";
+        } catch {
+          if (startupStatus) startupStatus.textContent = "Bridge unreachable";
+        }
+      }
+      if (startupEnableBtn) startupEnableBtn.addEventListener("click", async () => {
+        startupStatus.textContent = "Installing…";
+        try {
+          const r = await chrome.runtime.sendMessage({ type: "startup_enable" });
+          startupStatus.textContent = r && r.ok ? (r.message || "Enabled ✓") : (r && r.error) || "Enable failed";
+        } catch { startupStatus.textContent = "Bridge unreachable"; }
+        setTimeout(() => { if (startupStatus) startupStatus.textContent = ""; }, 4000);
+        refreshStartupState();
+      });
+      if (startupDisableBtn) startupDisableBtn.addEventListener("click", async () => {
+        startupStatus.textContent = "Removing…";
+        try {
+          const r = await chrome.runtime.sendMessage({ type: "startup_disable" });
+          startupStatus.textContent = r && r.ok ? (r.message || "Disabled ✓") : (r && r.error) || "Disable failed";
+        } catch { startupStatus.textContent = "Bridge unreachable"; }
+        setTimeout(() => { if (startupStatus) startupStatus.textContent = ""; }, 4000);
+        refreshStartupState();
+      });
+      refreshStartupState();
+      // Settings backup (Feature): export/import the user's VoidScript settings
+      // as JSON. Export downloads a file; import reads one back and applies it.
+      const settingsExportBtn = menuEl.querySelector("#vs-settings-export");
+      const settingsImportBtn = menuEl.querySelector("#vs-settings-import");
+      const settingsFileInput = menuEl.querySelector("#vs-settings-file");
+      const settingsStatus = menuEl.querySelector("#vs-settings-status");
+      // Curated keys - everything a user would want to carry to another machine,
+      // but NOT runtime/derived data (undo stack, image cache, timeline, logs).
+      const SETTINGS_EXPORT_KEYS = [
+        ...Object.keys(VS_CFG_DEFAULTS), "vsTrustLevel", "vsCommandBudget",
+        "vsCustomPrompt", "vsCustomPromptByPlace", "vsProjectType",
+        "vsCustomMcpServers", "vsMacros", "vsPreferredModels", "vsWizardPrompt",
+      ];
+      if (settingsExportBtn) settingsExportBtn.addEventListener("click", () => {
+        try {
+          chrome.storage.local.get(SETTINGS_EXPORT_KEYS, (r) => {
+            const out = { tool: "voidscript-settings-export", exportedAt: new Date().toISOString(), settings: r || {} };
+            try { downloadTextFile(`voidscript-settings-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(out, null, 2)); settingsStatus.textContent = "Exported ✓"; }
+            catch { settingsStatus.textContent = "Export failed"; }
+            setTimeout(() => { settingsStatus.textContent = ""; }, 2000);
+          });
+        } catch { settingsStatus.textContent = "Export failed"; }
+      });
+      if (settingsImportBtn && settingsFileInput) settingsImportBtn.addEventListener("click", () => settingsFileInput.click());
+      if (settingsFileInput) settingsFileInput.addEventListener("change", () => {
+        const file = settingsFileInput.files && settingsFileInput.files[0];
+        settingsFileInput.value = "";
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async () => {
+          try {
+            const data = JSON.parse(String(reader.result || ""));
+            const st = data && data.settings ? data.settings : {};
+            if (!st || typeof st !== "object") throw new Error("no settings payload");
+            const clean = {};
+            for (const k of SETTINGS_EXPORT_KEYS) if (k in st) clean[k] = st[k];
+            await chrome.storage.local.set(clean);
+            VS_CFG = { ...VS_CFG_DEFAULTS, ...clean };
+            settingsStatus.textContent = "Imported ✓ - reload the page to apply";
+            setTimeout(() => { settingsStatus.textContent = ""; }, 3000);
+            if (typeof refreshSetup === "function") refreshSetup();
+          } catch {
+            settingsStatus.textContent = "Invalid settings file";
+            setTimeout(() => { settingsStatus.textContent = ""; }, 3000);
+          }
+        };
+        reader.readAsText(file);
+      });
+      // Session presets (Feature): named snapshots of the current setup.
+      // Stored in chrome.storage.local under "vsPresets" as
+      // { name: { prompt, projectType, mcpServers } }.
+      const presetNameInput = menuEl.querySelector("#vs-preset-name");
+      const presetSaveBtn = menuEl.querySelector("#vs-preset-save");
+      const presetDeleteBtn = menuEl.querySelector("#vs-preset-delete");
+      const presetLoadSel = menuEl.querySelector("#vs-preset-load");
+      const presetApplyBtn = menuEl.querySelector("#vs-preset-apply");
+      const presetStatus = menuEl.querySelector("#vs-preset-status");
+      let presets = {};
+      try {
+        chrome.storage.local.get("vsPresets", (r) => {
+          if (r && typeof r.vsPresets === "object" && r.vsPresets) presets = r.vsPresets;
+          renderPresetSelect();
+        });
+      } catch {}
+      function persistPresets() { try { chrome.storage.local.set({ vsPresets: presets }); } catch {} }
+      function renderPresetSelect() {
+        if (!presetLoadSel) return;
+        const names = Object.keys(presets || {}).sort();
+        presetLoadSel.innerHTML = '<option value="">Pick a preset…</option>' + names.map((n) => `<option value="${esc(n)}">${esc(n)}</option>`).join("");
+      }
+      if (presetSaveBtn) presetSaveBtn.addEventListener("click", () => {
+        const name = (presetNameInput.value || "").trim();
+        if (!name) { presetStatus.textContent = "Name the preset first"; setTimeout(() => { presetStatus.textContent = ""; }, 2000); return; }
+        presets[name] = {
+          prompt: getCustomPrompt() || "",
+          projectType: getProjectType() || "",
+          mcpServers: (getCustomMcpServers() || []).map((s) => ({ id: s.id, name: s.name, command: s.command })),
+          t: Date.now(),
+        };
+        persistPresets();
+        renderPresetSelect();
+        presetStatus.textContent = `Saved "${name}" ✓`;
+        setTimeout(() => { presetStatus.textContent = ""; }, 2000);
+      });
+      if (presetDeleteBtn) presetDeleteBtn.addEventListener("click", () => {
+        const name = presetLoadSel.value;
+        if (!name || !presets[name]) { presetStatus.textContent = "Pick a preset to delete"; setTimeout(() => { presetStatus.textContent = ""; }, 2000); return; }
+        delete presets[name];
+        persistPresets();
+        renderPresetSelect();
+        presetStatus.textContent = "Deleted ✓";
+        setTimeout(() => { presetStatus.textContent = ""; }, 2000);
+      });
+      if (presetApplyBtn) presetApplyBtn.addEventListener("click", () => {
+        const name = presetLoadSel.value;
+        const p = presets[name];
+        if (!p) { presetStatus.textContent = "Pick a preset to apply"; setTimeout(() => { presetStatus.textContent = ""; }, 2000); return; }
+        if (typeof p.prompt === "string") setCustomPrompt(p.prompt);
+        if (typeof p.projectType === "string") setProjectType(p.projectType);
+        if (Array.isArray(p.mcpServers)) {
+          customMcpServers = p.mcpServers.filter((s) => s && s.command);
+          saveCustomMcpServers();
+        }
+        presetStatus.textContent = `Applied "${name}" ✓`;
+        setTimeout(() => { presetStatus.textContent = ""; }, 2500);
+        if (typeof refreshSetup === "function") refreshSetup();
+        else if (typeof buildMenu === "function") buildMenu();
+      });
       const mcpNameEl = menuEl.querySelector("#vs-mcp-name");
       const mcpUrlEl = menuEl.querySelector("#vs-mcp-url");
       const mcpStatus = menuEl.querySelector("#vs-mcp-status");
       const mcpAddBtn = menuEl.querySelector("#vs-mcp-add");
       const mcpTplEl = menuEl.querySelector("#vs-mcp-template");
       const mcpTplNote = menuEl.querySelector("#vs-mcp-tpl-note");
+      const mcpRuntimeEl = menuEl.querySelector("#vs-mcp-runtime");
+      const mcpUvxHelp = menuEl.querySelector("#vs-uvx-help");
+      // Resolve the command string for a template + the selected runtime.
+      function templateCommand(t, runtime) {
+        if (!t) return "";
+        const v = t.variants || {};
+        return v[runtime] || v.npx || v.uvx || t.command || "";
+      }
       // One-click addon templates: picking one fills the name + command fields and
-      // shows its setup note, so multi-app setups are copy-free.
+      // shows its setup note, so multi-app setups are copy-free. The runtime picker
+      // switches npx vs uvx commands; picking a runtime with a template selected
+      // just refills the command.
       if (mcpTplEl) {
         mcpTplEl.addEventListener("change", () => {
           const t = VS.MCP_TEMPLATES && VS.MCP_TEMPLATES[mcpTplEl.value];
-          if (!t) { mcpTplNote.textContent = ""; return; }
+          if (!t) { mcpTplNote.textContent = ""; mcpUrlEl.value = ""; return; }
           mcpNameEl.value = t.name;
-          mcpUrlEl.value = t.command;
-          mcpTplNote.textContent = t.note;
+          const runtime = (mcpRuntimeEl && mcpRuntimeEl.value) || "npx";
+          const v = t.variants || {};
+          mcpUrlEl.value = templateCommand(t, runtime);
+          const onlyOne = v.npx ? (!v.uvx ? "npm (npx)" : "") : "Python (uvx)";
+          mcpTplNote.textContent = (onlyOne ? `Available via ${onlyOne}. ` : "") + t.note;
           mcpStatus.textContent = "";
         });
+      }
+      if (mcpRuntimeEl) {
+        mcpRuntimeEl.addEventListener("change", () => {
+          if (!mcpTplEl || !mcpTplEl.value) return;
+          const t = VS.MCP_TEMPLATES && VS.MCP_TEMPLATES[mcpTplEl.value];
+          if (!t) return;
+          mcpUrlEl.value = templateCommand(t, mcpRuntimeEl.value);
+          if (mcpRuntimeEl.value === "uvx") {
+            mcpTplNote.textContent = t.note + "\n\n" + (VS.UVX_SETUP || "");
+          } else {
+            const v = t.variants || {};
+            const onlyOne = v.npx ? (!v.uvx ? "npm (npx)" : "") : "Python (uvx)";
+            mcpTplNote.textContent = (onlyOne ? `Available via ${onlyOne}. ` : "") + t.note;
+          }
+          mcpStatus.textContent = "";
+        });
+        // The uvx guide button shows the install/setup steps for Python servers.
+        if (mcpUvxHelp) {
+          mcpUvxHelp.addEventListener("click", () => {
+            mcpTplNote.textContent = (VS.UVX_SETUP || "") +
+              "\n\nPick a template, choose 'Python (uvx)' above, and the command is filled for you.";
+          });
+        }
       }
       // Disable every add/remove control and show the restart spinner. Adding or
       // removing a server rewrites config.json and restarts the whole bridge, so
@@ -3036,7 +4643,7 @@
         `<ol id="vs-setup-steps">` +
           `<li>Download the Bridge from GitHub</li>` +
           `<li>Run <code>start.bat</code></li>` +
-          `<li>Back here, click <b>Start Roblox agent</b></li>` +
+           `<li>Back here, click <b>Start VoidScript</b></li>` +
         `</ol>` +
         `<div class="vs-setup-copy-row">` +
           `<input type="text" id="vs-setup-link" readonly value="${GITHUB_URL}">` +
@@ -3095,10 +4702,10 @@
 
     // The single source of truth for the bar's content. Decides the dot tone,
     // the state line and the primary action from the live state:
-    //  • starting        → spinner, "Starting the Roblox agent…"
-    //  • session active   → live dot, "Agent active · N tools" (no action)
-    //  • fresh blank chat → "Standby…" (or a bridge/Studio warning), action = Start
-    //  • existing chat    → "No agent in this chat" (informs only, no action)
+    //  • starting        → spinner, "Connecting to Roblox…"
+    //  • session active   → live dot, "Connected · N tools" (no action)
+    //  • fresh blank chat → "Ready" (or a bridge/Studio warning), action = Start
+    //  • existing chat    → "Not monitoring this chat" (informs only, no action)
     function renderBar() {
       if (!bar) return;
       // indicator = an optional leading dot/spinner; msg = the wrappable text.
@@ -3110,8 +4717,8 @@
       if (A.starting) {
         toneClass = "starting";
         indicator = `<span class="vs-spin"></span>`;
-        msg = `Starting the Roblox agent…`;
-        label = "Starting…"; kind = "starting"; disabled = true;
+         msg = `Connecting to Roblox…`;
+         label = "Starting…"; kind = "starting"; disabled = true;
       } else if (A.started) {
         // Prefer the ADVERTISED list length (A.toolList - the AGGREGATE catalogue
         // across every connected MCP server, already filtered by the vision/blocked
@@ -3134,7 +4741,7 @@
           // without this check the bridge dropping fell through to the
           // stale "N tools" text below, reading as if nothing was wrong.
           toneClass = "warn"; warn = true;
-          msg = `<b>Agent active</b> · bridge offline, run start.bat`;
+           msg = `<b>Connected</b> · bridge offline, run start.bat`;
         } else if ((placeDown || appDown || studioDown) && addonOk) {
           // DEGRADED session by CHOICE: the user started the agent with Roblox
           // down but other MCP server(s) alive (the "Start agent (Roblox
@@ -3144,21 +4751,21 @@
           // session (warn=false → no vs-state-warn red text). The full nag
           // still shows when NO server is usable (the branches below).
           toneClass = "warn";
-          msg = `<b>Agent active</b>${tools ? ` · ${tools} tools` : ""} · Roblox offline`;
+           msg = `<b>Connected</b>${tools ? ` · ${tools} tools` : ""} · Roblox offline`;
         } else if (placeDown) {
           toneClass = "warn"; warn = true;
-          msg = `<b>Agent active</b> · open a place in Roblox Studio`;
+           msg = `<b>Connected</b> · open a place in Roblox Studio`;
         } else if (appDown || studioDown) {
           toneClass = "warn"; warn = true;
           msg = studioProcUp
-            ? `<b>Agent active</b> · Studio is open but not connected - open <b>Assistant Settings &gt; MCP Servers</b> in Studio`
-            : `<b>Agent active</b> · open Roblox Studio & enable its MCP server`;
+             ? `<b>Connected</b> · Studio is open but not connected - open <b>Assistant Settings &gt; MCP Servers</b> in Studio`
+             : `<b>Connected</b> · open Roblox Studio & enable its MCP server`;
         } else {
           toneClass = "active";
           // No inline dot here: the leading status dot already shows green, two
           // dots side by side looked cluttered. The green "Agent active" text
           // carries it.
-          msg = `<b>Agent active</b>${tools ? ` · ${tools} tools` : ""}`;
+          msg = `<b>Connected</b>${tools ? ` · ${tools} tools` : ""}`;
         }
       } else if (P.isFreshChat() || P.chatIsEmpty()) {
         // Treat ANY empty chat (no turns yet) as the standby/start case - not just
@@ -3170,8 +4777,8 @@
         // an EXISTING conversation (one that has turns) we did not start.
         if (bridgeOk) {
           toneClass = "standby";
-          msg = `Standby. Start the agent, or just chat.`;
-          label = "▶ Start Roblox agent"; kind = "start";
+           msg = `Ready. Start when you're set, or just chat.`;
+                     label = "▶ Start VoidScript"; kind = "start";
         } else if (addonOk) {
           // Roblox is down but another MCP server is live: allow a DEGRADED start
           // (yellow). The agent runs on the other server(s); Roblox tools stay
@@ -3182,7 +4789,7 @@
             : studioProcUp
               ? `<b>Studio open but not connected</b> - open <b>Assistant Settings &gt; MCP Servers</b> in Studio, or start without it.`
               : `<b>Roblox Studio offline</b> - start with your other MCP server(s).`;
-          label = "▶ Start agent (Roblox offline)"; kind = "start-degraded";
+          label = "▶ Start VoidScript (Roblox offline)"; kind = "start-degraded";
         } else {
           toneClass = "warn"; warn = true;
           msg = !A.bridge.connected
@@ -3196,12 +4803,12 @@
                   : studioDown
                     ? `Open <b>Roblox Studio</b> &amp; enable its MCP server.`
                     : `Open <b>Roblox Studio</b> for the tools.`;
-          label = "▶ Start Roblox agent"; kind = "start";
+                     label = "▶ Start VoidScript"; kind = "start";
         }
         disabled = !bridgeOk && !addonOk;
       } else {
         toneClass = "noagent";
-        msg = `No agent here. Open a new chat to start one.`;
+           msg = `Not monitoring this chat. Open a new chat to begin.`;
       }
       // Parked on visibility: the loop is alive but deliberately frozen because
       // this tab is not the foreground tab of its window. Say so explicitly -
@@ -3211,6 +4818,12 @@
       if (A.parked && (A.running || A.starting)) {
         toneClass = "warn"; warn = false;
         msg = `<b>Paused</b> · bring this tab to the front to continue`;
+      }
+      // Manual pause (bar's ⏸ Pause): same parked look, but driven by the user's
+      // button, not tab visibility. Keep it distinct so Resume is clearly offered.
+      if (A.paused && A.running) {
+        toneClass = "warn"; warn = false;
+        msg = `<b>Paused</b> · press Resume to continue`;
       }
       // Provider mode guard: some sites (e.g. Arena) only work in one chat mode.
       // When the provider reports the current mode is unsupported, override the
@@ -3267,6 +4880,12 @@
     function setStatus(s) {
       A.bridge = s;
       if (s.updateTag) vsUpdateTag = s.updateTag;
+      // Track the active place (Feature: per-place prompts) and refresh the menu
+      // prompt whenever the place changes, so the textarea shows the right one.
+      if (s.placeName !== activePlaceName) {
+        activePlaceName = s.placeName || "";
+        if (typeof syncMenuPrompt === "function") syncMenuPrompt();
+      }
       if (!dot) return;
       const servers = s.servers || [];
       // VoidScript status tracks ONLY the primary Roblox MCP server. Every other
@@ -3313,7 +4932,7 @@
         ? "Studio is open but not connected - in Studio, open Assistant Settings > MCP Servers (or toggle its MCP server off/on)"
         : "Roblox Studio not connected - open it and enable its MCP server";
       else if (studioOff) txt = "Studio not connected, enable the MCP server in Roblox Studio";
-      else txt = `Connected · ${totalTools} tools ready`;
+      else txt = `Connected · ${totalTools} tools ready${s.placeName ? ` · ${s.placeName}` : ""}`;
       dot.title = txt; // full bridge detail on hover over the status dot
       bridgeOk = ok;
       studioDown = studioOff;
@@ -3375,6 +4994,7 @@
       const allow = (v || A.stopping) && !A.starting;
       const was = stopBtn.hidden;
       stopBtn.hidden = !allow;
+      updatePauseBtn();
       // Restore the normal, clickable Stop look whenever we're shown for a fresh
       // active turn (not a stop-in-progress).
       if (allow && !A.stopping && stopBtn.dataset.state === "stopping") {
@@ -3397,6 +5017,22 @@
       renderBar();
     }
 
+    // Pause/resume button: shown only while the agent loop is actively running
+    // (not during start/stop), labelled by the current pause state. Pausing keeps
+    // the input locked + cover up, exactly like a hidden-tab park.
+    function updatePauseBtn() {
+      if (!pauseBtn) return;
+      const show = A.running && !A.starting && !A.stopping;
+      pauseBtn.hidden = !show;
+      pauseBtn.textContent = A.paused ? "▶ Resume" : "⏸ Pause";
+      pauseBtn.disabled = false;
+      // Quick action buttons: only visible while a session is live.
+      if (quickShotBtn && quickListBtn) {
+        quickShotBtn.hidden = !A.started;
+        quickListBtn.hidden = !A.started;
+      }
+    }
+
     // A gentle, one-time nudge: the user typed on a fresh chat without starting
     // the agent. We do NOT block the send (plain chat is fine) - we just point at
     // the Start button so they discover how to enable Roblox control.
@@ -3405,7 +5041,7 @@
       if (A.started || !P.isFreshChat()) return;
       if (!nudged) {
         nudged = true;
-        toast("Tip: click “▶ Start Roblox agent” to let the AI control Roblox Studio.");
+        toast("Tip: click “▶ Start VoidScript” to let the AI control Roblox Studio.");
       }
       if (!actionBtn) return;
       actionBtn.classList.add("vs-flash");
@@ -3565,7 +5201,12 @@
       // hug the composer's top edge at full width, and RESERVE that strip with
       // padding-top on the composer so it reads as in-flow without ever becoming
       // a child of the framework's DOM. barAnchor() returns the element to hug.
-      const anchorEl = (P.barAnchor && P.barAnchor()) || null;
+      // Prefer the provider's dedicated anchor; if it can't resolve one, fall back
+      // to the composer frame so the bar STILL hugs the chat box (connected look)
+      // rather than dropping to the detached floating pill below. This keeps every
+      // site — even generic-factory ones with no barMount — fused to the composer.
+      const anchorEl = (P.barAnchor && P.barAnchor()) ||
+                       (P.composerFrame && P.composerFrame()) || null;
       if (anchorEl && anchorEl.isConnected) {
         bar.classList.remove("vs-bar-inline", "vs-bar-inside");
         bar.classList.add("vs-bar-anchored");
@@ -3842,13 +5483,46 @@
     }
 
     build();
-    return { setStatus, setStarted, setStarting, showStop, markStopping, inputCover, toast, banner, showImages, nudgeStart, updateStartGate, refreshSetup, getCustomPrompt, setCustomPrompt, getProjectType, setProjectType, getCustomMcpServers, takeWizardPrompt, setWizardPrompt, openMenu: (toSupport) => openMenuFn && openMenuFn(toSupport) };
+    return { setStatus, setStarted, setStarting, showStop, markStopping, inputCover, toast, banner, showImages, nudgeStart, updateStartGate, refreshSetup, getCustomPrompt, setCustomPrompt, getProjectType, setProjectType, getCustomMcpServers, takeWizardPrompt, setWizardPrompt, takeCompactionHandoff, openMenu: (toSupport) => openMenuFn && openMenuFn(toSupport) };
   })();
 
   // ── Live token + timer, shown ONLY on a tool call's chip detail. The
   //    elapsed-time ANCHOR is stored on the chip's DOM node (dataset) so the
   //    timer survives re-renders / conversation switches. ────────────────────
   const TOKEN_CHARS = 4;
+  // ── Token estimate (Feature) ────────────────────────────────────────────
+  // Rough session cost tracker: counts characters round-tripped through the
+  // model (our messages + tool results) at ~4 chars/token. Not a true tokenizer,
+  // but a useful "roughly how much did this session use" meter in the bar plus a
+  // cumulative per-provider lifetime total kept in chrome.storage.local.
+  const TOKEN_EST = { prompt: 0, tool: 0 };
+  function countTokensEst(text) {
+    return Math.max(1, Math.floor(String(text || "").length / TOKEN_CHARS));
+  }
+  function noteTokens(type, text) {
+    TOKEN_EST[type] = (TOKEN_EST[type] || 0) + countTokensEst(text);
+  }
+  function sessionTokenEst() {
+    return (TOKEN_EST.prompt || 0) + (TOKEN_EST.tool || 0);
+  }
+  function formatTokens(n) {
+    if (!n) return "0 tok";
+    return n >= 1e6 ? `${(n / 1e6).toFixed(1)}M tok` : n >= 1000 ? `${(n / 1000).toFixed(1)}k tok` : `${n} tok`;
+  }
+  // Accumulate the session's estimate into a per-provider lifetime total kept in
+  // chrome.storage.local (key "vsTokenTotals"). Written at session end so the
+  // user can see long-run usage by provider without a server.
+  function persistTokenTotals(added) {
+    if (!added || !chrome?.storage?.local) return;
+    try {
+      chrome.storage.local.get({ vsTokenTotals: {} }, (st) => {
+        const totals = st.vsTokenTotals || {};
+        const id = P.id || "unknown";
+        totals[id] = (totals[id] || 0) + added;
+        chrome.storage.local.set({ vsTokenTotals: totals }).catch(() => {});
+      });
+    } catch {}
+  }
 
   // 0-999 as-is; 1000+ compacted to 1k/1.1k/99k/1M... (one decimal below 10 of
   // the unit, none at/above it, trailing ".0" dropped) so a live token count
@@ -3904,7 +5578,7 @@
     // Watchdog freshness clock. Growth-tolerant (not just the hard stop-button
     // signal): a SHORT command after a long reasoning phase shows its stop
     // square for only a frame or two - too briefly for this 200ms sampler.
-    if (gen) A.lastGenAt = Date.now();
+    if (gen) { A.lastGenAt = Date.now(); persistLoopResume(); }
     // High-water mark of the newest turn id seen this session (virtualization-
     // safe). The auto-resume watchdog uses it to IGNORE a scrolled-back OLD turn:
     // on a virtualized list lastAssistant() is the last RENDERED turn, which when
@@ -4086,6 +5760,23 @@
         return;
       }
     }
+    // Live session timer in the bar: shows elapsed + tool tally while a loop is
+    // running, hidden the rest of the time. Rendered every 200ms alongside the
+    // chip timers above (cheap: two textContent writes, no DOM churn).
+    if (liveEl) {
+      if (A.running && A.startedAt) {
+        liveEl.hidden = false;
+         const tally = (A.runOk || 0) + (A.runErr || 0);
+         const showTokens = vsOn("vsShowTokenEstimate") && sessionTokenEst() > 0;
+         const label = tally
+           ? `· ${fmtDur((Date.now() - A.startedAt) / 1000)} · ${tally} cmd${tally === 1 ? "" : "s"}` +
+             (showTokens ? ` · ~${formatTokens(sessionTokenEst())}` : "")
+           : `· ${fmtDur((Date.now() - A.startedAt) / 1000)}`;
+        if (liveEl.textContent !== label) liveEl.textContent = label;
+      } else if (!liveEl.hidden) {
+        liveEl.hidden = true;
+      }
+    }
   }, 200);
 
   // ════════════════════════════════════════════════════════════════════════
@@ -4126,6 +5817,26 @@
     chrome.storage.local.get("vsStartedSessions", (r) => {
       if (r && Array.isArray(r.vsStartedSessions)) {
         for (const p of r.vsStartedSessions) startedSessions.add(p);
+  // Session resume: a page refresh mid-build wipes the in-memory freshness
+  // clock, so restore it from the persisted liveness record when the SAME
+  // conversation is open and the record is fresh (< 120s). The auto-resume
+  // watchdog then re-owns the interrupted command turn on its own. Only the
+  // freshness clock is restored - every other guard (turned stopped, result
+  // already below, conversation changed) still applies and blocks a false resume.
+  try {
+    chrome.storage.local.get("vsLoopResume", (r) => {
+      const rec = r && r.vsLoopResume;
+      if (rec && rec.conv && rec.conv === P.conversationKey()) {
+        const age = Date.now() - (rec.t || 0);
+        if (age < 120000 && A.lastGenAt === 0) {
+          A.lastGenAt = rec.lastGenAt || Date.now();
+          diag("resume.restored", { conv: rec.conv, ageMs: age });
+        } else {
+          clearLoopResume(); // stale (or wrong conversation) → drop it
+        }
+      }
+    });
+  } catch {}
   syncSessionState();
   // A shared build-recipe link (?vsRecipe=…) re-applies prompt + genre + addons
   // and auto-starts, so one URL replays a full build setup on any supported AI.
@@ -4188,7 +5899,7 @@
     // via the SITE's own new-chat (not VoidScript's button), the loop is bound to
     // a chat the user left, so abandon it. Otherwise A.running keeps this function
     // early-returning below and the stale "Agent active" / Stop button lingers on
-    // the fresh chat instead of "Start Roblox agent". The "/app" → "/app/<id>" id
+    // the fresh chat instead of "Start VoidScript". The "/app" → "/app/<id>" id
     // assignment of the SAME chat is not a move (loopKey is pinned only once the
     // chat has both an id and content), so a normal session is never disturbed.
     if (A.running) {
@@ -4313,6 +6024,7 @@
       A.userStopped = true;
       A.stop = true;
       A.resumeArmed = false; // a stop overrides any pending regenerate grace
+      clearLoopResume();     // a deliberate stop must never auto-resume after a reload
       A.stopAt = Date.now(); // grace anchor for the regenerate-as-resume gates
       // Same growth baseline as stopLoop: the stop-retry self-heal must only
       // re-click if the stream keeps writing past this point (see stop.retry).
@@ -4347,10 +6059,27 @@
   const RESUME_FRESH_MS = 8000;
   setInterval(() => {
     if (!A.started || A.running || A.starting || A.injecting) return;
-    if (document.hidden) return;                         // AI tab not foreground → don't parse/exec off-screen (agentLoop gates too)
+    if (document.hidden && !bgMode()) return;              // hidden → skip (agentLoop gates too); background mode lets it run off-screen
     if (A.userStopped) return;                          // user halted → never relaunch
     if (P.isGenerating()) return;
-    if (Date.now() - A.lastGenAt > RESUME_FRESH_MS) return; // not a fresh live turn
+     if (Date.now() - A.lastGenAt > RESUME_FRESH_MS) return; // not a fresh live turn
+    // Free recovery: if generation appears STUCK (generating flag on with text that
+    // never changes past the provider's STABLE_MS threshold), nudge the site's native
+    // stop button once to snap it out of a wedged state. This fixes the "AI froze,
+    // no output, the bar spins forever" class of hangs on generic/beta providers
+    // whose stop selector is stale or whose stream ended without clearing it.
+    // Guarded by zRecover so we never fire it twice on the same stuck turn.
+    if (!A.recovering && A.started && !A.running && P.isGenerating && P.stopGeneration) {
+      const la = P.lastAssistant && P.lastAssistant();
+      if (la && !la.dataset.zRecover && Date.now() - (A.lastGenAt || 0) > 5000) {
+        la.dataset.zRecover = "1";
+        A.recovering = true;
+        // Fire ONE native stop click to break the stuck state; if this frees the
+        // turn the auto-resume block below picks up the command.
+        try { P.stopGeneration(); } catch {}
+        diag("recover.stopGeneration", {});
+      }
+    }
     const item = P.lastAssistant();
     if (!item || item.dataset.zloop) return;
     // Never resume the turn that already existed when this session started - it is
@@ -4399,6 +6128,7 @@
     item.dataset.zResume = "1";
     item.dataset.zResumeLen = String(len);
     rememberExecuted(item);
+    A.recovering = false; // recovery fired successfully; clear for next turn
     diag("autoResume", { len });
     // The reply turn is ALREADY present - act on it immediately. Null token makes
     // the identity-based newReply test unconditionally true (any current id != null).

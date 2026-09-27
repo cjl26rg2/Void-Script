@@ -176,6 +176,34 @@ function VSGeneric(cfg) {
     return ed.closest("form") || ed.parentElement || null;
   }
 
+  // Where the core inserts its in-flow status bar, DeepSeek-style: mount it INSIDE
+  // the composer box (the lowest ancestor of the editor that also holds the send
+  // button) as the FIRST child, so it reads as ONE unit with the chat input on
+  // every generic site - the same connected look the hand-tuned DeepSeek provider
+  // gives. Prefer a rounded-* container (the visible composer card) when the climb
+  // passes one. If nothing clean resolves, returns null and the core falls back to
+  // anchored mode (still hugging the composer), never the detached floating pill.
+  function barMount() {
+    const ed = getEditor();
+    if (!ed) return null;
+    const send = sendButton();
+    let box = ed.parentElement;
+    let rounded = null;
+    for (let i = 0; i < 12 && box && box !== document.body; i++) {
+      if (!rounded && [...box.classList].some((c) => c.startsWith("rounded"))) rounded = box;
+      if (send && box.contains(send) && box.contains(ed)) break;
+      box = box.parentElement;
+    }
+    // Prefer the send-holding box; else the first rounded card; else the editor's parent.
+    if (!box || box === document.body) box = rounded || ed.parentElement;
+    if (!box || box === document.body) return null;
+    // Skip our own bar when computing the insertion point so we don't try to insert
+    // the bar before itself every frame.
+    let before = box.firstElementChild;
+    if (before && before.id === "vs-bar") before = before.nextElementSibling;
+    return { parent: box, before, inside: true }; // lives INSIDE the composer box
+  }
+
   // ── Input lock ────────────────────────────────────────────────────────────
   function setInputLock(on) {
     const ed = getEditor();
@@ -352,6 +380,21 @@ function VSGeneric(cfg) {
     return { ready: !!getEditor() };
   }
 
+  // Unsettled-read guard: returns true if the latest assistant reply is still
+  // being composed (the framework is mid-render). A half-rendered command would
+  // look "cut off" and fire a premature parse_error. The generic heuristic detects
+  // a live streaming marker inside the last assistant turn; override via cfg.replyUnsettled
+  // for providers with a more precise signal.
+  const replyUnsettled = (item) => {
+    if (!item) return false;
+    // A streaming/typing indicator inside the turn, or a "loading" code block node.
+    const markers = ['.streaming', '.loading', '[data-streaming="true"]', '.animate-pulse'];
+    for (const m of markers) {
+      if (item.querySelector(m)) return true;
+    }
+    return false;
+  };
+
   // ── Error / limit detection (site chrome only) ────────────────────────────
   function scanError() {
     try {
@@ -481,7 +524,7 @@ function VSGeneric(cfg) {
     assistantCount, userCount, lastAssistant, readAssistant,
     streamLen, snapshot,
     // composer / state
-    getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barAnchor,
+    getEditor, editorText, chatIsEmpty, isFreshChat, composerFrame, barAnchor, barMount,
     setInputLock, typeAndSend, stopGeneration,
     isGenerating, isBusyNow, isHardGenerating,
     enforceComposer, ensureComposerReady,
@@ -490,5 +533,8 @@ function VSGeneric(cfg) {
     // actions
     attachImages, clearAttachments, conversationKey,
     installSendHooks, findToolBlockSpot,
+    replyUnsettled,
+    // Voice: Web Speech API availability (Feature toggle).
+    voiceAvailable: !!(window.SpeechRecognition || window.webkitSpeechRecognition),
   };
 }

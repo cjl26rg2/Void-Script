@@ -2,7 +2,230 @@
 
 All notable changes to VoidScript Free are documented here.
 
-## [Unreleased]
+## [5.0.0] - 2026-09-27
+
+### Added
+- **28 new AI providers** including Perplexity AI, Windsurf, Pool, Ramp, Phind, Copilot, Mistral, Poe, HuggingChat, Reka, Pi, Coral, OpenRouter, v0, Genspark, Lambda Chat, Yiyan, MiniMax, Manus, Together, LM Arena, Doubao, Yuanbao, Moonshot, Jupi, Wonderseek, Replicate — site count is now **99**.
+- **5 beta AI providers**: Chat.AI (chatai.commander.ai), Levera AI, Mage (mage.space), Friend (friend.com) and Humane (app.humane.com).
+- **Bolt provider** — new generic adapter for bolt.new / bolt.ai.
+- **Voice transcription input** — a microphone button in the bar that speaks into the Web Speech API and inserts the transcript into the AI composer.
+- **CSS theme picker** — system / dark / light / soft-light themes for the VoidScript UI, persisted across sessions.
+- **Code block action buttons** — settled `###LUA###` blocks in the chat replay get Copy Luau / Run in Studio buttons.
+- **Multi-tab session status** — the popup now lists all browser tabs with an active VS session and a "Go" button to jump to each.
+- **Session recording/playback** — record a build session (commands + results) and save/load/replay it step by step.
+- **Freeze recovery** — when generation appears stuck (generating flag on but idle >5s), the loop fires a one-shot native stop click to unstick the site.
+- **Macro system** — new virtual commands `save_macro`, `run_macro`, `list_macros` let the agent save and replay named Luau snippets without re-pasting code each session.
+- **Build wizard** — a 3-question menu flow (what to build, genre, specifics) that assembles a setup prompt and auto-starts a session in a fresh chat.
+- **Project type presets** — save/load named bundles of (genre, preferred model, custom prompt, addon MCP servers) for one-click reuse.
+- **Drift guard** — after 2 consecutive same-command failures, the loop proactively re-injects that command's exact name + signature to stop name-drift in long sessions.
+- **More MCP templates** — added Spotify, Git, Docker, Redis, Google Drive, Google Calendar, IMAP email templates to the addon server list.
+- **`extractLua` parser helper** — cleanly extracts Lua source from a `###LUA###` block for the code-block buttons.
+
+### Changed
+- **Extension version → 5.0.0** (bridge `BRIDGE_VERSION` kept in sync). Manifest description now advertises 99 supported AI sites.
+- **Discord links updated** to https://discord.gg/KmkCKwUbcX across README, landing page, and the in-page bar.
+- **Kimi URL updated** from `www.kimi.com` to `kimi.ai` (the live domain).
+- **UI text softened** — "Agent active" → "Connected", "Starting the Roblox agent" → "Connecting to Roblox", "No agent here" → "Not monitoring this chat", start button relabeled from "Start Roblox agent" to "Start VoidScript".
+- **Tool reminder frequency** lowered from every 20 to every 12 successful calls to stop command-name drift in long sessions.
+- **Anti-detection note** added to the system prompt for DeepSeek.
+
+### Fixed
+- **DeepSeek: hardened stop-button glyph detection** — `isStopBtn()` now also matches a `<path d="M1…">` variant seen in some V4 builds, so a still-streaming turn is no longer misread as idle.
+- **DeepSeek: bot-check overlay detection** — the bar now hides behind DeepSeek's challenge/captcha overlay instead of intercepting clicks on it.
+- **Gemini: tool-dropoff in long sessions** — the command-list reminder fires more often and the drift guard re-anchors a drifting command name before the model drifts fully off Roblox commands.
+- **Kimi: native-agent mode warning** — Start is now disabled with a clear banner when Kimi's own native agent mode is active, preventing native tool interception.
+- **Claude: selector hardening** — the generic provider now falls back to `[data-message-author-role="human"]` for user turns, scopes the editor to Claude's ProseMirror `div[role="textbox"]`, and implements `replyUnsettled` so a mid-render command read does not fire a premature parse error.
+
+## [4.1.0] - 2026-08-27
+
+### Added
+- **10 new OP AI providers** across the 3.1/3.2 cycle: T3 Chat, Poolside AI,
+  Inflection AI, Hume AI, Twinny, Cody (Sourcegraph), Chatbase, Botstack, Flowise
+  and Lobe. Site count is now **67**.
+- **Token estimate toggle** (`vsShowTokenEstimate`) in the bar while running.
+- **Leaderboard export** — copy button on the popup provider leaderboard.
+- **Explain my code wizard** — plain-English walkthrough, sibling to "Review my code".
+- **Roblox coordinate & orientation mapping guidance** in the system prompt (left-handed Y-up: X=right, Y=up, Z=forward; Part.Size = Vector3.new(WIDTH, HEIGHT, DEPTH); Rotation degrees applied Z-Y-X; CFrame.Angles in RADIANS) — targets the upside-down / flipped / on-its-side build class of bug.
+
+### Changed
+- Extension version → 4.10 (bridge `BRIDGE_VERSION` kept in sync). Manifest
+  description now advertises 67 supported AI sites.
+
+## [3.2.0] - 2026-08-27
+
+### Added
+- **10 new OP AI providers this cycle.** First batch (3.1.0): T3 Chat (t3.chat),
+  Poolside AI (poolside.ai), Inflection AI (inflection.com), Hume AI (hume.ai) and
+  Twinny (twinny.ai). Second batch (3.2.0): Cody/Sourcegraph (sourcegraph.com),
+  Chatbase (chatbase.io), Botstack (botstack.com), Flowise (flowise.ai) and Lobe
+  (lobe.github.io). Each on the selector-driven generic adapter. **Site count is
+  now 67.**
+- **Token estimate toggle** (from 3.1.0): a "Show token estimate in the bar" setting
+  (`vsShowTokenEstimate`) controls the live session token count in the status bar.
+  Off by default; persisted via the existing settings export.
+- **Leaderboard export** (from 3.1.0): the popup's provider leaderboard now has a
+  "✓ copy" button that copies the ranked success-rate table as plain text.
+- **Explain my code wizard** (from 3.1.0): a one-click flow (next to "Review my
+  code") that makes the agent explain the project in plain, non-technical language.
+
+### Changed
+- Extension version → 3.2.0 (bridge `BRIDGE_VERSION` kept in sync). Manifest
+  description now advertises 67 supported AI sites.
+
+## [3.0.2] - 2026-08-27
+
+### Added
+- **Roblox coordinate & orientation mapping guidance.** The system prompt now
+  carries an explicit left-handed Y-up mapping section (X=right, Y=up, Z=forward;
+  Part.Size = Vector3.new(WIDTH, HEIGHT, DEPTH); Rotation is degrees applied as
+  Z-Y-X; CFrame.Angles takes RADIANS). This targets the recurring "the AI built my
+  elevator upside-down / on its side / facing backwards" class of bug - those are
+  orientation mistakes, not position bugs, and the guidance tells the model to
+  inspect Orientation/CFrame (not Position) and fix the axis mapping.
+
+### Changed
+- Extension version → 3.0.2 (bridge `BRIDGE_VERSION` kept in sync).
+
+## [3.0.0] - 2026-08-06
+
+### Added
+- **Vault of virtual commands.** `revert_session` restores every script the
+  session edited back to its session-start state (the undo stack is now
+  persisted across reloads); `export_snapshot` downloads a JSON snapshot of the
+  session's edits + pre-edit sources; `command_palette` indexes all virtual
+  commands; `plan_build` pauses the loop so the user can review a build plan
+  before anything changes; `keep_going` clears the error tally and continues.
+- **Command budget.** A per-session tool-call cap (Settings): when the cap is
+  hit the loop pauses with an ERROR; Resume grants a fresh batch.
+- **Trust levels.** "High" runs every command, "medium" asks before destructive
+  commands and pauses after errors, "low" asks before every command.
+- **Auto-screenshot on tool error.** With the toggle on, a failed tool captures
+  the Studio screen so a vision-capable model can diagnose the failure before
+  retrying.
+- **Place backups UI.** The menu lists bridge backups with Backup now / Restore /
+  Delete (the bridge already auto-backed-up before destructive ops).
+- **Launch at login.** Enable/disable the bridge's OS auto-start entry from the
+  menu (bridge-side auto-start existed; now it is remote-controllable).
+- **Per-place prompts.** Optional separate custom prompt per open place
+  (`vsCustomPromptByPlace`), falling back to the global prompt.
+- **Settings export/import** and **Session presets**: backup/restore all settings
+  as JSON, and save/apply named setups (prompt + genre + addon servers).
+- **Token estimate.** The bar shows a running ~token count for the session, and a
+  cumulative per-provider lifetime total is kept locally.
+- **Provider stability notes.** Curated per-provider reliability notes shown in
+  the menu.
+- **More genres** (Sports, Sandbox, Life Sim, Battle Royale, Crafting) and
+  **more MCP templates** (Everything, Brave Search, Slack, PostgreSQL, Notion,
+  YouTube transcripts).
+- **Humanize send timing** is now a settings toggle instead of a code constant.
+- **Place name shown in the bar** when connected.
+- **Bridge security defaults:** origin allow-list + optional shared-secret token,
+  full `--diagnose` payload, backup/config/log helpers, stale-child watchdog, and
+  startup auto-install.
+
+### Changed
+- **Extension version → 3.0.0** (bridge `BRIDGE_VERSION` kept in sync).
+
+### Fixed
+- **start.bat opened dozens of windows when an update was available.** After
+  applying an update the launcher spawned a fresh window, but the old window
+  never actually exited (it carried on and started its own bridge) and the new
+  window re-ran the updater - so whenever the updater reported `UPDATE_APPLIED`
+  again, yet another window was spawned, and so on. The restart window now runs
+  with `--skip-update` (it never re-runs the updater), the old window exits for
+  real after spawning, and a restart counter stops the chain after 3. `update.py`
+  also no longer drops `applied_tag` when it refreshes its cached release info,
+  so a release that was already applied can't be re-applied on a later launch.
+
+## [2.11.0] - 2026-08-05
+
+### Added
+- **⏸ Pause / ▶ Resume.** A bar button shown while the agent runs parks the
+  loop exactly like a hidden-tab pause (input stays locked, bar shows "Paused ·
+  press Resume") and resumes right where it left off.
+- **Live session timer in the bar.** While the agent runs, the bar shows the
+  elapsed time plus a running command tally, updated live.
+- **Completion summary toast.** When a session loop ends, a toast reports
+  "Session done · N commands ok · M errors · K screenshots · in mm:ss".
+- **Completion chime.** A subtle WebAudio tone at loop end — a rising triple
+  note when the run was clean, a descending pair when there were errors.
+  Silently no-ops if audio is blocked or unavailable.
+- **Copy system prompt.** A menu button copies the exact system prompt a new
+  session receives (built-in prompt + custom prompt + project type + preferred
+  model), for inspecting or sharing what the agent actually sees.
+- **Copy build log / Copy last error.** Menu buttons export this conversation's
+  tool activity from the persisted timeline — the full log, or just the most
+  recent failed call — handy for bug reports.
+- **Alt+V shortcut.** Toggles the Switch AI / options menu even in the minimal
+  pre-session bar state.
+
+### Fixed
+- **start.bat auto-update never fired.** The `UPDATE_APPLIED` prefix is 14
+  characters but the check sliced 15, so a downloaded update was applied on
+  launch but never announced nor restarted into. start.bat now matches
+  correctly — start.bat alone keeps you updated, no update.bat needed.
+
+### Changed
+- **Extension version → 2.11.**
+
+## [2.1.0] - 2026-08-05
+
+### Added
+- **Provider labels.** Claude is marked **best** and DeepSeek, GLM and Qwen are
+  marked **recommended** in the "Switch AI" menu and in the popup's provider pill,
+  so the recommended picks are visible at a glance.
+- **Preferred model selector.** A "Preferred model" field in the menu forces a
+  model on the current site at session start where the site's picker can be
+  driven (DeepSeek: instant/expert/vision; Kimi: e.g. K3). The chosen model is
+  also injected into the system prompt so the agent never fights it. Empty keeps
+  the site default.
+- **Context compaction.** When a provider reports its context limit or a too-long
+  conversation, the loop asks the model for a compact "build state" handoff,
+  saves it, and the next session started in a fresh chat auto-seeds that handoff
+  as its first message — long builds continue in a new chat instead of dying.
+- **Session resume across reloads.** The auto-resume watchdog's freshness clock
+  is now persisted and restored on reload in the same conversation, so an
+  interrupted command turn is picked back up automatically after a page refresh.
+  Cleared on any deliberate stop.
+- **Pre-flight Luau validation.** Before `execute_luau` is sent to Studio, a
+  conservative syntax scanner flags unambiguous errors (unclosed long
+  comments/strings, unterminated strings, unbalanced brackets) so the model fixes
+  them without burning the ~20s Studio call. `multi_edit` edits are also shape-
+  checked before dispatch.
+- **Auto-retry rule.** The system prompt now instructs the agent to fix and retry
+  a recoverable command error ONCE, then stop and diagnose instead of looping the
+  same failing call.
+- **Roblox coding conventions in the system prompt.** A new section mandates the
+  Luau dialect (not generic Lua), calls out Roblox-vs-Lua differences
+  (`typeof`, `task.wait`, `Instance.new`, `Connect`), and names
+  `create.roblox.com/docs/reference/engine` as the authoritative API source.
+- **One-click code review mode.** A "Review my code" menu action makes the agent
+  read the project memory and key scripts, then report bugs, Luau/Roblox issues
+  and performance problems — without editing anything until the user approves.
+- **15 MCP addon templates with npx/uvx option.** Added Blender, Sketchfab,
+  Aseprite, Filesystem, Fetch, Memory, Sequential thinking, Time, SQLite, GitHub,
+  Playwright and Puppeteer to the existing Figma/Unreal/Godot. A runtime picker
+  offers **npm (npx)** and **Python (uvx)** commands where both exist, and a
+  **uvx guide** button shows the full install/setup instructions for Python-based
+  servers.
+- **5 new build-wizard genres:** Tower Defense, RPG/Quest, Farming Sim, Escape
+  Room and Horror, each with curated Roblox best practices.
+
+### Changed
+- **Generic provider (Arena Agent etc.) bar placement.** The bar now anchors to
+  the first ancestor carrying a `rounded*` class (same rule as the hand-tuned
+  providers) and the composer-frame lookup no longer throws on an empty composer
+  selector, so the VoidScript bar sits correctly on Arena's agent composer.
+- **Auto-updater trusts GitHub tags.** `update.py` now treats the release tag as
+  the version source of truth and records `applied_tag`, so a `V2.x` tag is never
+  re-applied (fixes the "2.0.1 is not better than 2.0.0" loop). Installed version
+  reports the higher of the manifest and the applied tag.
+- **`start.bat` no-winget Python installer.** When Python is missing and winget
+  isn't available, `:install_python_direct` downloads the official Python 3.12
+  installer and sets it up silently, instead of aborting.
+- **Extension version → 2.1.**
+
+## [5.0.0] - 2026-09-27
 
 ### Added
 - **25 new beta AI providers: ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe,
