@@ -271,11 +271,11 @@ html.vs-light #vs-undo:hover { background: rgba(0, 0, 0, 0.10); color: #111827; 
 
 /* Steer row: full-width second line with the input + send button. */
 #vs-steer {
-  flex: 0 0 100%; width: 100%; order: 99;
+  flex: 0 0 100%; width: 100%; order: -1;
   display: flex; align-items: center; gap: 8px;
-  padding-top: 8px; border-top: 1px solid rgba(255, 255, 255, 0.10);
+  padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
-html.vs-light #vs-steer { border-top-color: rgba(20, 23, 32, 0.12); }
+html.vs-light #vs-steer { border-bottom-color: rgba(20, 23, 32, 0.12); }
 #vs-steer-input {
   flex: 1; min-width: 0; height: 30px; padding: 0 11px;
   background: rgba(255, 255, 255, 0.06); color: #f1f2f8;
