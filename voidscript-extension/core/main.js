@@ -6140,9 +6140,20 @@
       }
     }
   }
+  // Coalesce mutation bursts to ONE pass per frame. On a streaming site (ChatGPT
+  // etc.) this observer fires hundreds of times a second as tokens land; running the
+  // full-DOM preHideWholeItems() scan on every single mutation pegged the CPU and
+  // could freeze the tab on slower machines. rAF-debouncing it keeps camouflage
+  // instant (next frame) while doing the scan at most once per frame.
+  let moScheduled = false;
   const mo = new MutationObserver(() => {
-    preHideWholeItems();
-    scheduleSweep();
+    if (moScheduled) return;
+    moScheduled = true;
+    requestAnimationFrame(() => {
+      moScheduled = false;
+      preHideWholeItems();
+      scheduleSweep();
+    });
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
   // Belt-and-braces: a low-frequency sweep regardless of tab visibility or

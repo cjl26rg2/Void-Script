@@ -183,6 +183,15 @@ $("btn-restart").onclick = (e) => {
 
 $("btn-site").onclick = () => chrome.tabs.create({ url: LINKS.site });
 
+// Generic "open this URL in a new tab" wiring for the AI quick-launch chips and the
+// footer links (Discord / GitHub). Any element with a data-open="<url>" attribute.
+document.querySelectorAll("[data-open]").forEach((el) => {
+  el.addEventListener("click", () => {
+    const url = el.getAttribute("data-open");
+    if (url) chrome.tabs.create({ url });
+  });
+});
+
 // Quick round-trip test (Feature): times a list_tools round trip and reports
 // the bridge latency + Studio state in one line.
 $("btn-test").onclick = async () => {

@@ -5,99 +5,153 @@
 <meta charset="utf-8" />
 <style>
   :root{
-    --bg:#0e1016; --card:#171a24; --line:rgba(255,255,255,.10);
-    --fg:#eef0f6; --muted:#a6acbd; --dim:#6f7686;
+    --bg:#0b0d13; --bg2:#0e1016; --card:#141824; --card2:#181d2b;
+    --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.12);
+    --fg:#eef0f6; --muted:#aab0c2; --dim:#727a8e;
     --acc:#ff5c8a; --acc2:#ff8a3d; --acc-txt:#ffd9c0;
     --ok:#3ddc97; --warn:#f5b942; --rose:#ff8fa3;
+    --grad:linear-gradient(135deg,#ff8a3d,#ff5c8a);
   }
   *{box-sizing:border-box}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:8px}
   body{
-    width:270px; margin:0; color:var(--fg);
+    width:300px; margin:0; color:var(--fg);
     font-family:"Segoe UI",system-ui,sans-serif; -webkit-font-smoothing:antialiased;
-    background:radial-gradient(130% 80% at 50% -10%, #2a1a24 0%, var(--bg) 55%);
+    background:
+      radial-gradient(120% 60% at 100% -10%, rgba(255,92,138,.14) 0%, transparent 55%),
+      radial-gradient(120% 60% at 0% -10%, rgba(255,138,61,.14) 0%, transparent 55%),
+      var(--bg);
   }
-  .pad{padding:15px}
-  header{display:flex; align-items:center; gap:10px; margin-bottom:13px}
-  header .mark{width:26px; height:26px; flex:0 0 auto;
-    filter:drop-shadow(0 0 6px rgba(255,138,61,.55))}
-  .title{font-weight:750; font-size:16px; letter-spacing:-.2px; flex:1}
-  .title .s{background:linear-gradient(90deg,var(--acc-txt),var(--acc2) 55%,var(--acc));
-    -webkit-background-clip:text; background-clip:text; color:transparent}
-  #version{font-size:10px; color:var(--dim); font-weight:600}
-  #provider-tag{font-size:9px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
-    color:var(--acc-txt); background:rgba(255,138,61,.16); padding:3px 7px; border-radius:999px;
-    display:flex; align-items:center; gap:4px}
-  .tag-label{font-size:8px; font-weight:700; letter-spacing:.3px; text-transform:uppercase;
+  .pad{padding:16px 15px 15px}
+
+  /* ── header ─────────────────────────────────────────────── */
+  header{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  header .mark{width:30px; height:30px; flex:0 0 auto;
+    filter:drop-shadow(0 0 8px rgba(255,138,61,.55))}
+  .hgroup{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px}
+  .title{font-weight:800; font-size:17px; letter-spacing:-.3px; line-height:1}
+  .title .s{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .subrow{display:flex; align-items:center; gap:6px}
+  #version{font-size:10px; color:var(--dim); font-weight:700; letter-spacing:.3px}
+  #provider-tag{font-size:9px; font-weight:800; letter-spacing:.4px; text-transform:uppercase;
+    color:var(--acc-txt); background:rgba(255,138,61,.14); padding:3px 8px; border-radius:999px;
+    display:flex; align-items:center; gap:5px; border:1px solid rgba(255,138,61,.22)}
+  .tag-label{font-size:8px; font-weight:800; letter-spacing:.3px; text-transform:uppercase;
     padding:1px 5px; border-radius:999px}
   .tag-label-best{color:#ffd479; border:1px solid rgba(255,196,86,.5); background:rgba(255,196,86,.14)}
   .tag-label-recommended{color:#7fd6c2; border:1px solid rgba(98,208,180,.45); background:rgba(98,208,180,.12)}
+  #prov-sub{color:var(--dim); font-weight:700}
 
-  .status{display:flex; align-items:center; gap:9px; background:var(--card);
-    border:1px solid var(--line); border-radius:13px; padding:11px 13px; margin-bottom:11px;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 0 0 1px rgba(255,138,61,.05)}
-  #status-dot{width:10px; height:10px; border-radius:50%; background:#5b5b6b; flex:0 0 auto;
+  /* ── status hero ────────────────────────────────────────── */
+  .status{position:relative; display:flex; align-items:center; gap:12px; overflow:hidden;
+    background:linear-gradient(180deg,var(--card2),var(--card)); border:1px solid var(--line);
+    border-radius:16px; padding:14px; margin-bottom:12px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 8px 22px rgba(0,0,0,.32)}
+  .status::before{content:""; position:absolute; inset:0 0 auto 0; height:2px; background:var(--grad); opacity:.35}
+  .dot-wrap{position:relative; width:34px; height:34px; flex:0 0 auto; display:grid; place-items:center}
+  #status-dot{width:12px; height:12px; border-radius:50%; background:#5b5b6b;
     transition:background .25s, box-shadow .25s}
-  #status-dot.up{background:var(--ok); box-shadow:0 0 9px var(--ok); animation:vs-popdot 2.2s ease-out infinite}
-  #status-dot.mid{background:var(--warn); box-shadow:0 0 9px var(--warn)}
-  @keyframes vs-popdot{0%,100%{box-shadow:0 0 6px rgba(61,220,151,.55)}50%{box-shadow:0 0 12px rgba(61,220,151,.9)}}
-  .status .lines{min-width:0}
-  #status-text{font-size:12.5px; font-weight:600; line-height:1.35}
-  #tool-count{font-size:11px; color:var(--muted)}
-  #server-list{font-size:11px; color:var(--dim); white-space:pre-line;
+  #status-dot.up{background:var(--ok); box-shadow:0 0 10px var(--ok)}
+  #status-dot.mid{background:var(--warn); box-shadow:0 0 10px var(--warn)}
+  .dot-wrap .ring{position:absolute; inset:0; border-radius:50%; border:2px solid transparent}
+  #status-dot.up ~ .ring{border-color:rgba(61,220,151,.35); animation:vs-ring 2.2s ease-out infinite}
+  @keyframes vs-ring{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.15);opacity:0}}
+  .lines{min-width:0; flex:1}
+  #status-text{font-size:13px; font-weight:700; line-height:1.3}
+  #tool-count{font-size:11px; color:var(--muted); margin-top:2px}
+  #server-list{font-size:10.5px; color:var(--dim); white-space:pre-line;
     font-family:ui-monospace,monospace; margin-top:6px}
   #server-list:empty{display:none}
 
+  /* ── update banner ──────────────────────────────────────── */
   #update-row{display:flex; align-items:center; gap:9px; background:rgba(251,191,36,.12);
-    border:1px solid rgba(251,191,36,.38); border-radius:13px; padding:10px 12px; margin-bottom:11px}
+    border:1px solid rgba(251,191,36,.38); border-radius:13px; padding:10px 12px; margin-bottom:12px}
   #update-row[hidden]{display:none}
   #update-text{font-size:12px; font-weight:650; color:var(--warn); flex:1; line-height:1.3}
-  #update-tag{font-weight:700; color:var(--warn)}
-  #btn-update{flex:0 0 auto; width:auto; margin-top:0; padding:7px 12px; color:var(--fg);
-    border-color:rgba(251,191,36,.5); background:rgba(251,191,36,.16)}
+  #update-tag{font-weight:800; color:var(--warn)}
+  #btn-update{flex:0 0 auto; width:auto; margin:0; padding:7px 12px; color:var(--fg);
+    border-color:rgba(251,191,36,.5); background:rgba(251,191,36,.16); border-radius:9px}
   #btn-update:hover{background:rgba(251,191,36,.26)}
 
-  button{width:100%; margin-top:7px; padding:9px 12px; border-radius:10px; cursor:pointer;
-    font-size:12px; font-weight:600; color:var(--fg); border:1px solid var(--line);
-    background:rgba(255,255,255,.05); text-align:left;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
-    transition:background .15s, transform .12s, border-color .15s, box-shadow .15s; display:flex; align-items:center; gap:9px}
-  button:hover{background:rgba(255,255,255,.10); transform:translateY(-1px);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 4px 12px rgba(0,0,0,.28)}
-  button:active{transform:translateY(1px); box-shadow:none}
-  button:focus-visible{outline:2px solid rgba(255,138,61,.85); outline-offset:2px}
-  button .g{opacity:.85}
-  button.btn-primary{
-    background:linear-gradient(135deg,rgba(255,138,61,.18),rgba(255,92,138,.14));
-    border-color:rgba(255,138,61,.45); color:var(--fg)}
-  button.btn-primary .g{opacity:1; color:var(--acc-txt)}
-  button.btn-primary:hover{
-    background:linear-gradient(135deg,rgba(255,138,61,.26),rgba(255,92,138,.20));
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 4px 14px rgba(255,138,61,.22)}
+  /* ── buttons ────────────────────────────────────────────── */
+  button{font-family:inherit}
+  .btn{width:100%; padding:11px 13px; border-radius:12px; cursor:pointer;
+    font-size:12.5px; font-weight:700; color:var(--fg); border:1px solid var(--line2);
+    background:rgba(255,255,255,.045); text-align:left;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05);
+    transition:background .15s, transform .1s, border-color .15s, box-shadow .15s;
+    display:flex; align-items:center; gap:10px}
+  .btn:hover{background:rgba(255,255,255,.09); transform:translateY(-1px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 5px 14px rgba(0,0,0,.3)}
+  .btn:active{transform:translateY(0); box-shadow:none}
+  .btn:focus-visible{outline:2px solid rgba(255,138,61,.85); outline-offset:2px}
+  .btn svg{width:16px; height:16px; flex:0 0 auto; opacity:.9}
+  .btn .cap{flex:1}
+  .btn.primary{
+    background:var(--grad); border-color:transparent; color:#fff;
+    box-shadow:0 4px 16px rgba(255,110,80,.4); font-size:13px; padding:12px 14px}
+  .btn.primary:hover{filter:brightness(1.07); box-shadow:0 6px 20px rgba(255,110,80,.5)}
+  .btn.primary svg{opacity:1}
 
-  .hint{margin-top:13px; font-size:11px; line-height:1.5; color:var(--dim)}
-  .hint code{background:rgba(255,255,255,.08); padding:1px 5px; border-radius:4px;
-    font-family:ui-monospace,monospace}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:9px}
+  .grid2 .btn{padding:10px; font-size:12px}
 
-  .tl{margin-top:13px; background:var(--card); border:1px solid var(--line);
-    border-radius:13px; padding:10px 12px}
-  .tl-head{font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
-    color:var(--muted); margin-bottom:7px; display:flex; align-items:center; gap:6px}
-  #lb{font-size:10.5px; font-family:ui-monospace,monospace}
-  .lb-row{display:flex; align-items:center; gap:8px; padding:3px 0; border-top:1px solid var(--line); margin-top:3px}
-  .lb-rank{color:var(--acc2); font-weight:700; width:14px; flex:0 0 auto}
-  .lb-name{flex:1; font-weight:600; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  .lb-meta{color:var(--dim); text-align:right}
-  .lb-rate{color:var(--ok); font-weight:700}
-  .lb-bar{position:relative; height:4px; background:rgba(255,255,255,.08); border-radius:2px; overflow:hidden; width:100%; margin-top:2px}
-  .lb-fill{position:absolute; inset:0 auto 0 0; background:linear-gradient(90deg,var(--ok),var(--acc2)); height:100%}
-  #tl-list{font-size:10.5px; line-height:1.55; font-family:ui-monospace,monospace; color:var(--muted)}
-  #tl-list .tl-item{display:flex; gap:6px; align-items:baseline}
+  /* ── quick launch chips ─────────────────────────────────── */
+  .sec-h{font-size:10px; font-weight:800; letter-spacing:.5px; text-transform:uppercase;
+    color:var(--dim); margin:16px 2px 8px; display:flex; align-items:center; gap:8px}
+  .sec-h::after{content:""; flex:1; height:1px; background:var(--line)}
+  .chips{display:flex; flex-wrap:wrap; gap:7px}
+  .chip{display:flex; align-items:center; gap:6px; cursor:pointer;
+    font-size:11.5px; font-weight:700; color:var(--fg);
+    background:rgba(255,255,255,.05); border:1px solid var(--line2); border-radius:999px;
+    padding:6px 11px; transition:background .14s, border-color .14s, transform .1s}
+  .chip:hover{background:rgba(255,255,255,.1); transform:translateY(-1px)}
+  .chip .d{width:7px; height:7px; border-radius:50%; flex:0 0 auto}
+  .chip.rec{border-color:rgba(98,208,180,.4)} .chip.rec .d{background:#5fe0c0}
+  .chip .d.o{background:#8ea0ff}
+
+  /* ── leaderboard (compact / low-key) ────────────────────── */
+  .board{margin-top:14px}
+  .board .sec-h #lb-copy{font-size:9px; color:var(--dim); cursor:pointer; text-transform:none;
+    letter-spacing:0; font-weight:700}
+  .board .sec-h #lb-copy:hover{color:var(--muted)}
+  .board .sec-h::after{display:none}
+  .board .sec-h{gap:6px}
+  .board .sec-h .ttl{flex:1}
+  #lb{font-size:10.5px; font-family:ui-monospace,monospace; display:flex; flex-direction:column; gap:6px}
+  .lb-row{display:grid; grid-template-columns:12px 1fr auto; align-items:center; gap:8px}
+  .lb-rank{color:var(--acc2); font-weight:800; font-size:10px}
+  .lb-name{font-weight:700; color:var(--fg); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    font-family:"Segoe UI",sans-serif}
+  .lb-meta{color:var(--dim); text-align:right; font-size:10px}
+  .lb-rate{color:var(--ok); font-weight:800}
+  .lb-bar{position:relative; height:3px; background:rgba(255,255,255,.07);
+    border-radius:2px; overflow:hidden; margin-top:-2px}
+  .lb-fill{position:absolute; inset:0 auto 0 0; background:var(--grad); height:100%; border-radius:2px}
+  #lb .empty{color:var(--dim); font-size:10.5px; font-family:"Segoe UI",sans-serif}
+
+  /* ── timeline (compact) ─────────────────────────────────── */
+  #tl-list{font-size:10.5px; line-height:1.5; font-family:ui-monospace,monospace; color:var(--muted);
+    max-height:120px; overflow-y:auto}
+  #tl-list .tl-item{display:flex; gap:6px; align-items:baseline; padding:1px 0}
   #tl-list .tl-t{color:var(--dim); flex:0 0 auto}
-  #tl-list .tl-ok{color:var(--ok)}
-  #tl-list .tl-err{color:var(--rose)}
-  #tl-list .tl-evt{color:var(--warn)}
-  #tl-list .tl-conv{color:var(--dim); font-size:9px}
-  #tl-list:empty::after{content:"No commands recorded this session."; color:var(--dim)}
+  #tl-list .tl-ok{color:var(--ok)} #tl-list .tl-err{color:var(--rose)}
+  #tl-list .tl-evt{color:var(--warn)} #tl-list .tl-conv{color:var(--dim); font-size:9px}
+  #tl-list:empty::after{content:"No commands recorded this session."; color:var(--dim);
+    font-family:"Segoe UI",sans-serif}
+
+  #test-result{display:block; font-size:11px; color:var(--muted); margin-top:9px; min-height:14px; line-height:1.4}
+
+  /* ── footer ─────────────────────────────────────────────── */
+  .foot{display:flex; align-items:center; gap:8px; margin-top:15px; padding-top:12px; border-top:1px solid var(--line)}
+  .foot .flink{flex:0 0 auto; width:34px; height:34px; display:grid; place-items:center; cursor:pointer;
+    background:rgba(255,255,255,.05); border:1px solid var(--line2); border-radius:10px; color:var(--muted);
+    transition:background .14s, color .14s, transform .1s}
+  .foot .flink:hover{background:rgba(255,255,255,.1); color:#fff; transform:translateY(-1px)}
+  .foot .flink svg{width:16px; height:16px}
+  .foot .spacer{flex:1}
+  .foot .made{font-size:9.5px; color:var(--dim); text-align:right; line-height:1.3}
 </style>
 </head>
 <body>
@@ -118,17 +172,20 @@
         <polyline points="49,44 30,64 49,84"/><polyline points="79,44 98,64 79,84"/><line x1="71" y1="40" x2="57" y2="88"/>
       </g>
     </svg>
-    <span class="title">Void<span class="s">Script</span> <span id="version"></span></span>
+    <div class="hgroup">
+      <span class="title">Void<span class="s">Script</span></span>
+      <span class="subrow"><span id="version"></span></span>
+    </div>
     <span id="provider-tag">Ready</span>
   </header>
 
   <div id="update-row" hidden>
-    <div id="update-text">Update available<span id="update-tag"></span> — get the new build</div>
+    <div id="update-text">Update available<span id="update-tag"></span></div>
     <button id="btn-update">Get it</button>
   </div>
 
   <div class="status">
-    <span id="status-dot"></span>
+    <div class="dot-wrap"><span id="status-dot"></span><span class="ring"></span></div>
     <div class="lines">
       <div id="status-text">Checking bridge…</div>
       <div id="tool-count"></div>
@@ -136,25 +193,66 @@
     </div>
   </div>
 
-  <button id="btn-restart" class="btn-primary"><span class="g">▶</span> Start VoidScript</button>
-  <button id="btn-reconnect"><span class="g">↻</span> Reconnect bridge</button>
-  <button id="btn-test"><span class="g">⏱</span> Run quick test</button>
-  <button id="btn-diag"><span class="g">🔎</span> Copy diagnostics</button>
-  <span id="test-result" style="display:block;font-size:11px;color:var(--dim);margin-top:7px;min-height:14px"></span>
-  <button id="btn-settings"><span class="g">⚙</span> Settings &amp; switch AI</button>
-  <button id="btn-site" class="btn-primary"><span class="g">🌐</span> Open the VoidScript website</button>
+  <button id="btn-restart" class="btn primary">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    <span class="cap">Start VoidScript</span>
+  </button>
 
-  <div class="tl">
-    <div class="tl-head">Provider leaderboard<div id="lb-copy" style="float:right;font-size:9px;color:var(--dim)">✓ copy</div></div>
-    <div id="lb"><span style="color:var(--dim);font-size:10.5px">No builds recorded yet.</span></div>
+  <div class="grid2">
+    <button id="btn-reconnect" class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>
+      <span class="cap">Reconnect</span>
+    </button>
+    <button id="btn-test" class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span class="cap">Quick test</span>
+    </button>
+    <button id="btn-diag" class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+      <span class="cap">Diagnostics</span>
+    </button>
+    <button id="btn-settings" class="btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="cap">Settings</span>
+    </button>
   </div>
 
-  <div class="tl">
-    <div class="tl-head">Session timeline</div>
-    <div id="tl-list"></div>
+  <span id="test-result"></span>
+
+  <!-- ── Jump to an AI ──────────────────────────────── -->
+  <div class="sec-h">Jump to an AI</div>
+  <div class="chips" id="ai-chips">
+    <button class="chip rec" data-open="https://chat.deepseek.com/"><span class="d"></span>DeepSeek</button>
+    <button class="chip" data-open="https://chatgpt.com/"><span class="d o"></span>ChatGPT</button>
+    <button class="chip" data-open="https://gemini.google.com/app"><span class="d o"></span>Gemini</button>
+    <button class="chip" data-open="https://chat.z.ai/"><span class="d o"></span>GLM</button>
+    <button class="chip" data-open="https://claude.ai/"><span class="d o"></span>Claude</button>
   </div>
 
-  <p class="hint">Run <code>start.bat</code>, open <b>Roblox Studio</b>, then head to a supported AI and press <b>Start session</b>.</p>
+  <!-- ── Leaderboard (compact) ──────────────────────── -->
+  <div class="board">
+    <div class="sec-h"><span class="ttl">Best models for you</span><span id="lb-copy">copy</span></div>
+    <div id="lb"><span class="empty">No builds recorded yet — start a session to rank your AIs.</span></div>
+  </div>
+
+  <!-- ── Timeline ───────────────────────────────────── -->
+  <div class="sec-h">Recent activity</div>
+  <div id="tl-list"></div>
+
+  <!-- ── Footer ─────────────────────────────────────── -->
+  <div class="foot">
+    <button class="flink" id="btn-site" title="VoidScript website">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18 15 15 0 0 1 0-18"/></svg>
+    </button>
+    <button class="flink" data-open="https://discord.gg/EyGxnp2jaw" title="Join the Discord">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.79 19.79 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.74 19.74 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.1 18.057a.082.082 0 0 0 .03.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.1 13.1 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.3 12.3 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.84 19.84 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+    </button>
+    <button class="flink" data-open="https://github.com/cjl26rg2/Void-Script" title="Star on GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 4.42 2.87 8.17 6.84 9.5.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.6.07-.6 1 .07 1.53 1.03 1.53 1.03.89 1.53 2.34 1.09 2.91.83.09-.65.35-1.09.63-1.34-2.22-.25-4.56-1.11-4.56-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.65 0 0 .84-.27 2.75 1.02a9.56 9.56 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.38.2 2.4.1 2.65.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.69-4.57 4.94.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 22 12c0-5.52-4.48-10-10-10z"/></svg>
+    </button>
+    <span class="spacer"></span>
+    <span class="made">free &amp; open<br/>GPL-3.0</span>
+  </div>
 </div>
 <script src="popup.js"></script>
 </body>

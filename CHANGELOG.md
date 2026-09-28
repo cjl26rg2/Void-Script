@@ -2,6 +2,20 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.0.4] - 2026-09-28
+
+### Added
+- **Redesigned extension popup.** A cleaner, more premium layout — glowing logo header, a status hero card, a prominent gradient **Start VoidScript**, an icon action grid (Reconnect / Quick test / Diagnostics / Settings), a **Jump to an AI** quick-launch row (DeepSeek, ChatGPT, Gemini, GLM, Claude), and a footer with website / Discord / GitHub links.
+
+### Fixed
+- **Hidden controls actually hide now.** Several bar controls set an explicit CSS `display`, which overrode the `hidden` attribute — so Co-work, the steer row, Undo, and the quick screenshot/list/voice buttons stayed visible even when the code hid them (the crowded bar + "Co-work always showing"). The `hidden` attribute now wins for every VoidScript control, so Co-work's steer tab is fully hidden until you press Co-work.
+- **DeepSeek "mode not ready" no longer blocks Start.** Switching to Expert/Vision is best-effort; the session now starts as long as the composer is usable, instead of stranding you behind the banner when DeepSeek changes its model-tab layout.
+- **Tab freeze on streaming sites (ChatGPT etc.).** The DOM watcher ran a full-page scan on every single streamed token; it's now coalesced to at most once per animation frame, stopping the CPU spikes/freezes on slower machines. (With 5.0.3's fix for the bar fighting framework composers, this is the freeze that made commands like `list_commands` appear to do nothing.)
+
+### Changed
+- **Extension version → 5.0.4.**
+- **Leaderboard restyled** as a compact, low-key "Best models for you" list instead of a heavy card.
+
 ## [5.0.3] - 2026-09-27
 
 ### Fixed

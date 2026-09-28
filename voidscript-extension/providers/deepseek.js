@@ -429,7 +429,12 @@ const VSProvider = (() => {
     }
     state = composerModeState();
     diag("mode_ready", { reason, ...state });
-    return { ...state, ready: state.expertOn || state.visionOn };
+    // Don't hard-block the session on mode detection. Switching to Expert/Vision is a
+    // best-effort optimisation (done above); as long as the composer exists the agent
+    // can run in whatever mode DeepSeek currently has selected. Blocking here stranded
+    // users behind a "mode not ready" banner whenever DeepSeek changed its model-tab
+    // DOM. Ready if the preferred mode is confirmed OR the composer is simply usable.
+    return { ...state, ready: state.expertOn || state.visionOn || !!getEditor() };
   }
 
    // DeepSeek's footer button doubles as SEND (an upward arrow) and STOP (a

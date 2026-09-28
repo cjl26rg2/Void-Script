@@ -7,6 +7,13 @@
   font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
 
+/* CRITICAL: our bar elements set an explicit display (flex/inline-flex), whose ID
+   specificity beats the UA `[hidden]{display:none}` rule — so `el.hidden = true`
+   from JS would NOT actually hide them. This makes the `hidden` attribute win again
+   for every VoidScript control, so Co-work/steer, Undo, the quick buttons, voice,
+   pause, etc. stay hidden until the code shows them. */
+#vs-bar [hidden], #vs-bar[hidden], #vs-root [hidden], #vs-root[hidden] { display: none !important; }
+
 /* ── status bar (anchored above the composer; left/top/width set inline) ──── */
 #vs-bar {
   position: fixed;
