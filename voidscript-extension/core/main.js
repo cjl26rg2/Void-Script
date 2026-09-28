@@ -474,7 +474,7 @@
     // covers the whole loop. Drained once so a steer applies to exactly one turn.
     if (VS_CFG.vsCowork && A.steerQueue && A.steerQueue.length) {
       const steers = A.steerQueue.splice(0).map((s) => "• " + s).join("\n");
-      text = `⟦VOID:STEER⟧\n(System note — the user is STEERING you in Co-work mode. ` +
+      text = `⟦VOID:STEER⟧\n(System note — the user is STEERING you in Guide mode. ` +
         `Treat the following as a high-priority correction to your current plan and ` +
         `adjust your NEXT action to follow it, even if it changes course. If it says ` +
         `something you did was wrong, fix that before continuing:\n${steers}\n` +
@@ -3336,7 +3336,7 @@
            <button id="vs-action"></button>
           <button id="vs-stop" hidden>■ Stop</button>
           <button id="vs-pause" hidden>⏸ Pause</button>
-          <button id="vs-cowork" hidden aria-pressed="false" title="Co-work: steer the agent while it runs — type a correction and it adjusts its next step"><span class="vs-cw-dot"></span><span class="vs-cw-label">Co-work</span></button>
+          <button id="vs-cowork" hidden aria-pressed="false" title="Guide: steer the agent while it runs — type a correction and it adjusts its next step"><span class="vs-cw-dot"></span><span class="vs-cw-label">Guide</span></button>
           <div id="vs-steer" hidden>
             <div class="vs-steer-main">
               <button id="vs-undo" hidden title="Undo the agent's last script edit (restores the previous source)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg><span class="vs-undo-label">Undo</span></button>
@@ -3413,7 +3413,7 @@
           if (!VS_CFG.vsCowork) A.steerQueue = []; // dropping the mode clears pending steers
           updateCowork();
           renderBar();
-          ui.toast(VS_CFG.vsCowork ? "Co-work on — steer the agent as it runs." : "Co-work off.");
+          ui.toast(VS_CFG.vsCowork ? "Guide on — steer the agent as it runs." : "Guide off.");
           if (VS_CFG.vsCowork && steerInput) { try { steerInput.focus(); } catch {} }
         });
       }
@@ -3975,7 +3975,7 @@
            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsAutoSummary" /> Summarize what was built at session end</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsHumanizeSend" /> Humanize send timing (experimental)</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsShowTokenEstimate" /> Show token estimate in the bar</label>
-            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsCowork" /> Co-work: steer the agent while it runs</label>
+            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsCowork" /> Guide: steer the agent while it runs</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsPromptPerPlace" /> Per-place prompt (one per open place)</label>
            <label class="vs-menu-note vs-wiz-mp">Approval level
              <select id="vs-trust-level" class="vs-mcp-field">

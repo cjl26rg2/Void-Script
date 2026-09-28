@@ -13,15 +13,15 @@ All notable changes to VoidScript Free are documented here.
 ### Added
 - **Redesigned extension popup.** A cleaner, premium layout — glowing logo header, a status hero card, a prominent gradient **Start VoidScript**, an icon action grid (Reconnect / Quick test / Diagnostics / Settings), and a footer with website / Discord / GitHub links.
 - **Jump to an AI.** Quick-launch chips in the popup for DeepSeek, ChatGPT, Gemini, GLM and Claude.
-- **Quick settings in the popup.** Toggle **Co-work steering**, **Verify edits with a screenshot**, **Guard destructive commands** and **Work while the tab is hidden**, plus a **System / Dark / Light** theme picker — right from the popup.
+- **Quick settings in the popup.** Toggle **Guide steering**, **Verify edits with a screenshot**, **Guard destructive commands** and **Work while the tab is hidden**, plus a **System / Dark / Light** theme picker — right from the popup.
 - **Live settings sync.** Changing a setting in the popup (or another tab) now applies to the running AI page immediately, no reload needed.
 - **Copy the session timeline** as plain text (a copy control on "Recent activity", matching the leaderboard).
 - **Custom settings UI.** The in-page settings menu's plain checkboxes are now branded toggle switches, with styled dropdowns/number inputs to match.
-- **Co-work quick-steer presets.** One-click steer chips — *Fix that*, *Undo & retry*, *Keep going*, *Explain first* — so you can redirect the agent without typing.
+- **Guide quick-steer presets.** One-click steer chips — *Fix that*, *Undo & retry*, *Keep going*, *Explain first* — so you can redirect the agent without typing.
 - **Session stats in the popup.** A Sessions / Commands / Success strip summarising your build history at a glance, with a one-click **reset** to clear your leaderboard, stats and activity.
 
 ### Fixed
-- **Hidden controls actually hide now.** Several bar controls set an explicit CSS `display`, which overrode the `hidden` attribute — so Co-work, the steer row, Undo and the quick screenshot/list/voice buttons stayed visible even when the code hid them (the crowded bar + "Co-work always showing"). The `hidden` attribute now wins for every VoidScript control, so Co-work's steer tab is fully hidden until you press Co-work.
+- **Hidden controls actually hide now.** Several bar controls set an explicit CSS `display`, which overrode the `hidden` attribute — so Guide, the steer row, Undo and the quick screenshot/list/voice buttons stayed visible even when the code hid them (the crowded bar + "Guide always showing"). The `hidden` attribute now wins for every VoidScript control, so Guide's steer tab is fully hidden until you press Guide.
 - **DeepSeek "mode not ready" no longer blocks Start.** Switching to Expert/Vision is best-effort; the session now starts as long as the composer is usable, instead of stranding you behind the banner when DeepSeek changes its model-tab layout.
 - **Tab freeze on streaming sites (ChatGPT etc.).** The DOM watcher ran a full-page scan on every single streamed token; it's now coalesced to at most once per animation frame, stopping the CPU spikes/freezes on slower machines. (With 5.0.3's fix for the bar fighting framework composers, this is the freeze that made commands like `list_commands` appear to do nothing.)
 
@@ -33,21 +33,21 @@ All notable changes to VoidScript Free are documented here.
 
 ### Fixed
 - **Chrome/Edge crash.** Inside-mounting the bar into framework-reconciled composers (ChatGPT, etc.) could start a per-frame insert↔reconcile fight that pegged the CPU and crashed the tab. Generic sites with rich contenteditable editors now use anchored mode (no DOM insertion into the framework's tree), the bar re-inserts only when it has actually detached, and a runtime thrash guard falls back to anchored if any mount still fights.
-- **Co-work steer row layout.** The steer box could push the VoidScript controls off the right edge because the bar wasn't wrapping reliably. Wrapping is now built into the base bar, so the steer row always drops to its own line on top with the full controls row below.
+- **Guide steer row layout.** The steer box could push the VoidScript controls off the right edge because the bar wasn't wrapping reliably. Wrapping is now built into the base bar, so the steer row always drops to its own line on top with the full controls row below.
 
 ### Changed
 - **Extension version → 5.0.3.**
-- **Co-work steer row sits on top** of the VoidScript bar when Co-work is on, and hides when off.
+- **Guide steer row sits on top** of the VoidScript bar when Guide is on, and hides when off.
 
 ## [5.0.2] - 2026-09-27
 
 ### Added
-- **Co-work mode** — human-in-the-loop steering. Toggle it on in the bar (or Settings) and a **Steer the next step…** box appears on its own row while a session runs. Type a correction and it's injected into the agent's next turn as a high-priority note, so the model changes course or fixes a wrong action without stopping the session. Queue multiple steers; the toggle's dot pulses while a steer is pending.
+- **Guide mode** — human-in-the-loop steering. Toggle it on in the bar (or Settings) and a **Steer the next step…** box appears on its own row while a session runs. Type a correction and it's injected into the agent's next turn as a high-priority note, so the model changes course or fixes a wrong action without stopping the session. Queue multiple steers; the toggle's dot pulses while a steer is pending.
 - **Undo button** — one-click revert of the agent's most recent script edit (same restore path as `revert_last`), sits in the steer row whenever there's an edit to undo. Runs immediately, independent of the AI turn.
 
 ### Changed
 - **Extension version → 5.0.2.**
-- **Co-work is a focused two-row layout** — the steer box + Undo drop to their own line under the controls, and the secondary quick buttons (screenshot / list / voice) tuck away while Co-work is on, returning when it's toggled off.
+- **Guide is a focused two-row layout** — the steer box + Undo drop to their own line under the controls, and the secondary quick buttons (screenshot / list / voice) tuck away while Guide is on, returning when it's toggled off.
 - **Bar connects to the composer on every site** — all generic-adapter providers (ChatGPT, Grok, Perplexity, Copilot, and ~80 more) plus GLM and Meta now inside-mount the status bar into the chat box like DeepSeek, instead of the detached floating pill. `placeBar` anchors to the composer before ever floating.
 
 ### Fixed
