@@ -111,6 +111,24 @@
   .chip.rec{border-color:rgba(98,208,180,.4)} .chip.rec .d{background:#5fe0c0}
   .chip .d.o{background:#8ea0ff}
 
+  /* ── quick settings (toggles + theme) ───────────────────── */
+  .setrow{display:flex; align-items:center; gap:10px; padding:7px 2px}
+  .setrow .lbl{flex:1; font-size:12px; font-weight:600; color:var(--fg)}
+  .sw{position:relative; width:38px; height:22px; flex:0 0 auto; display:inline-block}
+  .sw input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer; z-index:2}
+  .sw .track{position:absolute; inset:0; background:rgba(255,255,255,.13); border-radius:999px; transition:background .16s}
+  .sw .knob{position:absolute; top:3px; left:3px; width:16px; height:16px; border-radius:50%; background:#fff;
+    transition:transform .16s; box-shadow:0 1px 3px rgba(0,0,0,.4)}
+  .sw input:checked ~ .track{background:var(--grad)}
+  .sw input:checked ~ .knob{transform:translateX(16px)}
+  .sw input:focus-visible ~ .track{outline:2px solid rgba(255,138,61,.85); outline-offset:2px}
+  .seg{display:flex; gap:4px; background:rgba(255,255,255,.05); border:1px solid var(--line2);
+    border-radius:10px; padding:3px; margin-top:6px}
+  .seg button{flex:1; padding:6px 0; border:0; border-radius:7px; background:transparent; color:var(--muted);
+    font-size:11px; font-weight:700; cursor:pointer; transition:background .14s, color .14s}
+  .seg button:hover{color:var(--fg)}
+  .seg button.on{background:var(--grad); color:#fff}
+
   /* ── leaderboard (compact / low-key) ────────────────────── */
   .board{margin-top:14px}
   .board .sec-h #lb-copy{font-size:9px; color:var(--dim); cursor:pointer; text-transform:none;
@@ -140,8 +158,21 @@
   #tl-list .tl-evt{color:var(--warn)} #tl-list .tl-conv{color:var(--dim); font-size:9px}
   #tl-list:empty::after{content:"No commands recorded this session."; color:var(--dim);
     font-family:"Segoe UI",sans-serif}
+  .sec-h.row::after{display:none}
+  .sec-h .ttl{flex:1}
+  .mini-copy{font-size:9px; color:var(--dim); cursor:pointer; text-transform:none; letter-spacing:0; font-weight:700}
+  .mini-copy:hover{color:var(--muted)}
 
   #test-result{display:block; font-size:11px; color:var(--muted); margin-top:9px; min-height:14px; line-height:1.4}
+
+  /* ── session stats strip ────────────────────────────────── */
+  .stats{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px}
+  .stat{background:rgba(255,255,255,.04); border:1px solid var(--line); border-radius:12px;
+    padding:10px 6px; text-align:center}
+  .stat .v{display:block; font-size:17px; font-weight:800; color:var(--fg); line-height:1}
+  .stat .v.ok{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .stat .k{display:block; font-size:8.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase;
+    color:var(--dim); margin-top:4px}
 
   /* ── footer ─────────────────────────────────────────────── */
   .foot{display:flex; align-items:center; gap:8px; margin-top:15px; padding-top:12px; border-top:1px solid var(--line)}
@@ -219,6 +250,13 @@
 
   <span id="test-result"></span>
 
+  <!-- ── Session stats ──────────────────────────────── -->
+  <div class="stats">
+    <div class="stat"><span class="v" id="st-sessions">0</span><span class="k">Sessions</span></div>
+    <div class="stat"><span class="v" id="st-cmds">0</span><span class="k">Commands</span></div>
+    <div class="stat"><span class="v" id="st-rate">–</span><span class="k">Success</span></div>
+  </div>
+
   <!-- ── Jump to an AI ──────────────────────────────── -->
   <div class="sec-h">Jump to an AI</div>
   <div class="chips" id="ai-chips">
@@ -229,14 +267,30 @@
     <button class="chip" data-open="https://claude.ai/"><span class="d o"></span>Claude</button>
   </div>
 
+  <!-- ── Quick settings ─────────────────────────────── -->
+  <div class="sec-h">Quick settings</div>
+  <div class="setrow"><span class="lbl">Co-work steering</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsCowork" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">Verify edits with a screenshot</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsAutoVerify" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">Guard destructive commands</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsGuardDestructive" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">Work while tab is hidden</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsBackground" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="seg" id="theme-seg">
+    <button data-theme="system">System</button>
+    <button data-theme="dark">Dark</button>
+    <button data-theme="light">Light</button>
+  </div>
+
   <!-- ── Leaderboard (compact) ──────────────────────── -->
   <div class="board">
-    <div class="sec-h"><span class="ttl">Best models for you</span><span id="lb-copy">copy</span></div>
+    <div class="sec-h"><span class="ttl">Best models for you</span><span id="lb-reset" class="mini-copy">reset</span><span id="lb-copy">copy</span></div>
     <div id="lb"><span class="empty">No builds recorded yet — start a session to rank your AIs.</span></div>
   </div>
 
   <!-- ── Timeline ───────────────────────────────────── -->
-  <div class="sec-h">Recent activity</div>
+  <div class="sec-h row"><span class="ttl">Recent activity</span><span id="tl-copy" class="mini-copy">copy</span></div>
   <div id="tl-list"></div>
 
   <!-- ── Footer ─────────────────────────────────────── -->

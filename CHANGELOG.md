@@ -2,18 +2,31 @@
 
 All notable changes to VoidScript Free are documented here.
 
-## [5.0.4] - 2026-09-28
+## [5.1.0] - 2026-09-28
+
+### Agent quality & "acts like a real tool, not a bot"
+- **Surgical edits, never rewrites.** The agent is now told to change only the exact lines that must change (a tight multi_edit), not rewrite a whole script to tweak one thing — so it stops making 50-line changes for a 2-line fix and never clobbers your formatting or unrelated logic.
+- **Code that reads like a human wrote it.** No filler comments, no "-- Step 1 / -- Step 2" narration, no header banners — clean idiomatic Luau that matches your project's style, so what it leaves behind doesn't look AI-generated.
+- **Natural teammate tone.** Brief, plain replies — no "As an AI…", no restating the request, no over-explaining.
+- **Human-like send timing by default.** A small randomized pause before every send so the cadence reads as a person typing instead of an instant machine paste (the biggest "this is a bot" tell). "Humanize send timing" widens it further.
 
 ### Added
-- **Redesigned extension popup.** A cleaner, more premium layout — glowing logo header, a status hero card, a prominent gradient **Start VoidScript**, an icon action grid (Reconnect / Quick test / Diagnostics / Settings), a **Jump to an AI** quick-launch row (DeepSeek, ChatGPT, Gemini, GLM, Claude), and a footer with website / Discord / GitHub links.
+- **Redesigned extension popup.** A cleaner, premium layout — glowing logo header, a status hero card, a prominent gradient **Start VoidScript**, an icon action grid (Reconnect / Quick test / Diagnostics / Settings), and a footer with website / Discord / GitHub links.
+- **Jump to an AI.** Quick-launch chips in the popup for DeepSeek, ChatGPT, Gemini, GLM and Claude.
+- **Quick settings in the popup.** Toggle **Co-work steering**, **Verify edits with a screenshot**, **Guard destructive commands** and **Work while the tab is hidden**, plus a **System / Dark / Light** theme picker — right from the popup.
+- **Live settings sync.** Changing a setting in the popup (or another tab) now applies to the running AI page immediately, no reload needed.
+- **Copy the session timeline** as plain text (a copy control on "Recent activity", matching the leaderboard).
+- **Custom settings UI.** The in-page settings menu's plain checkboxes are now branded toggle switches, with styled dropdowns/number inputs to match.
+- **Co-work quick-steer presets.** One-click steer chips — *Fix that*, *Undo & retry*, *Keep going*, *Explain first* — so you can redirect the agent without typing.
+- **Session stats in the popup.** A Sessions / Commands / Success strip summarising your build history at a glance, with a one-click **reset** to clear your leaderboard, stats and activity.
 
 ### Fixed
-- **Hidden controls actually hide now.** Several bar controls set an explicit CSS `display`, which overrode the `hidden` attribute — so Co-work, the steer row, Undo, and the quick screenshot/list/voice buttons stayed visible even when the code hid them (the crowded bar + "Co-work always showing"). The `hidden` attribute now wins for every VoidScript control, so Co-work's steer tab is fully hidden until you press Co-work.
+- **Hidden controls actually hide now.** Several bar controls set an explicit CSS `display`, which overrode the `hidden` attribute — so Co-work, the steer row, Undo and the quick screenshot/list/voice buttons stayed visible even when the code hid them (the crowded bar + "Co-work always showing"). The `hidden` attribute now wins for every VoidScript control, so Co-work's steer tab is fully hidden until you press Co-work.
 - **DeepSeek "mode not ready" no longer blocks Start.** Switching to Expert/Vision is best-effort; the session now starts as long as the composer is usable, instead of stranding you behind the banner when DeepSeek changes its model-tab layout.
 - **Tab freeze on streaming sites (ChatGPT etc.).** The DOM watcher ran a full-page scan on every single streamed token; it's now coalesced to at most once per animation frame, stopping the CPU spikes/freezes on slower machines. (With 5.0.3's fix for the bar fighting framework composers, this is the freeze that made commands like `list_commands` appear to do nothing.)
 
 ### Changed
-- **Extension version → 5.0.4.**
+- **Extension version → 5.1.0.**
 - **Leaderboard restyled** as a compact, low-key "Best models for you" list instead of a heavy card.
 
 ## [5.0.3] - 2026-09-27

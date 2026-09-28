@@ -110,8 +110,10 @@
   // toggle via the menu "Humanize send timing (experimental)".
   const SEND_JITTER_MS = [400, 1400]; // [min, max] ms, randomized per send
   function jitterBeforeSend() {
-    if (!vsOn("vsHumanizeSend")) return Promise.resolve();
-    const [lo, hi] = SEND_JITTER_MS;
+    // Always pause a little before sending so the cadence reads as a person typing,
+    // not an instant machine paste — the single biggest "this is a bot" tell on chat
+    // sites. "Humanize send timing" widens the range for an even more natural feel.
+    const [lo, hi] = vsOn("vsHumanizeSend") ? SEND_JITTER_MS : [130, 420];
     return sleep(lo + Math.random() * (hi - lo));
   }
 
@@ -3336,9 +3338,17 @@
           <button id="vs-pause" hidden>⏸ Pause</button>
           <button id="vs-cowork" hidden aria-pressed="false" title="Co-work: steer the agent while it runs — type a correction and it adjusts its next step"><span class="vs-cw-dot"></span><span class="vs-cw-label">Co-work</span></button>
           <div id="vs-steer" hidden>
-            <button id="vs-undo" hidden title="Undo the agent's last script edit (restores the previous source)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg><span class="vs-undo-label">Undo</span></button>
-            <input id="vs-steer-input" type="text" autocomplete="off" spellcheck="false" placeholder="Steer the next step…" aria-label="Steer the agent's next step" />
-            <button id="vs-steer-send" title="Send this steer to the agent's next step">Steer</button>
+            <div class="vs-steer-main">
+              <button id="vs-undo" hidden title="Undo the agent's last script edit (restores the previous source)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-1"/></svg><span class="vs-undo-label">Undo</span></button>
+              <input id="vs-steer-input" type="text" autocomplete="off" spellcheck="false" placeholder="Steer the next step…" aria-label="Steer the agent's next step" />
+              <button id="vs-steer-send" title="Send this steer to the agent's next step">Steer</button>
+            </div>
+            <div class="vs-steer-presets">
+              <button class="vs-steer-chip" data-steer="Stop — what you just did is wrong. Fix it before continuing.">Fix that</button>
+              <button class="vs-steer-chip" data-steer="Undo your last change and take a different approach.">Undo &amp; retry</button>
+              <button class="vs-steer-chip" data-steer="That looks right — keep going with the plan.">Keep going</button>
+              <button class="vs-steer-chip" data-steer="Pause and explain your plan before making more changes.">Explain first</button>
+            </div>
           </div>
           <a id="vs-discord" href="https://discord.gg/KmkCKwUbcX" target="_blank" rel="noopener" title="Need help? Join our Discord"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg></a>
            <button id="vs-voice" hidden aria-label="Speak to VoidScript" title="Speak to VoidScript (transcribes and inserts)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a1 1 0 0 0-2 0 5 5 0 0 1-10 0 1 1 0 0 0-2 0 7 7 0 0 0 6 6.92V21a1 1 0 0 0 2 0v-3.08A7 7 0 0 0 19 11z"/></svg></button>
@@ -3407,20 +3417,29 @@
           if (VS_CFG.vsCowork && steerInput) { try { steerInput.focus(); } catch {} }
         });
       }
+      // Queue a steer (from the input or a preset chip) for the agent's next turn.
+      const queueSteer = (text) => {
+        const v = String(text || "").trim();
+        if (!v) return;
+        A.steerQueue = A.steerQueue || [];
+        A.steerQueue.push(v);
+        diag("cowork.steerQueued", { len: v.length, pending: A.steerQueue.length });
+        ui.toast(A.running ? "Steer queued — applied on the next step." : "Steer saved for when the agent runs.");
+        updateCowork();
+      };
       const submitSteer = () => {
         if (!steerInput) return;
         const v = steerInput.value.trim();
         if (!v) { try { steerInput.focus(); } catch {} return; }
-        A.steerQueue = A.steerQueue || [];
-        A.steerQueue.push(v);
         steerInput.value = "";
-        diag("cowork.steerQueued", { len: v.length, pending: A.steerQueue.length });
-        // Applies now if the agent is mid-run; otherwise rides the next send.
-        ui.toast(A.running ? "Steer queued — applied on the next step." : "Steer saved for when the agent runs.");
-        updateCowork();
+        queueSteer(v);
       };
       const steerSendBtn = root.querySelector("#vs-steer-send");
       if (steerSendBtn) steerSendBtn.addEventListener("click", submitSteer);
+      // One-click steer presets: common corrections without typing.
+      root.querySelectorAll(".vs-steer-chip").forEach((chip) => {
+        chip.addEventListener("click", () => queueSteer(chip.getAttribute("data-steer")));
+      });
       // Undo (Co-work): revert the agent's most recent script edit immediately, on
       // the user's command — independent of the AI turn (it just talks to Studio via
       // the same revert path revert_last uses).
@@ -4006,7 +4025,7 @@
              <option value="crafting">Crafting / Gathering</option>
              <option value="">Not sure - pick what's fun</option>
            </select>
-           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" id="vs-wiz-mp" /> Multiplayer-ready (authoritative logic, respawns, leaderboard)</label>
+           <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" id="vs-wiz-mp" class="vs-cfg-toggle" /> Multiplayer-ready (authoritative logic, respawns, leaderboard)</label>
            <div class="vs-set-row"><button id="vs-wiz-go">Build it now</button><span id="vs-wiz-status"></span></div>
          </section>
            <section class="vs-menu-sec">
@@ -6163,6 +6182,30 @@
   document.addEventListener("visibilitychange", () => { if (!document.hidden) scheduleSweep(); });
 
   syncSessionState();
+
+  // Live settings sync: when the popup (or another tab) changes a VoidScript setting
+  // in chrome.storage, apply it to THIS running page immediately - no reload needed.
+  // Covers the popup's quick toggles (Co-work, auto-verify, guard, background…) and
+  // the theme picker.
+  try {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area !== "local") return;
+      let touched = false;
+      for (const k in changes) {
+        if (Object.prototype.hasOwnProperty.call(VS_CFG_DEFAULTS, k)) {
+          VS_CFG[k] = changes[k].newValue;
+          touched = true;
+          if (k === "vsCowork" && changes[k].newValue === false) A.steerQueue = [];
+          if (k === "vsTheme") {
+            const t = changes[k].newValue;
+            if (!t || t === "system") document.documentElement.removeAttribute("data-vs-theme");
+            else document.documentElement.setAttribute("data-vs-theme", t);
+          }
+        }
+      }
+      if (touched) { try { ui.updateStartGate(); } catch {} }
+    });
+  } catch {}
 
   // User-send interception: the provider wires the site's composer events to
   // these callbacks.

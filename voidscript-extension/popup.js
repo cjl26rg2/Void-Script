@@ -192,6 +192,33 @@ document.querySelectorAll("[data-open]").forEach((el) => {
   });
 });
 
+// ── quick settings ───────────────────────────────────────────────────────────
+// Toggle switches + theme picker write straight to chrome.storage.local; the in-page
+// engine live-syncs them via its storage.onChanged listener (no reload needed).
+const CFG_DEFAULTS = {
+  vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsTheme: "system",
+};
+chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
+  const cfg = { ...CFG_DEFAULTS, ...(r || {}) };
+  document.querySelectorAll("input[data-cfg]").forEach((box) => {
+    const k = box.dataset.cfg;
+    box.checked = cfg[k] !== false;
+    box.addEventListener("change", () => {
+      try { chrome.storage.local.set({ [k]: box.checked }); } catch {}
+    });
+  });
+  const seg = $("theme-seg");
+  if (seg) {
+    const buttons = [...seg.querySelectorAll("button")];
+    const setActive = (t) => buttons.forEach((b) => b.classList.toggle("on", b.dataset.theme === t));
+    setActive(cfg.vsTheme || "system");
+    buttons.forEach((b) => b.addEventListener("click", () => {
+      setActive(b.dataset.theme);
+      try { chrome.storage.local.set({ vsTheme: b.dataset.theme }); } catch {}
+    }));
+  }
+});
+
 // Quick round-trip test (Feature): times a list_tools round trip and reports
 // the bridge latency + Studio state in one line.
 $("btn-test").onclick = async () => {
@@ -309,6 +336,31 @@ function renderTimeline() {
 renderTimeline();
 setInterval(renderTimeline, 3000);
 
+// Copy the session timeline as plain text (parity with the leaderboard copy).
+const tlCopy = $("tl-copy");
+if (tlCopy) {
+  tlCopy.title = "Copy the session timeline";
+  tlCopy.addEventListener("click", () => {
+    chrome.storage.local.get("vsTimeline", (r) => {
+      const arr = (r && r.vsTimeline) || [];
+      const lines = arr.slice(-40).map((e) => {
+        let what = e.type;
+        if (e.type === "tool") what = `${e.name || "tool"} ${e.ok ? "ok" : "ERR " + (e.err || "").slice(0, 40)}`;
+        else if (e.type === "shot") what = "screenshot";
+        else if (e.type === "session_start") what = "session started";
+        else if (e.type === "session_stop") what = "session stopped";
+        else if (e.type === "event") what = e.name || "event";
+        return `${fmtTime(e.t)}  ${what}`;
+      });
+      const text = lines.length ? lines.join("\n") : "No commands recorded this session.";
+      navigator.clipboard.writeText(text).then(() => {
+        tlCopy.textContent = "copied ✓";
+        setTimeout(() => { tlCopy.textContent = "copy"; }, 1600);
+      }).catch(() => {});
+    });
+  });
+}
+
 // ── provider leaderboard ────────────────────────────────────────────────────
 // Ranks providers by build tool success rate (tools completed vs errored across
 // sessions), so the user can pick the model that actually builds best for them.
@@ -321,8 +373,13 @@ function renderLeaderboard() {
                     rate: ((e.ok || 0) + (e.err || 0)) ? (e.ok / ((e.ok || 0) + (e.err || 0))) : 0 }))
       .sort((a, b) => b.rate - a.rate || b.runs - a.runs)
       .slice(0, 5);
-    if (!rows.length) return;
-    $("lb").innerHTML = rows.map((e, i) =>
+    const lbEl = $("lb");
+    if (!lbEl) return;
+    if (!rows.length) {
+      lbEl.innerHTML = '<span class="empty">No builds recorded yet — start a session to rank your AIs.</span>';
+      return;
+    }
+    lbEl.innerHTML = rows.map((e, i) =>
       `<div class="lb-row">
          <span class="lb-rank">${i + 1}</span>
          <span class="lb-name">${esc(e.name)}</span>
@@ -334,6 +391,39 @@ function renderLeaderboard() {
 }
 renderLeaderboard();
 setInterval(renderLeaderboard, 4000);
+
+// ── session stats strip ──────────────────────────────────────────────────────
+// Aggregate totals across all providers from the leaderboard store.
+function renderStats() {
+  chrome.storage.local.get("vsLeaderboard", (r) => {
+    const lb = (r && r.vsLeaderboard) || {};
+    let runs = 0, ok = 0, err = 0;
+    Object.values(lb).forEach((e) => { runs += e.runs || 0; ok += e.ok || 0; err += e.err || 0; });
+    const total = ok + err;
+    const set = (id, v) => { const el = $(id); if (el) el.textContent = v; };
+    set("st-sessions", runs);
+    set("st-cmds", total);
+    const rt = $("st-rate");
+    if (rt) { rt.textContent = total ? Math.round((ok / total) * 100) + "%" : "–"; rt.classList.toggle("ok", total > 0); }
+  });
+}
+renderStats();
+setInterval(renderStats, 4000);
+
+// Reset the leaderboard + timeline + stats (clears the local history).
+const lbReset = $("lb-reset");
+if (lbReset) {
+  lbReset.title = "Clear your leaderboard, stats and activity history";
+  lbReset.addEventListener("click", () => {
+    try {
+      chrome.storage.local.set({ vsLeaderboard: {}, vsTimeline: [] }, () => {
+        renderLeaderboard(); renderStats(); renderTimeline();
+        lbReset.textContent = "cleared ✓";
+        setTimeout(() => { lbReset.textContent = "reset"; }, 1500);
+      });
+    } catch {}
+  });
+}
 
 // Leaderboard export (Feature): copy the current provider success-rate ranking as
 // plain text so it can be pasted into a bug report or shared.

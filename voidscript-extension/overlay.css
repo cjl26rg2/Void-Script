@@ -281,10 +281,21 @@ html.vs-light #vs-undo:hover { background: rgba(0, 0, 0, 0.10); color: #111827; 
 /* Steer row: full-width second line with the input + send button. */
 #vs-steer {
   flex: 0 0 100%; width: 100%; order: -1;
-  display: flex; align-items: center; gap: 8px;
+  display: flex; flex-direction: column; align-items: stretch; gap: 7px;
   padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, 0.10);
 }
 html.vs-light #vs-steer { border-bottom-color: rgba(20, 23, 32, 0.12); }
+#vs-steer .vs-steer-main { display: flex; align-items: center; gap: 8px; }
+#vs-steer .vs-steer-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.vs-steer-chip {
+  flex: 0 0 auto; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  font-size: 11px; font-weight: 600; color: #c6cad6;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: background 0.13s ease, color 0.13s ease, border-color 0.13s ease;
+}
+.vs-steer-chip:hover { background: rgba(255, 138, 61, 0.16); color: #fff; border-color: rgba(255, 138, 61, 0.45); }
+html.vs-light .vs-steer-chip { background: rgba(0, 0, 0, 0.05); color: #4b5563; border-color: rgba(0, 0, 0, 0.12); }
+html.vs-light .vs-steer-chip:hover { background: rgba(255, 138, 61, 0.16); color: #7a3b12; }
 #vs-steer-input {
   flex: 1; min-width: 0; height: 30px; padding: 0 11px;
   background: rgba(255, 255, 255, 0.06); color: #f1f2f8;
@@ -415,6 +426,98 @@ html.vs-light #vs-menu::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); b
 }
 .vs-menu-note { font-size: 10.5px; color: #7d8494; line-height: 1.45; margin: 0 0 9px; }
 
+/* ── settings rows: custom toggle switches instead of native checkboxes ─────── */
+.vs-menu-note.vs-wiz-mp {
+  display: flex; align-items: center; gap: 10px; cursor: pointer;
+  font-size: 12px; color: #d6dae7; line-height: 1.35; margin: 0 0 2px; padding: 6px 8px;
+  border-radius: 9px; transition: background 0.12s ease;
+}
+.vs-menu-note.vs-wiz-mp:hover { background: rgba(255, 255, 255, 0.045); }
+.vs-cfg-toggle {
+  appearance: none; -webkit-appearance: none; margin: 0 0 0 auto; order: 2;
+  position: relative; width: 36px; height: 21px; flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.15); border: 0; border-radius: 999px; cursor: pointer;
+  transition: background 0.16s ease;
+}
+.vs-cfg-toggle::after {
+  content: ""; position: absolute; top: 2.5px; left: 2.5px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: transform 0.16s ease;
+}
+.vs-cfg-toggle:checked { background: linear-gradient(135deg, #ff8a3d, #ff5c8a); }
+.vs-cfg-toggle:checked::after { transform: translateX(15px); }
+.vs-cfg-toggle:focus-visible { outline: 2px solid rgba(255, 138, 61, 0.85); outline-offset: 2px; }
+html.vs-light .vs-menu-note.vs-wiz-mp { color: #374151; }
+html.vs-light .vs-menu-note.vs-wiz-mp:hover { background: rgba(0, 0, 0, 0.04); }
+html.vs-light .vs-cfg-toggle { background: rgba(0, 0, 0, 0.18); }
+
+/* ── every menu select: custom control + dark option list (no native white dropdown) ── */
+#vs-menu select {
+  appearance: none; -webkit-appearance: none; -moz-appearance: none;
+  width: 100%; box-sizing: border-box; cursor: pointer;
+  background-color: rgba(255, 255, 255, 0.06); color: #eef0f6;
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 9px;
+  padding: 7px 28px 7px 10px; font-size: 12px; font-family: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23aab0c2' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center; background-size: 11px;
+  transition: border-color 0.14s ease, background-color 0.14s ease;
+}
+#vs-menu select:focus { outline: none; border-color: rgba(255, 138, 61, 0.7); }
+#vs-menu select option, #vs-menu select optgroup { background: #171a24; color: #eef0f6; }
+#vs-menu input[type="number"], #vs-menu input[type="text"]:not(#vs-steer-input) {
+  box-sizing: border-box; background: rgba(255, 255, 255, 0.06); color: #eef0f6;
+  border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 8px;
+  padding: 6px 9px; font-size: 12px; font-family: inherit;
+}
+#vs-menu input:focus { outline: none; border-color: rgba(255, 138, 61, 0.7); }
+/* inline label controls (Approval level / Command budget) stay compact on the right */
+#vs-menu .vs-wiz-mp select, #vs-menu .vs-wiz-mp input[type="number"] { width: auto; margin-left: auto; flex: 0 0 auto; }
+#vs-menu .vs-wiz-mp input[type="number"] { width: 78px; }
+/* selects that share a row with a button flex to fill it */
+#vs-menu .vs-set-row select, #vs-menu .vs-mcp-row select { flex: 1; width: auto; min-width: 0; }
+/* wizard primary + neutral menu buttons */
+#vs-wiz-go {
+  background: linear-gradient(135deg, #ff8a3d, #ff5c8a); color: #fff; border: 0; border-radius: 9px;
+  padding: 8px 16px; font-size: 12px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(255, 110, 80, 0.35); transition: filter 0.14s ease;
+}
+#vs-wiz-go:hover { filter: brightness(1.08); }
+#vs-preset-apply {
+  background: rgba(255, 255, 255, 0.10); color: #f1f2f8; border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+#vs-preset-apply:hover { background: rgba(255, 255, 255, 0.17); }
+/* neutral styling for every other menu action button (recording, code review, logs,
+   backups, startup, settings, presets, recipe…). Low specificity (0,1,1) so the
+   id-styled buttons above — Build it now, Save, Add server, uvx guide — keep their look. */
+.vs-set-row button, .vs-backup-item button {
+  background: rgba(255, 255, 255, 0.08); color: #eef0f6;
+  border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px;
+  padding: 6px 13px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer;
+  transition: background 0.13s ease, border-color 0.13s ease;
+}
+.vs-set-row button:hover, .vs-backup-item button:hover {
+  background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 138, 61, 0.35);
+}
+.vs-set-row button:focus-visible, .vs-backup-item button:focus-visible {
+  outline: 2px solid rgba(255, 138, 61, 0.85); outline-offset: 2px;
+}
+.vs-backup-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 11.5px; }
+.vs-backup-item .vs-backup-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #eef0f6; }
+.vs-backup-item .vs-backup-meta { color: #8a90a0; font-size: 10px; }
+.vs-backup-item .vs-backup-del:hover { color: #ff8b94; border-color: rgba(255,139,148,.4); }
+html.vs-light .vs-set-row button, html.vs-light .vs-backup-item button {
+  background: rgba(0, 0, 0, 0.06); color: #1f2937; border-color: rgba(0, 0, 0, 0.14);
+}
+html.vs-light .vs-set-row button:hover, html.vs-light .vs-backup-item button:hover { background: rgba(0, 0, 0, 0.10); }
+html.vs-light #vs-menu select, html.vs-light #vs-menu input[type="number"], html.vs-light #vs-menu input[type="text"]:not(#vs-steer-input) {
+  background-color: rgba(0, 0, 0, 0.04); color: #111827; border-color: rgba(0, 0, 0, 0.16);
+}
+html.vs-light #vs-menu select option, html.vs-light #vs-menu select optgroup { background: #fff; color: #1f2937; }
+html.vs-light #vs-menu select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23667' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+}
+
 /* AI site rows */
 .vs-site-opt {
   width: 100%; box-sizing: border-box; margin: 2px 0; padding: 8px 10px;
@@ -457,7 +560,7 @@ button.vs-site-opt:hover .vs-site-go { opacity: 1; transform: translateX(0); }
   padding: 8px 10px; font-size: 12px; font-family: inherit; line-height: 1.45;
 }
 #vs-set-text:focus { outline: none; border-color: rgba(255, 138, 61, 0.55); box-shadow: 0 0 0 3px rgba(255, 138, 61, 0.15); }
-.vs-set-row { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.vs-set-row { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 8px; }
 #vs-set-save, #vs-mcp-add {
   background: rgba(255, 255, 255, 0.10); color: #f1f2f8;
   border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px;
