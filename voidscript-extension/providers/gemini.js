@@ -209,6 +209,9 @@ const VSProvider = (() => {
     const item = lastAssistant();
     const len = streamText(item).length;
     const now = Date.now();
+    // First reading is only a baseline: an already-finished reply on the page is not
+    // "growth" (crediting it made the site look busy for a few seconds after load).
+    if (_streamMax === -1) { _streamItem = item; _streamMax = len; _streamAt = 0; return; }
     if (item !== _streamItem || len < _streamMax - 400) {
       _streamItem = item; _streamMax = len; _streamAt = now; return;
     }

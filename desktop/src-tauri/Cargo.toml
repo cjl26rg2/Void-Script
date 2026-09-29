@@ -1,0 +1,28 @@
+[package]
+name = "voidscript"
+version = "5.2.0"
+description = "VoidScript - AI agent for Roblox Studio"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "time", "net", "macros", "rt-multi-thread"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"

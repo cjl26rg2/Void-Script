@@ -6,9 +6,14 @@
 //
 // Notes:
 //  - Turns carry data-message-author-role="user" | "assistant" on the message div.
-//  - Composer is a contenteditable ProseMirror div (#prompt-textarea), NOT a
-//    <textarea>, so the factory's contenteditable path is used.
-//  - Send/stop buttons are identified by data-testid.
+//  - Composer: older builds use a contenteditable ProseMirror div (#prompt-textarea);
+//    the current build (verified 2026-09) uses a plain <textarea name="prompt">.
+//    Both are covered - the factory handles textarea and contenteditable alike.
+//  - Send/stop: the current build dropped data-testid on these buttons and only
+//    has a LOCALISED aria-label ("Send message" / "Invia messaggio"). So we only
+//    list the legacy testids here and let the factory's language-neutral fallback
+//    (the composer's submit button, multilingual aria match) find them - that is
+//    what makes ChatGPT work in Italian, Spanish, German, etc., not just English.
 // eslint-disable-next-line no-unused-vars
 const VSProvider = VSGeneric({
   id: "chatgpt",
@@ -19,10 +24,10 @@ const VSProvider = VSGeneric({
     userItem: '[data-message-author-role="user"]',
     assistantItem: '[data-message-author-role="assistant"]',
     thinking: '[data-thinking],[class*="thinking" i],[class*="reasoning" i]',
-    editor: '#prompt-textarea, div[contenteditable="true"]',
+    editor: '#prompt-textarea, textarea[name="prompt"], div[contenteditable="true"]',
     composer: "form",
-    sendBtn: 'button[data-testid="send-button"], button[aria-label*="Send" i]',
-    stopBtn: 'button[data-testid="stop-button"], button[aria-label*="Stop" i]',
+    sendBtn: 'button[data-testid="send-button"]',
+    stopBtn: 'button[data-testid="stop-button"]',
     codeWrap: "pre",
     errorSurfaces: '[role="alert"],[class*="toast" i],[class*="error" i]',
   },

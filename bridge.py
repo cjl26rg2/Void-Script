@@ -91,7 +91,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "5.1.0"
+BRIDGE_VERSION = "5.2.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")

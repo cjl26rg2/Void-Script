@@ -479,6 +479,9 @@ const VSProvider = (() => {
     const item = lastAssistant();
     const len = streamText(item).length;
     const now = Date.now();
+    // First reading is only a baseline: an already-finished reply on the page is not
+    // "growth" (crediting it made the site look busy for a few seconds after load).
+    if (_streamMax === -1) { _streamItem = item; _streamMax = len; _streamAt = 0; return; }
     // A new turn - a different node, or a big length drop (a virtualized node
     // recycled into a fresh turn) - starts tracking afresh and counts as active.
     if (item !== _streamItem || len < _streamMax - 400) {

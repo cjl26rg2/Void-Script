@@ -48,8 +48,10 @@ const VSProvider = (() => {
     carousel: '[role="region"][aria-roledescription="carousel"]',
     slide: '[aria-roledescription="slide"]',
     codeWrap: "div.not-prose",     // fenced-code wrapper inside .prose
-    sendAria: /send message|envoyer/i,
-    stopAria: /stop generation|arr[êe]ter/i,
+    // Localised labels (aria-labels follow the user's language). Kept phrase-level
+    // because sendButton()/stopButton() scan every button on the page.
+    sendAria: /send message|envoyer|invia messaggio|enviar mensaje|nachricht senden|bericht verzenden|wyślij wiadomość|mesaj gönder|отправить сообщение|发送消息|メッセージを送信|메시지 보내기/i,
+    stopAria: /stop generat|arr[êe]ter|interrompi|detener|generierung stoppen|stoppen|zatrzymaj|durdur|остановить|停止|中止|정지/i,
     errorSurfaces:
       '[role="alert"],[class*="toast"],[class*="error"],[class*="alert"],[data-sonner-toast]',
   };
@@ -332,6 +334,9 @@ const VSProvider = (() => {
     const item = lastAssistant();
     const len = streamText(item).length;
     const now = Date.now();
+    // First reading is only a baseline: an already-finished reply on the page is not
+    // "growth" (crediting it made the site look busy for a few seconds after load).
+    if (_streamMax === -1) { _streamItem = item; _streamMax = len; _streamAt = 0; return; }
     if (item !== _streamItem || len < _streamMax - 400) {
       _streamItem = item; _streamMax = len; _streamAt = now; return;
     }

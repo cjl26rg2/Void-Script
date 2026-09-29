@@ -9,7 +9,7 @@ CREDITS TO ZEROSCRIPT, THIS IS JUST A BETTER VERSION.
 **VoidScript** is a free browser extension that turns DeepSeek, Gemini, Kimi.ai, GLM, Qwen, Arena, Meta AI, ChatGPT, Grok, Perplexity, Copilot, Mistral, Poe, HuggingChat, T3 Chat, Poolside, Twinny, Cody, Chatbase or 99+ other AI sites into a Roblox Studio AI agent.
 Control Roblox Studio with AI directly from your browser - read/edit scripts, run Luau, generate assets, all from a normal AI chat. No API key, no terminal, no coding needed.
 
-> 🌐 **Website: [void-script.vercel.app](https://voidstudioai.netlify.app/)** the free Lemonade.gg / Luamotion alternative for building Roblox games with AI.
+> 🌐 **Website: [voidstudioai.netlify.app](https://voidstudioai.netlify.app/)** the free Lemonade.gg / Luamotion alternative for building Roblox games with AI.
 
 **Seven fully-supported (hand-tuned) providers:** **DeepSeek** (chat.deepseek.com, recommended), **Google Gemini** (gemini.google.com), **Kimi** (kimi.ai, Moonshot AI), **GLM** (chat.z.ai, Z.ai), **Qwen** (chat.qwen.ai), **Arena** (arena.ai, a multi-model playground) and **Meta AI** (meta.ai). Gemini and Kimi can be unstable: Gemini tends to stop using the Roblox tools in long sessions, and Kimi sometimes uses its own native tools instead of the Roblox commands. On Arena, use **Direct** mode (VoidScript only supports Direct; it blocks Start in Battle / Side-by-Side / Agent modes). DeepSeek is the recommended provider.
 

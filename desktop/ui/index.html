@@ -1,0 +1,320 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VoidScript</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<!-- ── custom title bar (the window is frameless) ─────────────────────────── -->
+<header id="titlebar" data-tauri-drag-region>
+  <div class="tb-brand" data-tauri-drag-region>
+    <img src="assets/logo.png" alt="" class="tb-logo" data-tauri-drag-region />
+    <span class="tb-name" data-tauri-drag-region>Void<span class="grad">Script</span></span>
+    <span class="tb-ver" id="tb-ver" data-tauri-drag-region></span>
+  </div>
+  <div class="tb-spacer" data-tauri-drag-region></div>
+  <div class="tb-btns">
+    <button class="tb-btn" id="win-min" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
+    <button class="tb-btn" id="win-max" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg></button>
+    <button class="tb-btn tb-close" id="win-close" title="Close" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
+  </div>
+</header>
+
+<div id="shell">
+  <!-- ── sidebar ──────────────────────────────────────────────────────────── -->
+  <nav id="side">
+    <button class="nav-item active" data-view="home">
+      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+    <button class="nav-item" data-view="chat">
+      <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>Chat</span></button>
+    <button class="nav-item" data-view="tools">
+      <svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Tools</span></button>
+    <button class="nav-item" data-view="mcp">
+      <svg viewBox="0 0 24 24"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0zM12 16v5"/></svg><span>MCP servers</span></button>
+    <button class="nav-item" data-view="terminal">
+      <svg viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm3 4 3 3-3 3m5 0h5"/></svg><span>Terminal</span></button>
+    <button class="nav-item" data-view="settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
+    <div class="side-spacer"></div>
+    <div class="side-status">
+      <div class="pill" id="pill-bridge"><span class="dot"></span><span class="lbl">Bridge</span><span class="val">—</span></div>
+      <div class="pill" id="pill-studio"><span class="dot"></span><span class="lbl">Studio</span><span class="val">—</span></div>
+    </div>
+  </nav>
+
+  <main id="view">
+    <!-- ── HOME ──────────────────────────────────────────────────────────── -->
+    <section class="view active" id="view-home">
+      <div id="update-banner" class="banner acc" hidden>
+        <strong>VoidScript updated.</strong> The bridge is already on the new version — quit and reopen the app to load the new app too.
+      </div>
+      <div class="hero">
+        <div>
+          <h1>Build Roblox games with AI.</h1>
+          <p class="sub">VoidScript connects AI to your open Roblox Studio. Keep this app running while you build.</p>
+          <p class="how-note"><b>Two ways to build:</b> use ChatGPT, DeepSeek, Gemini and the rest through the <b>browser extension</b>, or chat here with <b>your own NVIDIA / OpenRouter API key</b>. The in-app chat only has the models your key gives you, not every AI.</p>
+        </div>
+        <div class="hero-actions">
+          <button class="btn primary" id="btn-bridge-toggle">Start bridge</button>
+          <button class="btn" id="btn-bridge-restart">Restart</button>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card stat" id="card-bridge">
+          <div class="card-h"><span class="dot"></span>Bridge</div>
+          <div class="big" id="bridge-big">Stopped</div>
+          <div class="small" id="bridge-small">Press Start bridge to begin.</div>
+        </div>
+        <div class="card stat" id="card-studio">
+          <div class="card-h"><span class="dot"></span>Roblox Studio</div>
+          <div class="big" id="studio-big">—</div>
+          <div class="small" id="studio-small">Start the bridge first.</div>
+        </div>
+        <div class="card stat" id="card-tools">
+          <div class="card-h"><span class="dot"></span>Tools</div>
+          <div class="big" id="tools-big">0</div>
+          <div class="small" id="tools-small">No MCP servers yet.</div>
+        </div>
+        <div class="card stat" id="card-ws">
+          <div class="card-h"><span class="dot"></span>Workspace access</div>
+          <div class="big" id="ws-big">Off</div>
+          <div class="small" id="ws-small">The AI can't touch your files.</div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-t">Option 1 · Browser extension <span class="tag">every AI site</span></div>
+          <ol class="steps">
+            <li>Open <b>Roblox Studio</b> and enable <i>Studio as MCP server</i> (Assistant settings).</li>
+            <li>Keep the <b>bridge</b> running (this app).</li>
+            <li>Open an AI site with the VoidScript extension and press <b>Start VoidScript</b>.</li>
+          </ol>
+          <div class="row">
+            <button class="btn sm" data-url="https://chat.deepseek.com/">DeepSeek</button>
+            <button class="btn sm" data-url="https://chatgpt.com/">ChatGPT</button>
+            <button class="btn sm" data-url="https://gemini.google.com/app">Gemini</button>
+            <button class="btn sm ghost" data-url="https://voidstudioai.netlify.app/">Get the extension</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-t">Option 2 · In-app chat <span class="tag">your API key</span></div>
+          <p class="muted">Paste your own NVIDIA or OpenRouter key in Settings and chat here. Those models build straight into Studio with real tool-calling and reference files. Want ChatGPT, Gemini or DeepSeek? Use the extension instead.</p>
+          <div class="row"><button class="btn primary sm" id="btn-go-chat">Open Chat</button>
+            <button class="btn sm ghost" data-url="https://build.nvidia.com/">Free NVIDIA key</button>
+            <button class="btn sm ghost" data-url="https://openrouter.ai/keys">OpenRouter key</button></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-t row-between">Recent activity <button class="link" id="btn-go-term">Open terminal →</button></div>
+        <div class="mini-log" id="home-log"></div>
+      </div>
+    </section>
+
+    <!-- ── CHAT ──────────────────────────────────────────────────────────── -->
+    <section class="view" id="view-chat">
+      <div class="chat-top">
+        <div class="chat-title">Chat
+          <div class="model-wrap">
+            <button class="model-btn" id="chat-model" title="Change the AI model">
+              <span class="prov" id="chat-prov">NVIDIA</span><span class="mname" id="chat-model-name">model</span>
+              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="model-pop" id="model-pop" hidden>
+              <div class="seg" id="pop-seg">
+                <button data-prov="nvidia">NVIDIA</button>
+                <button data-prov="openrouter">OpenRouter</button>
+              </div>
+              <input class="input" id="pop-search" placeholder="Search models, or type any model ID…" autocomplete="off" spellcheck="false" />
+              <div class="pop-list" id="pop-list"></div>
+              <div class="pop-foot" id="pop-foot">Models with <span class="tl">tools</span> can build in Studio.</div>
+            </div>
+          </div>
+          <span class="chip" id="chat-ws">workspace off</span><span class="chip warn" id="chat-bridge" hidden>bridge offline — Studio tools unavailable</span></div>
+        <div class="row"><button class="btn sm" id="btn-new-chat">New chat</button></div>
+      </div>
+      <div class="chat-body" id="chat-body">
+        <div class="empty" id="chat-empty">
+          <img src="assets/logo.png" alt="" class="empty-logo" />
+          <h2>What are we building?</h2>
+          <p class="muted" id="chat-empty-sub">Describe a feature and VoidScript builds it in your open Studio place.</p>
+          <div class="suggest">
+            <button class="sugg">Make a spinning coin that gives +1 cash when touched</button>
+            <button class="sugg">Build a 5-stage obby with checkpoints</button>
+            <button class="sugg">Add a leaderstats Cash value for every player</button>
+            <button class="sugg">Explain how my game's scripts fit together</button>
+          </div>
+        </div>
+      </div>
+      <div class="attach-row" id="attach-row" hidden></div>
+      <div class="composer">
+        <button class="btn icon" id="btn-attach" title="Attach reference files (or drop them on the window)" aria-label="Attach reference files">
+          <svg viewBox="0 0 24 24"><path d="M21 11.5 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>
+        </button>
+        <textarea id="chat-input" rows="1" placeholder="Ask VoidScript to build something…"></textarea>
+        <button class="btn primary" id="btn-send">Send</button>
+        <button class="btn danger" id="btn-stop-chat" hidden>Stop</button>
+      </div>
+    </section>
+
+    <!-- ── TOOLS ─────────────────────────────────────────────────────────── -->
+    <section class="view" id="view-tools">
+      <div class="view-h">
+        <div><h2>Tools</h2><p class="muted" id="tools-sub">Everything the AI can do through the bridge.</p></div>
+        <input class="input search" id="tools-search" placeholder="Search tools…" />
+      </div>
+      <div id="tools-list"></div>
+    </section>
+
+    <!-- ── MCP SERVERS ───────────────────────────────────────────────────── -->
+    <section class="view" id="view-mcp">
+      <div class="view-h">
+        <div><h2>MCP servers</h2><p class="muted">Plug extra apps into VoidScript, like Blender. Their tools work in the in-app chat and through the extension. Adding or removing one restarts the bridge.</p></div>
+      </div>
+      <div class="card mcp-card">
+        <div class="card-t">Catalog <span class="tag">one click</span></div>
+        <div id="mcp-catalog" class="mcp-grid"></div>
+        <details class="mcp-custom">
+          <summary>Add a custom server</summary>
+          <div class="row">
+            <input class="input" id="mcp-id" placeholder="name (e.g. my-server)" />
+            <input class="input" id="mcp-cmd" placeholder="command (e.g. npx, uvx, node)" />
+            <input class="input grow" id="mcp-args" placeholder='arguments (e.g. -y @scope/server "C:\My Folder")' />
+            <button class="btn sm primary" id="btn-mcp-add">Add</button>
+          </div>
+        </details>
+      </div>
+    </section>
+
+    <!-- ── TERMINAL ──────────────────────────────────────────────────────── -->
+    <section class="view" id="view-terminal">
+      <div class="view-h">
+        <div><h2>Terminal</h2><p class="muted">Live bridge output, plus run any tool by hand.</p></div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="term-follow" checked /> Follow</label>
+          <button class="btn sm" id="btn-term-copy">Copy</button>
+          <button class="btn sm" id="btn-term-clear">Clear view</button>
+          <button class="btn sm" id="btn-open-logs">Log folder</button>
+        </div>
+      </div>
+      <div class="term" id="term"></div>
+      <div class="runner">
+        <input class="input" id="run-tool" list="tool-names" placeholder="tool name (e.g. list_roblox_studios)" />
+        <datalist id="tool-names"></datalist>
+        <input class="input mono" id="run-args" placeholder='arguments JSON, e.g. {}' value="{}" />
+        <button class="btn primary sm" id="btn-run-tool">Run</button>
+      </div>
+    </section>
+
+    <!-- ── SETTINGS ──────────────────────────────────────────────────────── -->
+    <section class="view" id="view-settings">
+      <div class="view-h"><div><h2>Settings</h2><p class="muted">Saved on this PC only.</p></div></div>
+
+      <div class="card">
+        <div class="card-t">AI provider</div>
+        <p class="muted">Powers the built-in Chat. Keys are stored in VoidScript's settings on this PC and are only ever sent to the provider they belong to.</p>
+        <div class="seg" id="prov-seg">
+          <button data-prov="nvidia">NVIDIA</button>
+          <button data-prov="openrouter">OpenRouter</button>
+        </div>
+        <p class="hint" id="prov-hint"></p>
+        <div class="field">
+          <label id="key-label">API key</label>
+          <div class="row">
+            <input class="input mono grow" id="set-key" type="password" placeholder="nvapi-…" autocomplete="off" spellcheck="false" />
+            <button class="btn primary sm" id="btn-save-key">Save</button>
+            <button class="btn sm ghost" id="btn-clear-key">Remove</button>
+          </div>
+          <div class="hint" id="key-status"></div>
+        </div>
+        <div class="field">
+          <label>Model</label>
+          <div class="row">
+            <input class="input mono grow" id="set-model" list="model-list" placeholder="meta/llama-3.3-70b-instruct" />
+            <datalist id="model-list"></datalist>
+            <button class="btn sm" id="btn-load-models">Load models</button>
+          </div>
+          <div class="hint" id="model-hint">Pick a model that supports tool calling.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-t">Workspace access <span class="chip">off by default</span></div>
+        <p class="muted">Lets the built-in Chat read and write files and run commands — <b>only inside one folder you choose</b> (for example your Roblox project or Rojo folder). Paths outside it are blocked, and every write, delete or command asks for your approval first.</p>
+        <label class="switch-row"><span>Allow workspace access</span><span class="switch"><input type="checkbox" id="set-ws-on" /><span class="track"></span></span></label>
+        <div class="field">
+          <label>Workspace folder</label>
+          <div class="row">
+            <input class="input mono grow" id="set-ws-dir" readonly placeholder="No folder chosen" />
+            <button class="btn sm" id="btn-pick-ws">Choose…</button>
+            <button class="btn sm ghost" id="btn-open-ws">Open</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-t">App</div>
+        <div class="field">
+          <label>AI reply language</label>
+          <select class="input" id="set-lang"></select>
+        </div>
+        <label class="switch-row"><span>Start the bridge when VoidScript opens</span><span class="switch"><input type="checkbox" id="set-autostart" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Closing the window keeps VoidScript running in the tray</span><span class="switch"><input type="checkbox" id="set-tray" /><span class="track"></span></span></label>
+      </div>
+
+      <div class="card">
+        <div class="card-t">About</div>
+        <p class="muted">VoidScript <span id="about-ver"></span> · free &amp; open-source (GPL-3.0) · not affiliated with Roblox Corporation.</p>
+        <div class="row">
+          <button class="btn sm" id="btn-show-disclaimer">Disclaimer</button>
+          <button class="btn sm ghost" data-url="https://voidstudioai.netlify.app/">Website</button>
+          <button class="btn sm ghost" data-url="https://github.com/cjl26rg2/Void-Script">GitHub</button>
+          <button class="btn sm ghost" data-url="https://discord.gg/EyGxnp2jaw">Discord</button>
+          <button class="btn sm ghost" id="btn-quit">Quit VoidScript</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ── modals ──────────────────────────────────────────────────────────────── -->
+<div class="modal-wrap" id="disclaimer" hidden>
+  <div class="modal">
+    <img src="assets/logo.png" alt="" class="modal-logo" />
+    <h2>Before you start</h2>
+    <ul class="disc">
+      <li><b>AI makes mistakes.</b> It can break scripts or delete things in your place. Save and back up your work — VoidScript has Undo and place backups, but they are not a guarantee.</li>
+      <li><b>You are in control.</b> The AI acts in your open Roblox Studio through the tools listed in this app. Stop it any time.</li>
+      <li><b>Workspace access is off by default.</b> If you turn it on, the AI can read and change files and run commands inside the one folder you choose. Only enable it for folders you are happy for it to change, and read each approval before you allow it.</li>
+      <li><b>Chat sites and API providers</b> see what you send them. Don't share secrets, passwords or personal data with the AI.</li>
+      <li>VoidScript is free, open-source software provided <b>as is, without warranty</b>, and is <b>not affiliated with Roblox Corporation</b>, NVIDIA or any AI provider.</li>
+    </ul>
+    <label class="check big"><input type="checkbox" id="disc-ok" /> I understand and want to continue</label>
+    <div class="row end"><button class="btn primary" id="btn-disc-accept" disabled>Continue</button></div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="approve" hidden>
+  <div class="modal">
+    <div class="appr-kind" id="appr-kind">Run a command</div>
+    <h2 id="appr-title">Allow this action?</h2>
+    <p class="muted" id="appr-sub">The AI wants to do this inside your workspace folder.</p>
+    <pre class="appr-detail" id="appr-detail"></pre>
+    <label class="check"><input type="checkbox" id="appr-session" /> <span id="appr-session-lbl">Allow this kind of action for the rest of this chat</span></label>
+    <div class="row end">
+      <button class="btn" id="btn-appr-deny">Deny</button>
+      <button class="btn primary" id="btn-appr-ok">Allow</button>
+    </div>
+  </div>
+</div>
+
+<div id="drop-hint" hidden><div class="drop-box">Drop files to attach them to your message</div></div>
+<div id="toast" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>

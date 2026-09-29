@@ -1,0 +1,15 @@
+{
+  "name": "voidscript-desktop",
+  "private": true,
+  "version": "5.2.0",
+  "description": "VoidScript desktop app - runs the Roblox Studio bridge, built-in AI chat, tools terminal.",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icons": "tauri icon src-tauri/app-icon.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

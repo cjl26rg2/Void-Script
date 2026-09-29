@@ -1,0 +1,4 @@
+# Build output (huge) and dependencies - rebuilt from source with `npm run build`.
+node_modules/
+src-tauri/target/
+src-tauri/gen/

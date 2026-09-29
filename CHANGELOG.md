@@ -2,6 +2,37 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.2.0] - 2026-09-29
+
+### VoidScript Desktop (new app)
+- **VoidScript.exe is now a real desktop app** (Tauri) — no terminal window. It runs the bridge hidden, keeps it alive in the system tray, and shows everything in one modern window:
+  - **Home** — live Bridge, Roblox Studio, Tools and Workspace status, with Start / Stop / Restart.
+  - **Chat** — build right inside the app with **NVIDIA** or **OpenRouter** models using real tool-calling (no chat website needed). **Switch model from the chat header** (searchable, shows which models support tools, or type any model ID). **Attach reference files** with the paperclip or by dropping them on the window.
+  - **Tools** — every tool the AI can use, grouped by server, with parameters; "Try in terminal" on each.
+  - **Terminal** — the live bridge output, plus a runner to call any tool by hand.
+  - **Settings** — API keys (stored on this PC only, never shown back in full), model, reply language, start-with-app, close-to-tray.
+- **Workspace access (off by default).** Lets the in-app Chat read/write files and run commands **inside one folder you choose** — paths can't escape it (no `..`, symlinks resolved), and every write, delete and command asks for approval first.
+- **More MCP servers, one click.** A new **MCP servers** tab has a catalog: **Blender**, Web fetch, Context7 docs, Memory, Sequential thinking and Git, plus "Add a custom server" for anything else. Their tools work in the in-app chat and through the extension.
+- **Home explains the two ways to build:** the browser extension for ChatGPT, Gemini, DeepSeek and every other site, or the in-app chat with your own NVIDIA / OpenRouter key.
+- Website link is now **voidstudioai.netlify.app**.
+- The VoidScript logo shows on the taskbar, Alt+Tab and tray.
+- **First-run disclaimer** covering AI mistakes, backups, workspace access and privacy.
+- Auto-update works with the app: a running `VoidScript.exe` is moved aside and replaced safely, and the app restarts the bridge on the new version by itself.
+
+### Added
+- **15 languages.** A new **Language** picker in the popup (English by default): English, Español, Português (BR), Français, Deutsch, Italiano, Русский, Türkçe, Polski, Bahasa Indonesia, Tiếng Việt, ไทย, 日本語, 한국어 and 中文. It translates the popup and the in-page bar's controls (Start/Stop/Pause, Guide, Undo, Steer, quick-steer presets) and switches instantly, no reload.
+- **The AI replies in your language.** With a non-English language selected, the agent talks to you in it — while commands, JSON, markers and Luau code stay exactly as specified so nothing breaks. English prompts are unchanged.
+
+### Fixed
+- **ChatGPT getting stuck after a command** (e.g. `list_commands` running but the agent sitting on "Agent is working…"). ChatGPT dropped the `data-testid` hooks on its buttons, so VoidScript couldn't find **Send** in non-English ChatGPT and never delivered the result. Send/Stop are now found language-neutrally (the composer's submit button, plus multilingual labels) on every generic-adapter site, and a site with no detectable Send button falls back to Enter after 1.5s instead of stalling ~30s.
+- **ChatGPT's new composer** (a plain `textarea`) is now supported alongside the older ProseMirror editor.
+- **Clicking Send by hand** in a non-English UI now starts the agent (previously only Enter did).
+- **Command blocks stayed visible on ChatGPT.** Hiding now removes the whole code card (language label, copy/run icons) on every site, never the model's prose.
+- **First send of a session could silently not go out.** The stream sampler treated its very first reading as "still generating", which blocked the send for a few seconds after load. Fixed across all providers.
+- **Updater could leave a half-installed folder.** If a file was locked mid-update (e.g. a running app), the swap failed half-way after the old files were already wiped. Locked files are now renamed aside and replaced, and leftovers are cleaned up on the next start.
+- **start.bat under the app:** no more console-only banner, no hung prompts, and the port-release wait no longer depends on a console.
+- **Localised site messages.** "Conversation too long" / context-limit notices are recognised in Italian, Spanish, Portuguese, German and French; Arena's Send/Stop detection now covers more languages than English and French.
+
 ## [5.1.0] - 2026-09-28
 
 ### Agent quality & "acts like a real tool, not a bot"

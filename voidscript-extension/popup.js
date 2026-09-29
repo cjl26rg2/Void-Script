@@ -5,7 +5,7 @@
 // "restart_mcp" requests, "vs-status" broadcasts, "vs-open-menu" to a tab).
 
 const LINKS = {
-  site: "https://void-script.vercel.app/",
+  site: "https://voidstudioai.netlify.app/",
   fallbackAI: "https://chat.deepseek.com/",
   releases: "https://github.com/cjl26rg2/Void-Script/releases",
 };
@@ -75,6 +75,20 @@ const SITE_LABELS = {
 const $ = (id) => document.getElementById(id);
 const send = (msg, cb) => chrome.runtime.sendMessage(msg, cb);
 
+// ── language ────────────────────────────────────────────────────────────────
+// UI language (English by default). Static labels carry data-i18n="key"; dynamic
+// strings go through T(). The same vsLang setting also makes the AI reply in that
+// language - the in-page engine reads it when it builds the system prompt.
+let LANG = "en";
+const T = (key, vars) => (typeof VS_I18N !== "undefined" ? VS_I18N.t(LANG, key, vars) : key);
+const tagLabel = (l) => T(l === "best" ? "bestTag" : l);
+function applyI18n() {
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = T(el.dataset.i18n); });
+  const tl = $("tl-list");
+  if (tl) tl.setAttribute("data-empty", T("noCmds"));
+}
+
 // ── header ────────────────────────────────────────────────────────────────
 const versionEl = $("version");
 if (versionEl) versionEl.textContent = "v" + chrome.runtime.getManifest().version;
@@ -82,13 +96,13 @@ let activeTab = null;
 chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
   activeTab = tab || null;
   const tag = $("provider-tag");
-  const name = providerName(tab && tab.url) || "Ready";
+  const name = providerName(tab && tab.url) || T("ready");
   tag.textContent = name;
   const label = SITE_LABELS[name];
   if (label) {
     const b = document.createElement("span");
     b.className = `tag-label tag-label-${label}`;
-    b.textContent = label;
+    b.textContent = tagLabel(label);
     tag.appendChild(b);
   }
 });
@@ -104,15 +118,15 @@ function paint(s) {
 
   $("status-dot").className = s.connected ? (good ? "up" : "mid") : "";
   $("status-text").textContent = !s.connected
-    ? "Bridge offline"
+    ? T("offline")
     : good
-    ? "Connected · Roblox Studio ready"
+    ? T("connected")
     : studioMissing
-    ? "Studio not connected · enable its MCP server"
-    : "Bridge OK · open Roblox Studio";
+    ? T("studioMissing")
+    : T("bridgeOk");
   $("tool-count").textContent = s.connected
-    ? `${s.tools || 0} tools available${s.placeName ? " · " + s.placeName : ""}`
-    : "Run start.bat to launch the bridge";
+    ? T("tools", { n: s.tools || 0 }) + (s.placeName ? " · " + s.placeName : "")
+    : T("runStart");
   $("server-list").textContent = s.connected
     ? servers.map((x) => `${x.alive ? "●" : "○"} ${x.id} (${x.alive ? x.tools + " tools" : "down"})`).join("\n")
     : "";
@@ -136,7 +150,7 @@ function paint(s) {
       if (siteLabel) {
         const b = document.createElement("span");
         b.className = `tag-label tag-label-${siteLabel}`;
-        b.textContent = siteLabel;
+        b.textContent = tagLabel(siteLabel);
         provTag.appendChild(b);
       }
       chrome.storage.local.get("vsLeaderboard", (r) => {
@@ -146,7 +160,7 @@ function paint(s) {
           const total = entry.ok + entry.err;
           if (total > 0) {
             const pct = Math.round((entry.ok / total) * 100);
-            lbSub.textContent = pct + "% ok";
+            lbSub.textContent = T("pctOk", { p: pct });
             lbSub.title = `${entry.ok} ok, ${entry.err} errors across ${total} commands`;
           } else {
             lbSub.textContent = "";
@@ -156,7 +170,7 @@ function paint(s) {
         }
       });
     } else {
-      provTag.textContent = "Ready";
+      provTag.textContent = T("ready");
     }
   }
 
@@ -174,7 +188,7 @@ $("btn-reconnect").onclick = () => send({ type: "reconnect" }, () => setTimeout(
 $("btn-restart").onclick = (e) => {
   const label = e.currentTarget.querySelector ? e.currentTarget : e.target;
   const original = label.innerHTML;
-  label.textContent = "Restarting…";
+  label.textContent = T("restarting");
   send({ type: "restart_mcp" }, () => {
     label.innerHTML = original;
     setTimeout(poll, 600);
@@ -196,10 +210,27 @@ document.querySelectorAll("[data-open]").forEach((el) => {
 // Toggle switches + theme picker write straight to chrome.storage.local; the in-page
 // engine live-syncs them via its storage.onChanged listener (no reload needed).
 const CFG_DEFAULTS = {
-  vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsTheme: "system",
+  vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsTheme: "system", vsLang: "en",
 };
 chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   const cfg = { ...CFG_DEFAULTS, ...(r || {}) };
+  // Language picker: native names, English default. Changing it re-translates the
+  // popup immediately and, via storage, the in-page bar and the AI's reply language.
+  LANG = (typeof VS_I18N !== "undefined" && VS_I18N.has(cfg.vsLang)) ? cfg.vsLang : "en";
+  const langSel = $("lang-sel");
+  if (langSel && typeof VS_I18N !== "undefined") {
+    langSel.innerHTML = VS_I18N.LANGS.map(([code, name]) => `<option value="${code}">${name}</option>`).join("");
+    langSel.value = LANG;
+    langSel.addEventListener("change", () => {
+      LANG = langSel.value;
+      try { chrome.storage.local.set({ vsLang: LANG }); } catch {}
+      applyI18n(); poll(); renderStats(); renderLeaderboard(); renderTimeline();
+    });
+  }
+  // Defer the first translated render until this whole script has run: the render
+  // helpers below (esc, tlList…) are consts, and a storage callback that fires early
+  // would hit them before initialisation and abort the rest of the popup.
+  setTimeout(() => { applyI18n(); poll(); renderStats(); renderLeaderboard(); renderTimeline(); }, 0);
   document.querySelectorAll("input[data-cfg]").forEach((box) => {
     const k = box.dataset.cfg;
     box.checked = cfg[k] !== false;
@@ -223,18 +254,18 @@ chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
 // the bridge latency + Studio state in one line.
 $("btn-test").onclick = async () => {
   const out = $("test-result");
-  out.textContent = "Testing bridge round-trip…";
+  out.textContent = T("testing");
   const t0 = performance.now();
   const r = await new Promise((res) => send({ type: "list_tools" }, res));
   const ms = Math.round(performance.now() - t0);
   if (!r || !r.ok) {
-    out.textContent = "No response from the bridge (run start.bat).";
+    out.textContent = T("noResp");
     return;
   }
   const s = await new Promise((res) => send({ type: "status" }, res));
   const tools = (r.tools || []).length;
-  const studio = s && s.studio ? "place loaded" : s && s.studioApp ? "Studio open, no place" : "Studio not connected";
-  out.textContent = `${tools} tools · ${ms}ms round-trip · ${studio}`;
+  const studio = s && s.studio ? T("placeLoaded") : s && s.studioApp ? T("studioNoPlace") : T("studioOff");
+  out.textContent = T("testRes", { n: tools, ms, s: studio });
 };
 
 // Copy diagnostics (Feature): pulls the full bridge diagnostics payload, keeps
@@ -243,11 +274,11 @@ $("btn-test").onclick = async () => {
 $("btn-diag").onclick = async () => {
   const btn = $("btn-diag");
   const original = btn.innerHTML;
-  btn.textContent = "Collecting…";
+  btn.textContent = T("collecting");
   const r = await new Promise((res) => send({ type: "diagnostics" }, res));
   if (!r || !r.ok || !r.diagnostics) {
     btn.innerHTML = original;
-    $("test-result").textContent = "Could not collect diagnostics (bridge offline).";
+    $("test-result").textContent = T("diagFail");
     return;
   }
   const d = r.diagnostics;
@@ -273,7 +304,7 @@ $("btn-diag").onclick = async () => {
     document.body.removeChild(ta);
   }
   btn.innerHTML = original;
-  $("test-result").textContent = "Diagnostics copied to clipboard.";
+  $("test-result").textContent = T("diagOk");
 };
 
 const btnUpdate = $("btn-update");
@@ -315,9 +346,9 @@ function fmtTime(t) {
 }
 function tlLabel(e) {
   switch (e.type) {
-    case "session_start": return '<span class="tl-evt">▶ session started</span>';
-    case "session_stop":  return '<span class="tl-evt">■ session stopped</span>';
-    case "shot":          return `<span class="tl-ok">📷 screenshot</span> <span class="tl-conv">${esc(e.tool || "")}</span>`;
+    case "session_start": return `<span class="tl-evt">▶ ${esc(T("sStart"))}</span>`;
+    case "session_stop":  return `<span class="tl-evt">■ ${esc(T("sStop"))}</span>`;
+    case "shot":          return `<span class="tl-ok">📷 ${esc(T("shot"))}</span> <span class="tl-conv">${esc(e.tool || "")}</span>`;
     case "tool":
       if (e.ok) return `<span class="tl-ok">⚙ ${esc(e.name || "")} ✓</span>`;
       return `<span class="tl-err">⚙ ${esc(e.name || "")} ✗</span> <span class="tl-conv">${esc((e.err || "").slice(0, 26))}</span>`;
@@ -354,8 +385,8 @@ if (tlCopy) {
       });
       const text = lines.length ? lines.join("\n") : "No commands recorded this session.";
       navigator.clipboard.writeText(text).then(() => {
-        tlCopy.textContent = "copied ✓";
-        setTimeout(() => { tlCopy.textContent = "copy"; }, 1600);
+        tlCopy.textContent = T("copied");
+        setTimeout(() => { tlCopy.textContent = T("copy"); }, 1600);
       }).catch(() => {});
     });
   });
@@ -376,14 +407,14 @@ function renderLeaderboard() {
     const lbEl = $("lb");
     if (!lbEl) return;
     if (!rows.length) {
-      lbEl.innerHTML = '<span class="empty">No builds recorded yet — start a session to rank your AIs.</span>';
+      lbEl.innerHTML = `<span class="empty">${esc(T("noBuilds"))}</span>`;
       return;
     }
     lbEl.innerHTML = rows.map((e, i) =>
       `<div class="lb-row">
          <span class="lb-rank">${i + 1}</span>
          <span class="lb-name">${esc(e.name)}</span>
-         <span class="lb-meta">${e.runs} run${e.runs === 1 ? "" : "s"} · <span class="lb-rate">${Math.round(e.rate * 100)}%</span></span>
+         <span class="lb-meta">${esc(T("runs", { n: e.runs }))} · <span class="lb-rate">${Math.round(e.rate * 100)}%</span></span>
        </div>
        <div class="lb-bar"><div class="lb-fill" style="width:${Math.round(e.rate * 100)}%"></div></div>`
     ).join("");
@@ -418,8 +449,8 @@ if (lbReset) {
     try {
       chrome.storage.local.set({ vsLeaderboard: {}, vsTimeline: [] }, () => {
         renderLeaderboard(); renderStats(); renderTimeline();
-        lbReset.textContent = "cleared ✓";
-        setTimeout(() => { lbReset.textContent = "reset"; }, 1500);
+        lbReset.textContent = T("cleared");
+        setTimeout(() => { lbReset.textContent = T("reset"); }, 1500);
       });
     } catch {}
   });
@@ -444,8 +475,8 @@ if (lbCopy) {
         `${i + 1}. ${e.name} - ${e.ok}/${e.runs} ok (${Math.round(e.rate * 100)}%)`);
       const text = lines.length ? lines.join("\n") : "No builds recorded yet.";
       navigator.clipboard.writeText(text).then(() => {
-        lbCopy.textContent = "copied ✓";
-        setTimeout(() => { lbCopy.textContent = "✓ copy"; }, 1600);
+        lbCopy.textContent = T("copied");
+        setTimeout(() => { lbCopy.textContent = T("copy"); }, 1600);
       });
     });
   });

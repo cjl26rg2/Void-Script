@@ -31,7 +31,8 @@ if not exist "%LOGDIR%" md "%LOGDIR%" >nul 2>nul
 call :note "==== %DATE% %TIME%  launcher started (port %PORT%) ===="
 for /f "delims=" %%v in ('ver') do call :note "%%v"
 
-call :banner
+rem The ASCII banner ("keep this window open") is for the console; the app has its own UI.
+if not defined VS_GUI call :banner
 
 :: ---- 0. sanity: are we actually in the project folder? ---------------------
 :: Opening start.bat straight from inside the ZIP extracts it alone to %TEMP%,
@@ -125,9 +126,12 @@ if not defined SKIP_UPDATE (
                     echo   avoid an endless loop. Run start.bat again in a minute, or check the
                     echo   Void-Script releases on GitHub for a broken update.
                     call :note "ABORT: update restart loop detected (!RESTART_COUNT! restarts)."
-                    pause >nul
+                    if not defined VS_GUI pause >nul
                     exit /b 1
                 )
+                rem Under the VoidScript app, hand the restart back to the app: exit
+                rem code 99 means "update installed", and the app relaunches the bridge.
+                if defined VS_GUI exit /b 99
                 start "VoidScript Update" /d "%~dp0" cmd /c ""%~f0" --skip-update"
                 exit /b 0
             )
@@ -248,7 +252,9 @@ if not defined HOLDER exit /b 0
 echo         %CWARN%A previous bridge (pid !HOLDER!) is on port %PORT% - replacing it.%C0%
 call :note "killing leftover bridge pid !HOLDER! on port %PORT%."
 taskkill /F /T /PID !HOLDER! >nul 2>nul
-timeout /t 1 /nobreak >nul
+rem ~1s pause for the port to free up. Not "timeout": it refuses to run without
+rem console input, which is exactly how the VoidScript app launches this script.
+ping -n 2 127.0.0.1 >nul
 set "HOLDER="
 for /f "tokens=5" %%p in ('netstat -aon ^| findstr :%PORT% ^| findstr LISTENING 2^>nul') do set "HOLDER=%%p"
 if defined HOLDER (
@@ -297,6 +303,9 @@ exit /b 0
 
 :: :halt <code>  - pause so the window stays readable, then exit with <code>.
 :halt
+rem Under VoidScript.exe (VS_GUI) there is no visible console to press a key in;
+rem the app shows the error and its own close button instead.
+if defined VS_GUI exit /b %~1
 echo   Press any key to close.
 pause >nul
 exit /b %~1

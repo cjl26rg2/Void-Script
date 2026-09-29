@@ -158,8 +158,30 @@ def move_over(src, dst):
             try:
                 os.remove(dst)
             except OSError:
-                pass
+                # A running VoidScript.exe can't be deleted or overwritten, but
+                # Windows does allow RENAMING it. Move it aside as *.old (the
+                # launcher deletes those on its next start) so the new file can
+                # take its place - instead of shutil.move failing half-way through
+                # the swap and leaving a wiped, half-installed folder.
+                try:
+                    os.replace(dst, "%s.%d.old" % (dst, int(time.time() * 1000)))
+                except OSError:
+                    pass
     shutil.move(src, dst)
+
+
+def clean_stale():
+    # Best-effort removal of files a previous update renamed aside (see move_over).
+    root = os.path.dirname(os.path.abspath(__file__))
+    try:
+        for name in os.listdir(root):
+            if name.endswith(".old"):
+                try:
+                    os.remove(os.path.join(root, name))
+                except OSError:
+                    pass  # still in use; the next run gets it
+    except OSError:
+        pass
 
 
 def perform_swap(tag, url, quiet=False):
@@ -309,6 +331,7 @@ def full_mode():
 
 
 def main():
+    clean_stale()
     if len(sys.argv) > 1 and sys.argv[1] == "--check":
         return check_mode()
     if len(sys.argv) > 1 and sys.argv[1] == "--auto":

@@ -63,10 +63,16 @@ function VSGeneric(cfg) {
         "(token|context).{0,10}limit",
         "maximum.{0,20}context",
         "message limit",
+        // Localised site notices (it / es / pt / de / fr) - phrase-level on purpose.
+        "conversazione.{0,20}troppo lunga", "limite.{0,12}(di )?(contesto|messaggi|token)",
+        "conversaci[oó]n.{0,20}demasiado larga", "l[ií]mite de (contexto|mensajes|tokens)",
+        "conversa.{0,20}muito longa", "limite de (contexto|mensagens|tokens)",
+        "unterhaltung.{0,20}zu lang", "(kontext|nachrichten|token).{0,6}limit",
+        "limite de (contexte|messages)",
       ].join("|"),
       "i"
     ),
-    tooLong: /conversation .{0,20}(too long|getting too long)/i,
+    tooLong: /conversation .{0,20}(too long|getting too long)|conversazione.{0,20}troppo lunga|conversaci[oó]n.{0,20}demasiado larga|conversa.{0,20}muito longa|unterhaltung.{0,20}zu lang/i,
     busy: /something went wrong|try again later|temporarily unavailable|rate limit|too many requests|at capacity/i,
   };
 
@@ -235,14 +241,31 @@ function VSGeneric(cfg) {
   }
 
   // ── Send / stop buttons ───────────────────────────────────────────────────
+  // Sites keep dropping their data-testid hooks, and every aria-label is localised
+  // ("Send message" is "Invia messaggio" in Italian), so a configured selector on
+  // its own breaks for anyone not browsing in English. When it misses, fall back to
+  // language-neutral signals scoped to the composer: a submit button that isn't a
+  // stop control, then a multilingual aria-label match.
+  const SEND_ARIA_RE = /\b(send|submit)\b|invia|envia|envoy|senden|abschick|verstuur|wyślij|gönder|отправ|发送|傳送|送信|전송|إرسال/i;
+  const STOP_ARIA_RE = /\bstop\b|interromp|deten|arrêt|anhalt|stopp|parar|zatrzym|durdur|останов|停止|中止|정지|إيقاف/i;
+  const ariaOf = (b) => b.getAttribute("aria-label") || b.getAttribute("title") || "";
+  function composerButtons() {
+    const c = composerFrame();
+    return c ? [...c.querySelectorAll("button")].filter((b) => b.offsetParent !== null && !b.closest("#vs-root, #vs-bar")) : [];
+  }
   const sendButton = () => {
     const c = composerFrame();
-    return (c && c.querySelector(S.sendBtn)) || document.querySelector(S.sendBtn);
+    const hit = (c && c.querySelector(S.sendBtn)) || document.querySelector(S.sendBtn);
+    if (hit) return hit;
+    const btns = composerButtons();
+    return btns.find((b) => b.type === "submit" && !STOP_ARIA_RE.test(ariaOf(b))) ||
+           btns.find((b) => SEND_ARIA_RE.test(ariaOf(b)) && !STOP_ARIA_RE.test(ariaOf(b))) || null;
   };
   const stopButton = () => {
-    if (!S.stopBtn) return null;
     const c = composerFrame();
-    return (c && c.querySelector(S.stopBtn)) || document.querySelector(S.stopBtn);
+    const hit = S.stopBtn ? ((c && c.querySelector(S.stopBtn)) || document.querySelector(S.stopBtn)) : null;
+    if (hit) return hit;
+    return composerButtons().find((b) => STOP_ARIA_RE.test(ariaOf(b))) || null;
   };
 
   // ── Generation detection ──────────────────────────────────────────────────
@@ -258,6 +281,11 @@ function VSGeneric(cfg) {
     const item = lastAssistant();
     const len = streamText(item).length;
     const now = Date.now();
+    // The very first reading is only a baseline - an already-finished reply on the
+    // page is not "growth". Crediting it made the site look busy for GEN_IDLE_MS
+    // after load, which blocked the first send (clickSendButton + Enter both bail
+    // while busy). A NEW turn appearing later still counts as activity below.
+    if (_streamMax === -1) { _streamItem = item; _streamMax = len; _streamAt = 0; return; }
     if (item !== _streamItem || len < _streamMax - 400) {
       _streamItem = item; _streamMax = len; _streamAt = now; return;
     }
@@ -358,10 +386,14 @@ function VSGeneric(cfg) {
     }
     // Wait for the framework to register the text and enable the send button,
     // re-asserting the value periodically in case a heavy re-render drops it.
-    let lastNudge = Date.now();
+    const t0 = Date.now();
+    let lastNudge = t0;
     const enabled = await waitFor(() => {
       const b = sendButton();
       if (b && !b.disabled) return true;
+      // No send control found at all: stop waiting early and use the Enter
+      // fallback below, instead of burning the full 8s on every retry.
+      if (!b && Date.now() - t0 > 1500) return true;
       if (Date.now() - lastNudge > 700) {
         lastNudge = Date.now();
         if (editorText() !== text) setEditorValue(editor, text);
@@ -476,10 +508,13 @@ function VSGeneric(cfg) {
       (e) => {
         if (!getEditor()) return;
         const t = e.target;
-        const stop = t && t.closest && S.stopBtn && t.closest(S.stopBtn);
-        if (stop) { handlers.onNativeStop(); return; }
-        const btn = t && t.closest && t.closest(S.sendBtn);
-        if (!btn || btn.disabled) return;
+        if (!t || !t.closest || t.closest("#vs-root, #vs-bar")) return; // our own UI
+        // Resolve the live buttons (same language-neutral fallbacks as sending) so a
+        // click on a localised or testid-less Send/Stop is still recognised.
+        const sb = stopButton();
+        if (sb && sb.contains(t)) { handlers.onNativeStop(); return; }
+        const btn = sendButton();
+        if (!btn || !btn.contains(t) || btn.disabled) return;
         if (handlers.isBlocked()) return;
         if (!handlers.isStarted()) {
           if (!chatIsEmpty()) return;
@@ -494,17 +529,42 @@ function VSGeneric(cfg) {
 
   // ── Tool-block location for camouflage ────────────────────────────────────
   const CMD_SHAPE = /"(?:command|tool)"\s*:\s*"|###\s*lua|###mcp_tool###/i;
+  const PROSE_SEL = "p, li, h1, h2, h3, h4, h5, h6, blockquote, table";
+  const normLen = (el) => (el.textContent || "").replace(/\s+/g, "").length;
+  const codeCount = (el) => el.querySelectorAll("pre, code").length + (el.matches("pre, code") ? 1 : 0);
+  // Modern sites wrap a code block in a "card" (language label, copy / run icons)
+  // around the <pre>/<code>. Hiding only the inner node leaves that chrome behind,
+  // so climb from the code to the outermost ancestor that is still JUST the code
+  // card: stop as soon as a parent adds real prose or a meaningful amount of text.
+  function climbToCard(el, item) {
+    let box = el;
+    while (box.parentElement && box.parentElement !== item) {
+      const p = box.parentElement;
+      if (normLen(p) - normLen(box) > 30) break;            // parent carries other text
+      const prose = [...p.querySelectorAll(PROSE_SEL)].some((n) => !box.contains(n) && !n.contains(box));
+      if (prose) break;                                     // never swallow the model's prose
+      if (codeCount(p) > codeCount(box)) break;             // parent holds another code block
+      box = p;
+    }
+    return box;
+  }
   function findToolBlockSpot(item) {
     if (!item) return null;
     let hidAny = null;
-    for (const wrap of item.querySelectorAll(S.codeWrap)) {
-      if (S.thinking && wrap.closest(S.thinking)) continue;
-      if (wrap.closest(".vs-chip")) continue;
-      if (CMD_SHAPE.test(wrap.textContent || "")) {
-        wrap.classList.add("vs-tool-hide");
-        item.classList.add("vs-cmd-mask");
-        hidAny = hidAny || { parent: wrap.parentElement, ref: wrap };
-      }
+    const seen = new Set();
+    // The configured wrapper first, then any code-ish node (sites that no longer
+    // render a bare <pre>, CodeMirror viewers, etc.). Innermost match wins.
+    const nodes = [...item.querySelectorAll(`${S.codeWrap}, code, .cm-content`)];
+    for (const node of nodes) {
+      if (S.thinking && node.closest(S.thinking)) continue;
+      if (node.closest(".vs-chip, .vs-tool-hide")) continue;
+      if (!CMD_SHAPE.test(node.textContent || "")) continue;
+      const card = climbToCard(node, item);
+      if (seen.has(card) || card.closest(".vs-tool-hide")) continue;
+      seen.add(card);
+      card.classList.add("vs-tool-hide");
+      item.classList.add("vs-cmd-mask");
+      hidAny = hidAny || { parent: card.parentElement, ref: card };
     }
     return hidAny;
   }

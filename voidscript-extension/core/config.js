@@ -265,8 +265,15 @@ IMPORTANT: Your very first action is to write \`list_commands\` with no params (
       ? `\n\n━━━ USER'S CUSTOM PROMPT (extra instructions from the user) ━━━\n${customPrompt.trim()}`
       : "";
 
+    // Reply language (from the extension's Language setting). Only the conversation
+    // changes - the machine-read parts must stay byte-exact or they stop parsing.
+    const lang = String(opts.language || "").trim();
+    const langLine = lang
+      ? `\n\n━━━ LANGUAGE ━━━\nThe user's language is ${lang}. Write every message to the user in ${lang} - explanations, questions, progress notes and final answers - even though these instructions and the tool results are in English. Do NOT translate anything machine-read: command names, JSON keys and values, the ###LUA### / ###END_LUA### markers, file paths, Roblox API names and Luau code stay exactly as specified.`
+      : "";
+
     // The marker leads the prompt; it tags the bootstrap turn for camouflage.
-    return `${SYS_MARKER}\n${prompt}${extra}${prefLine}${genreExtra(opts.projectType)}`;
+    return `${SYS_MARKER}\n${prompt}${extra}${prefLine}${genreExtra(opts.projectType)}${langLine}`;
   }
 
   // ── Genre-aware best practices (Feature: auto prompt-engineering) ─────────

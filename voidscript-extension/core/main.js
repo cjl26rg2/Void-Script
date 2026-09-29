@@ -71,6 +71,7 @@
     vsTheme: "system",          // UI theme: system | dark | light | soft-light
     vsVoiceLang: "en-US",       // speech recognition language tag for the voice button
     vsCowork: false,            // Co-work: human-in-the-loop steering of the running agent
+    vsLang: "en",               // UI + AI reply language (core/i18n.js); English default
   };
   let VS_CFG = { ...VS_CFG_DEFAULTS };
   try {
@@ -79,6 +80,8 @@
     });
   } catch {}
   const vsOn = (k) => VS_CFG[k] !== false;
+  // Translate a bar string into the user's chosen language (English fallback).
+  const tr = (key, vars) => (typeof VS_I18N !== "undefined" ? VS_I18N.t(VS_CFG.vsLang || "en", key, vars) : key);
   // Background mode: when ON, the agent keeps reading/parsing/executing/sending
   // while this tab is hidden or the window is minimized (best-effort - off-screen
   // steps run on the browser's relaxed background schedule). When OFF, the loop
@@ -2591,7 +2594,9 @@
           `Could not switch ${P.displayName} to the required mode. Start a new chat or reload the page, then try again.`);
         return;
       }
-      const prompt = VS.buildSystemPrompt({ siteName: P.displayName, customPrompt: ui.getCustomPrompt(), projectType: ui.getProjectType(), preferredModel: getPreferredModel(P.displayName) }) + resumeNote();
+      // Reply language: the user's UI language (English = no instruction, prompt unchanged).
+      const replyLang = (VS_CFG.vsLang && VS_CFG.vsLang !== "en" && typeof VS_I18N !== "undefined") ? VS_I18N.aiName(VS_CFG.vsLang) : "";
+      const prompt = VS.buildSystemPrompt({ siteName: P.displayName, customPrompt: ui.getCustomPrompt(), projectType: ui.getProjectType(), preferredModel: getPreferredModel(P.displayName), language: replyLang }) + resumeNote();
       const base = await submitAndGetBase(prompt);
       if (!alive()) return;
       noteTokens("prompt", prompt);
@@ -3413,7 +3418,7 @@
           if (!VS_CFG.vsCowork) A.steerQueue = []; // dropping the mode clears pending steers
           updateCowork();
           renderBar();
-          ui.toast(VS_CFG.vsCowork ? "Guide on — steer the agent as it runs." : "Guide off.");
+          ui.toast(VS_CFG.vsCowork ? tr("b_guideOn") : tr("b_guideOff"));
           if (VS_CFG.vsCowork && steerInput) { try { steerInput.focus(); } catch {} }
         });
       }
@@ -3424,7 +3429,7 @@
         A.steerQueue = A.steerQueue || [];
         A.steerQueue.push(v);
         diag("cowork.steerQueued", { len: v.length, pending: A.steerQueue.length });
-        ui.toast(A.running ? "Steer queued — applied on the next step." : "Steer saved for when the agent runs.");
+        ui.toast(A.running ? tr("b_queuedRun") : tr("b_queuedIdle"));
         updateCowork();
       };
       const submitSteer = () => {
@@ -4833,7 +4838,7 @@
         toneClass = "starting";
         indicator = `<span class="vs-spin"></span>`;
          msg = `Connecting to Roblox…`;
-         label = "Starting…"; kind = "starting"; disabled = true;
+         label = tr("b_starting"); kind = "starting"; disabled = true;
       } else if (A.started) {
         // Prefer the ADVERTISED list length (A.toolList - the AGGREGATE catalogue
         // across every connected MCP server, already filtered by the vision/blocked
@@ -4893,7 +4898,7 @@
         if (bridgeOk) {
           toneClass = "standby";
            msg = `Ready. Start when you're set, or just chat.`;
-                     label = "▶ Start VoidScript"; kind = "start";
+                     label = tr("b_start"); kind = "start";
         } else if (addonOk) {
           // Roblox is down but another MCP server is live: allow a DEGRADED start
           // (yellow). The agent runs on the other server(s); Roblox tools stay
@@ -4904,7 +4909,7 @@
             : studioProcUp
               ? `<b>Studio open but not connected</b> - open <b>Assistant Settings &gt; MCP Servers</b> in Studio, or start without it.`
               : `<b>Roblox Studio offline</b> - start with your other MCP server(s).`;
-          label = "▶ Start VoidScript (Roblox offline)"; kind = "start-degraded";
+          label = tr("b_startOffline"); kind = "start-degraded";
         } else {
           toneClass = "warn"; warn = true;
           msg = !A.bridge.connected
@@ -4918,7 +4923,7 @@
                   : studioDown
                     ? `Open <b>Roblox Studio</b> &amp; enable its MCP server.`
                     : `Open <b>Roblox Studio</b> for the tools.`;
-                     label = "▶ Start VoidScript"; kind = "start";
+                     label = tr("b_start"); kind = "start";
         }
         disabled = !bridgeOk && !addonOk;
       } else {
@@ -5114,7 +5119,7 @@
       // active turn (not a stop-in-progress).
       if (allow && !A.stopping && stopBtn.dataset.state === "stopping") {
         stopBtn.disabled = false;
-        stopBtn.textContent = "■ Stop";
+        stopBtn.textContent = tr("b_stop");
         delete stopBtn.dataset.state;
       }
       if (was !== stopBtn.hidden) renderBar(); // reflect the action/stop swap
@@ -5128,7 +5133,7 @@
       stopBtn.hidden = false;
       stopBtn.disabled = true;
       stopBtn.dataset.state = "stopping";
-      stopBtn.textContent = "⏳ Stopping…";
+      stopBtn.textContent = tr("b_stopping");
       renderBar();
     }
 
@@ -5139,7 +5144,7 @@
       if (!pauseBtn) return;
       const show = A.running && !A.starting && !A.stopping;
       pauseBtn.hidden = !show;
-      pauseBtn.textContent = A.paused ? "▶ Resume" : "⏸ Pause";
+      pauseBtn.textContent = A.paused ? tr("b_resume") : tr("b_pause");
       pauseBtn.disabled = false;
       // Quick action buttons: only visible while a session is live.
       if (quickShotBtn && quickListBtn) {
@@ -5152,6 +5157,24 @@
     // Co-work toggle + steer row. The toggle shows once a session is live (steering
     // only makes sense while the agent is running); the steer box appears under the
     // bar when Co-work is ON. The dot lights when a steer is queued and waiting.
+    // Static bar labels (Guide, Undo, Steer, quick-steer presets) follow the chosen
+    // language. Touches the DOM only when the language actually changed. Queries
+    // `bar`, not `root`: the bar is re-parented into the site's composer.
+    let _barLang = "";
+    function relabelBar() {
+      const lang = VS_CFG.vsLang || "en";
+      if (!bar || lang === _barLang) return;
+      _barLang = lang;
+      const set = (sel, key) => { const el = bar.querySelector(sel); if (el) el.textContent = tr(key); };
+      set("#vs-cowork .vs-cw-label", "b_guide");
+      if (undoBtn && !undoBtn.disabled) set("#vs-undo .vs-undo-label", "b_undo");
+      set("#vs-steer-send", "b_steer");
+      const presetKeys = ["b_fix", "b_undoRetry", "b_keep", "b_explain"];
+      [...bar.querySelectorAll(".vs-steer-chip")].forEach((c, i) => { if (presetKeys[i]) c.textContent = tr(presetKeys[i]); });
+      if (stopBtn && stopBtn.dataset.state !== "stopping") stopBtn.textContent = tr("b_stop");
+      if (pauseBtn) pauseBtn.textContent = A.paused ? tr("b_resume") : tr("b_pause");
+    }
+
     function updateCowork() {
       const on = !!VS_CFG.vsCowork;
       if (coworkBtn) {
@@ -5172,9 +5195,10 @@
       if (voiceBtn) voiceBtn.hidden = !P.voiceAvailable || focus;
       if (steerInput) {
         steerInput.placeholder = pending
-          ? `Steer queued (${pending}) — add another…`
-          : "Steer the next step…";
+          ? tr("b_steerQueued", { n: pending })
+          : tr("b_steerPh");
       }
+      relabelBar();
       if (bar) bar.classList.toggle("vs-bar-cowork", !!(on && A.started));
     }
 
