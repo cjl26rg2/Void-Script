@@ -1239,6 +1239,8 @@ html[data-vs-theme="or"] #vs-brand {
   text-transform: uppercase; letter-spacing: 2.4px; font-weight: 800; font-size: 12px;
 }
 html[data-vs-theme="or"] .vs-free { color: #8f8a80; letter-spacing: .3px; text-transform: none; }
+/* Co-branding: the OR theme reads "OR × VOIDSCRIPT". */
+html[data-vs-theme="or"] #vs-brand::before { content: "OR \00d7  "; white-space: pre; }
 html[data-vs-theme="or"] #vs-mark { filter: grayscale(1) brightness(1.6) !important; }
 html[data-vs-theme="or"] #vs-state { color: #b8b2a7; }
 html[data-vs-theme="or"] #vs-state b { color: #ece6da; }

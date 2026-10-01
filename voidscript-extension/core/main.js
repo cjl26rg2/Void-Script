@@ -72,6 +72,7 @@
     vsVoiceLang: "en-US",       // speech recognition language tag for the voice button
     vsCowork: false,            // Co-work: human-in-the-loop steering of the running agent
     vsLang: "en",               // UI + AI reply language (core/i18n.js); English default
+    vsSounds: false,            // short sound cues (ready / done / error / needs you) - opt-in
   };
   let VS_CFG = { ...VS_CFG_DEFAULTS };
   try {
@@ -112,6 +113,36 @@
   // Off by default (it didn't prevent Arena's captcha, which fires on turn 1);
   // toggle via the menu "Humanize send timing (experimental)".
   const SEND_JITTER_MS = [400, 1400]; // [min, max] ms, randomized per send
+  // Short sound cues, opt-in (vsSounds). Synthesised with Web Audio so nothing is
+  // downloaded; each cue is a few soft notes [hz, start s, length s].
+  const SFX = {
+    ready: [[660, 0, 0.12], [880, 0.1, 0.18]],
+    done: [[784, 0, 0.12], [988, 0.1, 0.12], [1175, 0.2, 0.24]],
+    error: [[330, 0, 0.16], [247, 0.14, 0.26]],
+    ask: [[1047, 0, 0.16], [1047, 0.22, 0.16]],
+  };
+  let _sfxCtx = null;
+  function sfx(name) {
+    if (!VS_CFG.vsSounds || !SFX[name]) return;
+    try {
+      _sfxCtx = _sfxCtx || new AudioContext();
+      // Created before any click on the page, a context starts suspended (autoplay rules).
+      if (_sfxCtx.state === "suspended") _sfxCtx.resume().catch(() => {});
+      const t0 = _sfxCtx.currentTime + 0.01;
+      for (const [hz, at, len] of SFX[name]) {
+        const o = _sfxCtx.createOscillator(), g = _sfxCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = hz;
+        g.gain.setValueAtTime(0.0001, t0 + at);
+        g.gain.exponentialRampToValueAtTime(0.12, t0 + at + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+        o.connect(g).connect(_sfxCtx.destination);
+        o.start(t0 + at);
+        o.stop(t0 + at + len + 0.02);
+      }
+    } catch {}
+  }
+
   function jitterBeforeSend() {
     // Always pause a little before sending so the cadence reads as a person typing,
     // not an instant machine paste — the single biggest "this is a bot" tell on chat
@@ -1854,6 +1885,7 @@
       const destructive = BROAD_DELETE_RE.test(codeStr) || /(delete|destroy|clear_all_children|remove)/i.test(bareName);
       const needApprove = VS_CFG.vsTrustLevel === "low" || (VS_CFG.vsTrustLevel === "medium" && destructive);
       if (needApprove) {
+        sfx("ask");
         if (!(await confirmGate({ tool: name, arguments: args }, destructive ? "a destructive command" : "this command"))) {
           diag("confirm.declined", { tool: name });
           return `ERROR: the '${name}' command was NOT run - the user did not approve it. Do not call it again until the user gives the go-ahead.`;
@@ -2223,7 +2255,7 @@
           base = await submitAndGetBase(VS.FEEDBACK.parseError(res.reason, failName));
           continue;
         }
-        if (res.kind === "text") break; // final answer
+        if (res.kind === "text") { sfx("done"); break; } // final answer
 
         if (res.kind === "tool") {
           const calls = res.calls;
@@ -2736,6 +2768,7 @@
       rememberSession(P.conversationKey()); // survives virtualization AND reloads
       ui.setStarted(true);
       ui.toast(`Ready. ${P.displayName} is connected to Roblox Studio.`);
+      sfx("ready");
       // Offer the build wizard on the very first start of the session.
       // Context-compaction continuation: a previous chat hit the context limit and
       // left a saved build handoff - seed it as the first message so the agent
@@ -4086,6 +4119,7 @@
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsShowTokenEstimate" /> Show token estimate in the bar</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsCowork" /> Guide: steer the agent while it runs</label>
             <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsPromptPerPlace" /> Per-place prompt (one per open place)</label>
+            <label class="vs-menu-note vs-wiz-mp"><input type="checkbox" class="vs-cfg-toggle" data-k="vsSounds" /> Sound effects (ready, done, errors)</label>
            <label class="vs-menu-note vs-wiz-mp">Approval level
              <select id="vs-trust-level" class="vs-mcp-field">
                <option value="high">High - auto-run, pause only on errors</option>
@@ -5757,6 +5791,7 @@
     }
 
     function banner(kind, title, msg) {
+      if (kind !== "ok") sfx("error");
       const b = document.createElement("div");
       b.className = `vs-banner ${kind}`;
       b.innerHTML = `<div class="vs-banner-t"></div><div class="vs-banner-m"></div>

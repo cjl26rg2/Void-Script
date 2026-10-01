@@ -210,7 +210,7 @@ document.querySelectorAll("[data-open]").forEach((el) => {
 // Toggle switches + theme picker write straight to chrome.storage.local; the in-page
 // engine live-syncs them via its storage.onChanged listener (no reload needed).
 const CFG_DEFAULTS = {
-  vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsTheme: "system", vsLang: "en",
+  vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsSounds: false, vsTheme: "system", vsLang: "en",
 };
 chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   const cfg = { ...CFG_DEFAULTS, ...(r || {}) };

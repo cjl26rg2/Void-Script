@@ -396,3 +396,6 @@ html[data-theme="or"] .nav-item.active svg { stroke: var(--on-acc); }
 html[data-theme="or"] .mtog.on i, html[data-theme="or"] .think-btn.on i { background: var(--acc); }
 html[data-theme="or"] .mtog.on i::after { background: var(--on-acc); }
 html[data-theme="or"] .msg.user .bubble { border-radius: 10px 10px 3px 10px; }
+/* Co-branding: the OR theme reads "OR × VOIDSCRIPT". */
+html[data-theme="or"] .tb-name::before { content: "OR \00d7  "; white-space: pre; }
+input[type="range"] { accent-color: var(--acc); }

@@ -197,6 +197,7 @@
   }
   html[data-theme="or"] body{background:var(--bg)}
   html[data-theme="or"] .title{letter-spacing:2.4px; text-transform:uppercase}
+  html[data-theme="or"] .title::before{content:"OR \00d7  "; white-space:pre}
   html[data-theme="or"] .title .s{color:var(--fg); -webkit-text-fill-color:var(--fg); background:none}
   html[data-theme="or"] .btn.primary, html[data-theme="or"] .seg button.on{color:#141414; box-shadow:none}
   html[data-theme="or"] .sw input:checked ~ .knob{background:#141414}
@@ -296,6 +297,8 @@
     <label class="sw"><input type="checkbox" data-cfg="vsGuardDestructive" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="setrow"><span class="lbl" data-i18n="bg">Work while tab is hidden</span>
     <label class="sw"><input type="checkbox" data-cfg="vsBackground" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">Sound effects</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsSounds" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="seg" id="theme-seg">
     <button data-theme="system" data-i18n="sys">System</button>
     <button data-theme="dark" data-i18n="dark">Dark</button>

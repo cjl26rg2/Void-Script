@@ -2,6 +2,14 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.5.0] - 2026-10-01
+
+### Added
+- **OR × VOIDSCRIPT.** With the OR theme on, the extension bar, the popup and the app's title bar read "OR × VOIDSCRIPT".
+- **Sound effects (opt-in, off by default).** Short, soft cues when VoidScript connects to Roblox, when the AI finishes, on errors, and when it needs your approval.
+  - Extension: **Sound effects** switch in the popup and in the bar's menu (Safety & behavior).
+  - App: **Settings → App → Sound effects**, with a volume slider and a Play button to preview.
+
 ## [5.4.2] - 2026-10-01
 
 ### Fixed

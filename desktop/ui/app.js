@@ -354,7 +354,7 @@ let lastSeen = { process: "", studio: null };
 function watchState(st) {
   if (st.process === "error" && lastSeen.process !== "error") notify("warn", "Bridge stopped", "The bridge stopped with an error. Check the Terminal, then press Start bridge.", { go: "terminal" });
   if (lastSeen.studio === true && st.studio === false) notify("warn", "Roblox Studio disconnected", "Open your place in Studio and make sure its MCP server is on.", { go: "home" });
-  if (lastSeen.studio === false && st.studio === true) notify("ok", "Roblox Studio connected", st.place_name ? `Working in ${st.place_name}.` : "Ready to build.");
+  if (lastSeen.studio === false && st.studio === true) { notify("ok", "Roblox Studio connected", st.place_name ? `Working in ${st.place_name}.` : "Ready to build."); sfx("ready"); }
   lastSeen = { process: st.process, studio: st.connected ? st.studio : lastSeen.studio };
 }
 
@@ -614,6 +614,47 @@ $("btn-open-ws").onclick = () => invoke("open_folder", { which: "workspace" }).c
 $("set-lang").addEventListener("change", () => saveSettings({ reply_language: $("set-lang").value }, "Reply language saved."));
 $("set-autostart").addEventListener("change", () => saveSettings({ auto_start_bridge: $("set-autostart").checked }));
 $("set-tray").addEventListener("change", () => saveSettings({ close_to_tray: $("set-tray").checked }));
+// ── sound effects (opt-in, kept on this PC) ────────────────────────────────
+// Synthesised with Web Audio, so there's nothing to download. [hz, start s, length s]
+const SFX = {
+  ready: [[660, 0, 0.12], [880, 0.1, 0.18]],
+  done: [[784, 0, 0.12], [988, 0.1, 0.12], [1175, 0.2, 0.24]],
+  error: [[330, 0, 0.16], [247, 0.14, 0.26]],
+  ask: [[1047, 0, 0.16], [1047, 0.22, 0.16]],
+};
+const sound = { on: false, vol: 40 };
+try { Object.assign(sound, JSON.parse(localStorage.getItem("vs-sounds") || "{}")); } catch {}
+let sfxCtx = null;
+function sfx(name, force) {
+  if ((!sound.on && !force) || !SFX[name]) return;
+  try {
+    sfxCtx = sfxCtx || new AudioContext();
+    if (sfxCtx.state === "suspended") sfxCtx.resume().catch(() => {});
+    const t0 = sfxCtx.currentTime + 0.01, peak = 0.25 * (sound.vol / 100);
+    for (const [hz, at, len] of SFX[name]) {
+      const o = sfxCtx.createOscillator(), g = sfxCtx.createGain();
+      o.type = "sine";
+      o.frequency.value = hz;
+      g.gain.setValueAtTime(0.0001, t0 + at);
+      g.gain.exponentialRampToValueAtTime(Math.max(peak, 0.0002), t0 + at + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + at + len);
+      o.connect(g).connect(sfxCtx.destination);
+      o.start(t0 + at);
+      o.stop(t0 + at + len + 0.02);
+    }
+  } catch {}
+}
+function renderSound() {
+  $("set-sounds").checked = sound.on;
+  $("set-sounds-vol").value = sound.vol;
+  $("sounds-vol-row").hidden = !sound.on;
+}
+const saveSound = () => { try { localStorage.setItem("vs-sounds", JSON.stringify(sound)); } catch {} renderSound(); };
+$("set-sounds").addEventListener("change", () => { sound.on = $("set-sounds").checked; saveSound(); if (sound.on) sfx("ready"); });
+$("set-sounds-vol").addEventListener("change", () => { sound.vol = Number($("set-sounds-vol").value); saveSound(); sfx("done", true); });
+$("btn-sound-test").onclick = () => sfx("done", true);
+renderSound();
+
 // Theme: "or" is the partner look; anything else is VoidScript's own.
 function applyTheme(t) {
   const or = t === "or";
@@ -643,6 +684,7 @@ $("btn-show-disclaimer").onclick = () => { $("disc-ok").checked = true; $("btn-d
 let sessionAllow = {};
 function approve(kind, label, title, detail, opts = {}) {
   if (sessionAllow[kind] && !opts.once) return Promise.resolve(true);
+  sfx("ask");
   return new Promise((resolve) => {
     $("appr-kind").textContent = label;
     $("appr-title").textContent = title;
@@ -1093,6 +1135,7 @@ async function sendChat(text, opts = {}) {
       }
     }
     if (step >= ef.steps) addMsg("ai", esc(`Paused after ${ef.steps} steps. Say "continue" to keep going.`));
+    else if (!chat.stop) sfx("done");
     if (planning && lastAi && !chat.stop) {
       const bar = document.createElement("div");
       bar.className = "plan-actions";
@@ -1103,7 +1146,7 @@ async function sendChat(text, opts = {}) {
     if (chat.stop) addMsg("ai", esc("Stopped."));
   } catch (e) {
     if (chat.stop) addMsg("ai", esc("Stopped."));
-    else addMsg("err", esc(errText(e)));
+    else { addMsg("err", esc(errText(e))); sfx("error"); }
   } finally {
     setBusy(false);
     $("chat-input").focus();
