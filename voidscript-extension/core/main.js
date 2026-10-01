@@ -6134,17 +6134,23 @@
   // Schedule a debounced sweep. requestAnimationFrame is PAUSED in a background
   // tab, so when hidden we fall back to a timer (throttled, but it runs).
   let sweepScheduled = false;
+  // A full sweep walks every turn. Cap it at ~8 a second so a site that mutates
+  // nonstop (Gemini's Angular, streaming) can't keep the main thread busy.
+  let lastSweepAt = 0;
   function scheduleSweep() {
     if (sweepScheduled) return;
     sweepScheduled = true;
+    const wait = Math.max(0, 120 - (Date.now() - lastSweepAt));
     const run = () => {
       sweepScheduled = false;
+      lastSweepAt = Date.now();
       syncSessionState();
       P.enforceComposer();  // keep the composer in the provider's required modes
       ui.updateStartGate(); // block the input until a session is started
       decorate.sweep();
     };
-    if (document.hidden) setTimeout(run, 100);
+    if (document.hidden) setTimeout(run, Math.max(100, wait));
+    else if (wait) setTimeout(() => requestAnimationFrame(run), wait);
     else requestAnimationFrame(run);
   }
   // Synchronous pre-hide: MutationObserver callbacks run as a microtask BEFORE
@@ -6156,7 +6162,8 @@
   // so the class lands before that first paint; the full sweep still runs after
   // to build the actual chip.
   function preHideWholeItems() {
-    const items = P.allItems();
+    // Injected turns are always the newest ones; the regular sweep covers the rest.
+    const items = P.allItems().slice(-4);
     // Optimistic pre-hide of a freshly injected result turn (armed in
     // submitAndGetBase). The text-based match below can only fire once the
     // "Output of '…'" caption has rendered, but the turn's NODE appears first
@@ -6189,8 +6196,15 @@
   // could freeze the tab on slower machines. rAF-debouncing it keeps camouflage
   // instant (next frame) while doing the scan at most once per frame.
   let moScheduled = false;
-  const mo = new MutationObserver(() => {
-    if (moScheduled) return;
+  // Our own chip/bar inserts also land here. Reacting to them re-runs the sweep,
+  // which touches the DOM again - on Gemini that loop never settled and could
+  // freeze or crash the tab on long chats. Skip batches that are only ours.
+  const ours = (n) => n.nodeType !== 1 ? n.nodeType === 3 && !!n.parentElement && ours(n.parentElement)
+    : n.id === "vs-root" || !!n.closest("#vs-root, .vs-chip");
+  const onlyOurs = (recs) => recs.every((r) =>
+    ours(r.target) || ([...r.addedNodes, ...r.removedNodes].length > 0 && [...r.addedNodes, ...r.removedNodes].every(ours)));
+  const mo = new MutationObserver((recs) => {
+    if (moScheduled || onlyOurs(recs)) return;
     moScheduled = true;
     requestAnimationFrame(() => {
       moScheduled = false;

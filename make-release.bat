@@ -1,6 +1,6 @@
 @echo off
 rem Builds VoidScript-<version>.zip for a GitHub release: everything users need
-rem (VoidScript.exe included), none of the build output or local data.
+rem (VoidScript.exe included), none of the app source (desktop), build output or local data.
 rem Attach the zip as the FIRST file on the release - the updater downloads that one.
 setlocal
 cd /d "%~dp0"
@@ -26,7 +26,7 @@ if exist "%OUT%" del /q "%OUT%"
 
 echo Packing VoidScript %VER%...
 robocopy "%~dp0." "%STAGE%" /E /NFL /NDL /NJH /NJS /NP ^
-  /XD .git .kilo target node_modules gen logs backups __pycache__ ^
+  /XD .git .kilo desktop target node_modules gen logs backups __pycache__ ^
   /XF check_update.json *.old *.zip *.pyc make-release.bat >nul
 if errorlevel 8 (
   echo Copy failed.

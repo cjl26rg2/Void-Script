@@ -48,6 +48,7 @@ struct Settings {
     openrouter_model: String,
     workspace_enabled: bool,
     workspace_dir: String,
+    access: String, // "ask" | "sandbox" | "full"
     reply_language: String,
     #[serde(default = "yes")]
     auto_start_bridge: bool,
@@ -67,6 +68,7 @@ impl Default for Settings {
             openrouter_model: String::new(),
             workspace_enabled: false,
             workspace_dir: String::new(),
+            access: "sandbox".into(),
             reply_language: String::new(),
             auto_start_bridge: true,
             close_to_tray: true,
@@ -88,10 +90,21 @@ struct SettingsView {
     openrouter_model: String,
     workspace_enabled: bool,
     workspace_dir: String,
+    access: String,
     reply_language: String,
     auto_start_bridge: bool,
     close_to_tray: bool,
     theme: String,
+}
+
+// People paste keys as `Bearer nvapi-…`, in quotes, or with a line break from the
+// copy button - all of which the API rejects as a bad key. Keep only the token.
+fn clean_key(k: &str) -> String {
+    let k: String = k.chars().filter(|c| !c.is_whitespace() && !matches!(c, '"' | '\'' | '`' | '\u{200b}' | '\u{feff}')).collect();
+    let low = k.to_ascii_lowercase();
+    if low.starts_with("bearer") && k.len() > 6 { k[6..].to_string() }
+    else if low.starts_with("authorization:bearer") { k[20..].to_string() }
+    else { k }
 }
 
 // "…ab12" - enough for the user to recognise a saved key, never the key itself.
@@ -112,6 +125,7 @@ impl From<&Settings> for SettingsView {
             openrouter_key_hint: key_hint(&s.openrouter_key),
             openrouter_model: s.openrouter_model.clone(),
             workspace_enabled: s.workspace_enabled,
+            access: match s.access.as_str() { "ask" | "full" => s.access.clone(), _ => "sandbox".into() },
             workspace_dir: s.workspace_dir.clone(),
             reply_language: s.reply_language.clone(),
             auto_start_bridge: s.auto_start_bridge,
@@ -473,6 +487,18 @@ async fn bridge_call(app: &AppHandle, mut payload: Value, timeout_ms: u64) -> Re
 
 // ── workspace access (off by default; one user-chosen folder) ───────────────
 
+fn full_access(st: &AppState) -> bool { st.settings.lock().unwrap().access == "full" }
+
+// Where relative paths and commands start: the workspace folder if one is set,
+// otherwise (full access only) the user's home folder.
+fn start_dir(st: &AppState) -> Result<PathBuf, String> {
+    match workspace_base(st) {
+        Ok(b) => Ok(b),
+        Err(e) if full_access(st) => std::env::var_os("USERPROFILE").map(PathBuf::from).ok_or(e),
+        Err(e) => Err(e),
+    }
+}
+
 fn workspace_base(st: &AppState) -> Result<PathBuf, String> {
     let s = st.settings.lock().unwrap();
     if !s.workspace_enabled || s.workspace_dir.trim().is_empty() {
@@ -485,6 +511,11 @@ fn workspace_base(st: &AppState) -> Result<PathBuf, String> {
 // ".." outright, then canonicalises (resolving symlinks) the path - or, for a new
 // file, its nearest existing ancestor - and requires it to stay under the base.
 fn jail(st: &AppState, rel: &str) -> Result<PathBuf, String> {
+    if full_access(st) {
+        // Full PC access (the user switched it on): any path, relative ones from start_dir.
+        let p = Path::new(rel.trim());
+        return Ok(if p.is_absolute() { p.to_path_buf() } else { start_dir(st)?.join(p) });
+    }
     let base = workspace_base(st)?;
     let rel = rel.trim();
     let p = Path::new(if rel.is_empty() { "." } else { rel });
@@ -572,8 +603,8 @@ fn save_settings(st: State<'_, AppState>, patch: Value) -> Result<SettingsView, 
         }
     }
     let mut next: Settings = serde_json::from_value(v).map_err(|e| e.to_string())?;
-    next.nvidia_key = next.nvidia_key.trim().to_string();
-    next.openrouter_key = next.openrouter_key.trim().to_string();
+    next.nvidia_key = clean_key(&next.nvidia_key);
+    next.openrouter_key = clean_key(&next.openrouter_key);
     save_settings_file(&st.settings_path, &next)?;
     *s = next;
     Ok(SettingsView::from(&*s))
@@ -680,10 +711,10 @@ fn provider_for(st: &AppState, which: Option<&str>) -> Result<Provider, String> 
     let s = st.settings.lock().unwrap();
     if which.unwrap_or(s.provider.as_str()) == "openrouter" {
         if s.openrouter_key.is_empty() { return Err("Add your OpenRouter API key in Settings first.".into()); }
-        Ok(Provider { name: "OpenRouter", base: OPENROUTER_BASE, key: s.openrouter_key.clone(), openrouter: true })
+        Ok(Provider { name: "OpenRouter", base: OPENROUTER_BASE, key: clean_key(&s.openrouter_key), openrouter: true })
     } else {
         if s.nvidia_key.is_empty() { return Err("Add your NVIDIA API key in Settings first.".into()); }
-        Ok(Provider { name: "NVIDIA", base: NVIDIA_BASE, key: s.nvidia_key.clone(), openrouter: false })
+        Ok(Provider { name: "NVIDIA", base: NVIDIA_BASE, key: clean_key(&s.nvidia_key), openrouter: false })
     }
 }
 
@@ -693,8 +724,15 @@ fn with_headers(p: &Provider, rb: reqwest::RequestBuilder) -> reqwest::RequestBu
     if p.openrouter { rb.header("HTTP-Referer", "https://voidstudioai.netlify.app").header("X-Title", "VoidScript") } else { rb }
 }
 
+const NON_CHAT: &[&str] = &[
+    "embed", "rerank", "retriever", "guard", "safety", "reward", "parakeet", "canary", "whisper",
+    "fastpitch", "tts", "asr", "clip", "sdxl", "stable-diffusion", "flux", "cosmos", "paligemma",
+    "deplot", "kosmos", "neva", "vila", "ocr", "segment", "detector", "nv-yolo", "bge", "e5-", "arctic-embed",
+    "riva-translate", "nemotron-parse", "diffusion", "fuyu", "ising-calibration",
+];
+
 #[derive(Serialize)]
-struct ModelInfo { id: String, tools: Option<bool> }
+struct ModelInfo { id: String, tools: Option<bool>, reasoning: Option<bool> }
 
 #[tauri::command]
 async fn ai_models(st: State<'_, AppState>, provider: Option<String>) -> Result<Vec<ModelInfo>, String> {
@@ -709,14 +747,29 @@ async fn ai_models(st: State<'_, AppState>, provider: Option<String>) -> Result<
         a.iter().filter_map(|m| {
             let id = m.get("id").and_then(|x| x.as_str())?.to_string();
             // OpenRouter lists each model's supported parameters; NVIDIA doesn't.
-            let tools = m.get("supported_parameters").and_then(|x| x.as_array())
-                .map(|ps| ps.iter().any(|x| x.as_str() == Some("tools")));
-            Some(ModelInfo { id, tools })
+            let params = m.get("supported_parameters").and_then(|x| x.as_array());
+            let tools = params.map(|ps| ps.iter().any(|x| x.as_str() == Some("tools")));
+            let reasoning = params.map(|ps| ps.iter().any(|x| x.as_str() == Some("reasoning")));
+            // NVIDIA's catalogue also lists embedding, reranking, safety, speech and
+            // image models that can't chat at all - picking one only ever errors.
+            if !p.openrouter && NON_CHAT.iter().any(|w| id.to_ascii_lowercase().contains(w)) { return None; }
+            Some(ModelInfo { id, tools, reasoning })
         }).collect()
     }).unwrap_or_default();
     out.sort_by(|a, b| a.id.cmp(&b.id));
     out.dedup_by(|a, b| a.id == b.id);
     Ok(out)
+}
+
+// NVIDIA answers with {"detail": ...} or {"title","detail"}; OpenAI-style APIs with
+// {"error": {"message": ...}}. Show just that message instead of a raw JSON dump.
+fn api_error_text(body: &str) -> String {
+    if let Ok(v) = serde_json::from_str::<Value>(body) {
+        let msg = v.pointer("/error/message").or_else(|| v.get("detail")).or_else(|| v.get("message"))
+            .or_else(|| v.get("error")).or_else(|| v.get("title"));
+        if let Some(m) = msg.and_then(|m| m.as_str()) { return cap_text(m.to_string(), 500); }
+    }
+    cap_text(body.to_string(), 500)
 }
 
 #[tauri::command]
@@ -735,7 +788,7 @@ async fn ai_chat(st: State<'_, AppState>, body: Value) -> Result<Value, String> 
             429 => " - rate limited; wait a moment and try again.",
             _ => "",
         };
-        return Err(format!("{} API {}{}\n{}", p.name, status.as_u16(), hint, cap_text(text, 500)));
+        return Err(format!("{} API {}{}\n{}", p.name, status.as_u16(), hint, api_error_text(&text)));
     }
     let v: Value = serde_json::from_str(&text).map_err(|e| format!("Unexpected {} response: {e}", p.name))?;
     // OpenRouter can return HTTP 200 with an error object from the upstream model.
@@ -829,8 +882,14 @@ fn ws_write(st: State<'_, AppState>, path: String, content: String) -> Result<St
 #[tauri::command]
 fn ws_delete(st: State<'_, AppState>, path: String) -> Result<String, String> {
     let p = jail(&st, &path)?;
-    let base = workspace_base(&st)?;
-    if p == base { return Err("Refusing to delete the whole workspace folder.".into()); }
+    let p = std::fs::canonicalize(&p).unwrap_or(p);
+    if workspace_base(&st).map(|b| b == p).unwrap_or(false) { return Err("Refusing to delete the whole workspace folder.".into()); }
+    let home = std::env::var_os("USERPROFILE").map(PathBuf::from).and_then(|h| std::fs::canonicalize(h).ok());
+    let windir = std::env::var_os("SystemRoot").map(PathBuf::from).and_then(|w| std::fs::canonicalize(w).ok());
+    if p.parent().is_none() || p.components().count() <= 3 || Some(&p) == home.as_ref()
+        || windir.map(|w| p.starts_with(w)).unwrap_or(false) {
+        return Err("Refusing to delete a drive, your user folder or Windows files.".into());
+    }
     if p.is_dir() { std::fs::remove_dir_all(&p) } else { std::fs::remove_file(&p) }
         .map_err(|e| format!("cannot delete {path}: {e}"))?;
     Ok(format!("deleted {path}"))
@@ -838,7 +897,7 @@ fn ws_delete(st: State<'_, AppState>, path: String) -> Result<String, String> {
 
 #[tauri::command]
 async fn ws_run(st: State<'_, AppState>, command: String) -> Result<String, String> {
-    let base = workspace_base(&st)?;
+    let base = start_dir(&st)?;
     tauri::async_runtime::spawn_blocking(move || {
         let mut cmd = Command::new("cmd.exe");
         cmd.arg("/d").arg("/c");

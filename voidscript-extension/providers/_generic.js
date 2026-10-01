@@ -200,6 +200,9 @@ function VSGeneric(cfg) {
     // full width WITHOUT touching the framework's DOM). The core also has a runtime
     // thrash guard that falls back to anchored if any inside-mount still fights.
     if (!isTextField(ed)) return null;
+    // Server-rendered React apps (ChatGPT's newer layout) crash outright - blank page -
+    // when hydration meets a node they didn't render, even in a plain <textarea> form.
+    if (cfg.inlineBar === false) return null;
     const send = sendButton();
     let box = ed.parentElement;
     let rounded = null;

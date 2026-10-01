@@ -10,12 +10,15 @@ const listen = TAURI.event.listen;
 const appWin = TAURI.window.getCurrentWindow();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const DEFAULTS = { nvidia: "meta/llama-3.3-70b-instruct", openrouter: "openai/gpt-4o-mini" };
+const DEFAULTS = { nvidia: "moonshotai/kimi-k2.6", openrouter: "openai/gpt-4o-mini" };
+// NVIDIA retires models without notice (Llama 3.3 70B went in 2026). If the chosen
+// one is gone, the chat switches to the first of these that is still listed.
+const NV_FALLBACK = ["moonshotai/kimi-k2.6", "moonshotai/kimi-k3", "z-ai/glm-5.3", "deepseek-ai/deepseek-v4.1-flash",
+  "nvidia/nemotron-3-super-120b-a12b", "openai/gpt-oss-20b", "mistralai/mistral-large-2-instruct"];
 const PROV_NAME = { nvidia: "NVIDIA", openrouter: "OpenRouter" };
 const PROV_KEY_URL = { nvidia: "https://build.nvidia.com/", openrouter: "https://openrouter.ai/keys" };
 const TOOL_RESULT_CAP = 12000;
 const REF_TOTAL_CAP = 400 * 1024;
-const MAX_STEPS = 30;
 
 const LANGS = [
   ["", "English"], ["Spanish", "Español"], ["Brazilian Portuguese", "Português (BR)"], ["French", "Français"],
@@ -106,7 +109,10 @@ function render() {
   });
   const set = S.settings || {};
   const wsOn = set.workspace_enabled && set.workspace_dir;
-  setCard("card-ws", { cls: wsOn ? "acc" : "", big: wsOn ? "On" : "Off", small: wsOn ? set.workspace_dir : "The AI can't touch your files." });
+  const full = access() === "full";
+  setCard("card-ws", full
+    ? { cls: "acc", big: "Full PC", small: "The AI can reach any file and run commands. Deletes still ask." }
+    : { cls: wsOn ? "acc" : "", big: wsOn ? "On" : "Off", small: wsOn ? set.workspace_dir : "The AI can't touch your files." });
 
   const running = st.process === "running" || st.process === "starting" || st.process === "updating";
   const tog = $("btn-bridge-toggle");
@@ -118,8 +124,8 @@ function render() {
 
   $("chat-prov").textContent = PROV_NAME[prov()];
   $("chat-model-name").textContent = curModel();
-  $("chat-ws").textContent = wsOn ? "workspace on" : "workspace off";
-  $("chat-ws").classList.toggle("on", !!wsOn);
+  $("chat-ws").textContent = full ? "full PC access" : wsOn ? "workspace on" : "workspace off";
+  $("chat-ws").classList.toggle("on", !!(wsOn || full));
   $("chat-bridge").hidden = !!st.connected;
 
   const key = JSON.stringify(tools.map((t) => t.name));
@@ -217,6 +223,9 @@ $("tools-list").addEventListener("click", (e) => {
 // ── extra MCP servers ───────────────────────────────────────────────────────
 // Presets write into config.json (via the backend) and restart the bridge.
 const MCP_PRESETS = [
+  { id: "notion", name: "Notion", desc: "Read and write your Notion pages: game design docs, task lists, patch notes.", command: "npx", args: ["-y", "@notionhq/notion-mcp-server"],
+    needs: "Needs Node.js and a Notion integration token (share your pages with it).", url: "https://www.notion.so/profile/integrations",
+    env: { key: "NOTION_TOKEN", label: "Notion integration token", placeholder: "ntn_…" } },
   { id: "blender", name: "Blender", desc: "Model, texture and render in Blender, then bring it into Studio.", command: "uvx", args: ["blender-mcp"],
     needs: "Needs uv and the Blender MCP add-on installed in Blender.", url: "https://github.com/ahujasid/blender-mcp" },
   { id: "fetch", name: "Web fetch", desc: "Read web pages and docs (DevForum, create.roblox.com).", command: "uvx", args: ["mcp-server-fetch"],
@@ -230,7 +239,7 @@ const MCP_PRESETS = [
   { id: "git", name: "Git", desc: "Read and commit to a git repo (e.g. your Rojo project).", command: "uvx", args: ["mcp-server-git"],
     needs: "Needs uv.", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/git" },
 ];
-let mcpInstalled = [];
+let mcpInstalled = [], mcpPending = null;
 
 function splitArgs(s) {
   const out = []; const re = /"([^"]*)"|(\S+)/g; let m;
@@ -249,7 +258,10 @@ function renderMcp() {
       <div class="mcp-top"><b>${esc(p.name)}</b>${have.has(p.id) ? '<span class="chip">added</span>' : ""}</div>
       <div class="td">${esc(p.desc)}</div>
       <div class="mcp-needs">${esc(p.needs)} <button class="link" data-url="${esc(p.url)}">Setup guide</button></div>
-      <button class="btn sm ${have.has(p.id) ? "" : "primary"}" data-mcp="${esc(p.id)}" data-act="${have.has(p.id) ? "remove" : "add"}">${have.has(p.id) ? "Remove" : "Add"}</button>
+      ${mcpPending === p.id && p.env ? `<div class="mcp-env">
+        <input class="input mono" type="password" id="mcp-env-val" placeholder="${esc(p.env.placeholder)}" aria-label="${esc(p.env.label)}" autocomplete="off" spellcheck="false" />
+        <button class="btn sm primary" data-mcp="${esc(p.id)}" data-act="save">Save</button></div>` :
+      `<button class="btn sm ${have.has(p.id) ? "" : "primary"}" data-mcp="${esc(p.id)}" data-act="${have.has(p.id) ? "remove" : "add"}">${have.has(p.id) ? "Remove" : "Add"}</button>`}
     </div>`).join("") + custom.map((s) => `
     <div class="mcp-item on">
       <div class="mcp-top"><b>${esc(s.id)}</b><span class="chip">custom</span></div>
@@ -272,7 +284,20 @@ $("mcp-catalog").addEventListener("click", (e) => {
   const id = b.dataset.mcp;
   if (b.dataset.act === "remove") return applyMcp(() => invoke("mcp_remove", { id }), `Removed ${id}.`);
   const p = MCP_PRESETS.find((x) => x.id === id);
-  applyMcp(() => invoke("mcp_add", { id: p.id, command: p.command, args: p.args }), `Added ${p.name}.`);
+  // Presets that need a token ask for it inline; it goes straight into config.json.
+  if (p.env && b.dataset.act === "add") { mcpPending = id; renderMcp(); $("mcp-env-val").focus(); return; }
+  let env;
+  if (p.env) {
+    const v = $("mcp-env-val").value.trim();
+    if (!v) { toast(`Paste your ${p.env.label} first.`); return; }
+    env = { [p.env.key]: v };
+  }
+  mcpPending = null;
+  applyMcp(() => invoke("mcp_add", { id: p.id, command: p.command, args: p.args, env }), `Added ${p.name}.`);
+});
+$("mcp-catalog").addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && e.target.id === "mcp-env-val") e.target.parentElement.querySelector("button").click();
+  if (e.key === "Escape" && mcpPending) { mcpPending = null; renderMcp(); }
 });
 $("btn-mcp-add").onclick = () => {
   const id = $("mcp-id").value.trim(), command = $("mcp-cmd").value.trim();
@@ -301,13 +326,13 @@ function renderSettings() {
   $("set-key").placeholder = p === "openrouter" ? "sk-or-…" : "nvapi-…";
   $("prov-hint").innerHTML = p === "openrouter"
     ? `Hundreds of models (GPT, Claude, Gemini, Llama, Qwen…) with one key. Get one at <button class="link" data-url="${PROV_KEY_URL.openrouter}">openrouter.ai/keys</button> — models ending in <code>:free</code> cost nothing.`
-    : `Free API access to Llama, DeepSeek, Qwen, Kimi and more. Get a key at <button class="link" data-url="${PROV_KEY_URL.nvidia}">build.nvidia.com</button>.`;
+    : `Free API access to Kimi, GLM, DeepSeek, Nemotron and more. Get a key at <button class="link" data-url="${PROV_KEY_URL.nvidia}">build.nvidia.com</button>.`;
   $("key-status").textContent = s[p + "_key_set"] ? `Key saved (${s[p + "_key_hint"] || "hidden"}).` : "No key saved yet.";
   $("set-model").value = s[p + "_model"] || "";
   $("set-model").placeholder = DEFAULTS[p];
   $("model-hint").textContent = p === "openrouter"
     ? "Load models to see which support tools (needed to build in Studio)."
-    : "Pick a model that supports tool calling — e.g. Llama 3.3 70B, Kimi K2, Qwen3 Coder, DeepSeek V3.";
+    : "Pick a model that supports tool calling, e.g. Kimi K2.6, GLM 5.3, DeepSeek V4.1 or Nemotron 3. Press Test to check your key.";
   $("set-ws-on").checked = !!s.workspace_enabled;
   $("set-ws-dir").value = s.workspace_dir || "";
   $("set-lang").value = s.reply_language || "";
@@ -333,6 +358,20 @@ $("btn-save-key").onclick = async () => {
   $("set-key").value = "";
 };
 $("set-key").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-save-key").click(); });
+$("btn-test-key").onclick = async () => {
+  const p = prov(), btn = $("btn-test-key");
+  if ($("set-key").value.trim()) await $("btn-save-key").onclick();
+  if (!keySet(p)) { toast("Save a key first."); return; }
+  btn.disabled = true; btn.textContent = "Testing…";
+  try {
+    const { model } = await callModel({ messages: [{ role: "user", content: "Reply with: ok" }], max_tokens: 16 }, { quiet: true });
+    $("key-status").textContent = `Key works ✓ (${model}).`;
+    toast(`${PROV_NAME[p]} key works with ${model}.`, 3500);
+  } catch (e) {
+    $("key-status").textContent = "Test failed: " + errText(e).split("\n").slice(0, 2).join(" ");
+    toast(errText(e), 6000);
+  } finally { btn.disabled = false; btn.textContent = "Test"; }
+};
 $("btn-clear-key").onclick = () => { modelCache[prov()] = null; saveSettings({ ["clear_" + prov() + "_key"]: true }, "API key removed."); };
 $("set-model").addEventListener("change", () => saveSettings({ [prov() + "_model"]: $("set-model").value.trim() }, "Model saved."));
 document.querySelectorAll("#prov-seg button").forEach((b) => b.addEventListener("click", () => {
@@ -342,7 +381,7 @@ document.querySelectorAll("#prov-seg button").forEach((b) => b.addEventListener(
 // Models for a provider, cached per session. Tool-capable / well-known coding
 // models first, since the chat needs tool calling to build in Studio.
 const modelCache = { nvidia: null, openrouter: null };
-const GOOD_MODEL = /llama-3\.[13]-(70b|405b)|kimi-k2|qwen3|qwen-?2\.5-coder|deepseek-(v3|chat)|nemotron|mistral-large|gpt-oss|gpt-4|gpt-5|claude|gemini/i;
+const GOOD_MODEL = /kimi-k|glm-5|qwen3|deepseek-(v[34]|chat)|nemotron-3|nemotron-ultra|mistral-large|gpt-oss|gpt-4|gpt-5|claude|gemini|llama-3\.[13]-(70b|405b)/i;
 function rankModels(list) {
   const score = (m) => (m.tools === true ? 0 : m.tools === false ? 3 : 1) + (GOOD_MODEL.test(m.id) ? 0 : 1);
   return list.slice().sort((a, b) => score(a) - score(b) || a.id.localeCompare(b.id));
@@ -389,6 +428,7 @@ function renderPop() {
     html = custom + '<div class="pop-note">No listed models match.</div>';
   } else {
     html = shown.map((m) => `<button class="pop-item${m.id === cur ? " cur" : ""}" data-id="${esc(m.id)}"><span class="id">${esc(m.id)}</span>${
+      m.reasoning ? '<span class="tl think">thinks</span>' : ""}${
       m.tools === true ? '<span class="tl">tools</span>' : m.tools === false ? '<span class="tl no">no tools</span>' : ""}</button>`).join("") + (q.includes("/") ? custom : "");
   }
   box.innerHTML = html;
@@ -463,13 +503,14 @@ $("btn-show-disclaimer").onclick = () => { $("disc-ok").checked = true; $("btn-d
 
 // ── approvals (workspace writes / deletes / commands) ──────────────────────
 let sessionAllow = {};
-function approve(kind, label, title, detail) {
-  if (sessionAllow[kind]) return Promise.resolve(true);
+function approve(kind, label, title, detail, opts = {}) {
+  if (sessionAllow[kind] && !opts.once) return Promise.resolve(true);
   return new Promise((resolve) => {
     $("appr-kind").textContent = label;
     $("appr-title").textContent = title;
     $("appr-detail").textContent = detail;
     $("appr-session").checked = false;
+    $("appr-session").parentElement.hidden = !!opts.once;
     $("appr-session-lbl").textContent = `Allow "${label.toLowerCase()}" for the rest of this chat`;
     $("approve").hidden = false;
     const done = (ok) => {
@@ -487,10 +528,33 @@ function approve(kind, label, title, detail) {
 const chat = { messages: [], busy: false, stop: false };
 const body = $("chat-body");
 
-function systemPrompt() {
+// Project memory: the same ServerStorage.VoidScript.Memory ModuleScript the browser
+// extension keeps, so every AI that works on a game shares one memory of it.
+const MEM_PATH = "game.ServerStorage.VoidScript.Memory";
+const MEM_SKELETON = "return [==[\n# Project memory\n## Overview\n## Where things live\n## Conventions\n## Key systems\n## Decisions & gotchas\n## User preferences\n## Open questions / TODO\n]==]";
+async function readMemory() {
+  if (!S.state.connected || !(S.state.tools || []).some((t) => t.name === "execute_luau")) return null;
+  const code = 'local f = game:GetService("ServerStorage"):FindFirstChild("VoidScript")\n' +
+    'local m = f and f:FindFirstChild("Memory")\nreturn m and m:IsA("ModuleScript") and m.Source or ""';
+  try {
+    const r = await invoke("bridge_request", { payload: { type: "call_tool", name: "execute_luau", arguments: { code, datamodel_type: "Edit" } }, timeoutMs: 15000 });
+    return r && r.type === "tool_result" && r.ok ? String(r.text || "").trim() : null;
+  } catch { return null; }
+}
+function memoryLines() {
+  const out = ["", `PROJECT MEMORY: ${MEM_PATH} is a ModuleScript that holds the long-term memory for this game. Every AI and every chat shares it, so keep it accurate for whoever reads it next. Keep only lasting, verified facts: what the game is, where key scripts and instances live, conventions, how the main systems work, decisions and gotchas, and the user's preferences. It is not a task log - no step-by-step history, no whole scripts.`];
+  const m = chat.memory;
+  if (m && !/^(nil|""|)$/.test(m)) out.push("Current memory:", cap(m, 6000));
+  else if (m === "" || m === '""') out.push(`There is no memory yet. Once you have learned something lasting about this game, create it with multi_edit (file_path "${MEM_PATH}", className "ModuleScript", one edit with old_string "") using this skeleton:`, MEM_SKELETON);
+  else out.push(`Read it with script_read before you change the game.`);
+  out.push("When you learn something lasting, update the right section with multi_edit (script_read it first so old_string matches exactly). Fix facts that turned out wrong, and never save a guess as a fact.");
+  return out;
+}
+
+function systemPrompt(opts = {}) {
   const s = S.settings || {};
   const st = S.state || {};
-  const ws = s.workspace_enabled && s.workspace_dir;
+  const ws = filesOn();
   const lines = [
     "You are VoidScript, an AI teammate that builds Roblox games directly inside the user's open Roblox Studio using the tools provided. The tools run live against Studio through the local VoidScript bridge.",
     "",
@@ -505,14 +569,27 @@ function systemPrompt() {
     "- Keep replies short and natural, like a friendly Roblox dev. When you finish, say what you built in a sentence or two.",
   ];
   if (!st.connected) lines.push("", "The Roblox Studio bridge is offline right now, so the Studio tools are unavailable. If the user asks you to build, tell them to start the bridge on the VoidScript Home tab and open Roblox Studio.");
-  if (ws) lines.push("", `You also have workspace_* tools for files in the user's chosen folder (${s.workspace_dir}). Paths are relative to that folder and you cannot leave it. The user approves every write, delete and command, so say briefly why before each one.`);
+  if (ws && access() === "full") lines.push("", `You also have workspace_* tools with access to the user's whole PC. Use absolute Windows paths (C:\\...) or paths relative to ${s.workspace_dir || "the user's home folder"}. Deletes need the user's approval. Don't touch system folders or files the user didn't mention.`);
+  else if (ws) lines.push("", `You also have workspace_* tools for files in the user's chosen folder (${s.workspace_dir}). Paths are relative to that folder and you cannot leave it.${access() === "ask" ? " The user approves every write, delete and command, so say briefly why before each one." : " Deletes need the user's approval."}`);
+  if (mode.memory && st.connected) lines.push(...memoryLines());
+  lines.push("", effort().line);
+  if (opts.plan) lines.push("", "PLAN MODE: you only have read-only tools right now. Look at what exists if it helps, then reply with a short numbered plan (what you will add or change, and where) and stop. Do not write code yet - the user will approve the plan first.");
+  else if (access() === "ask") lines.push("", "ACCESS: the user approves every change in Studio and every file write and command. If they deny one, don't retry it - ask what they want.");
   if (s.reply_language) lines.push("", `Write every message to the user in ${s.reply_language}. Keep tool names, arguments, file paths and code exactly as required (do not translate them).`);
   return lines.join("\n");
 }
 
+// Some providers (NVIDIA's NIM backends) reject JSON-Schema metadata keywords.
+function stripMeta(v) {
+  if (Array.isArray(v)) return v.map(stripMeta);
+  if (!v || typeof v !== "object") return v;
+  const o = {};
+  for (const [k, x] of Object.entries(v)) if (k !== "$schema" && k !== "$id") o[k] = stripMeta(x);
+  return o;
+}
 function normSchema(sc) {
   if (!sc || typeof sc !== "object") return { type: "object", properties: {} };
-  const out = Object.assign({}, sc);
+  const out = stripMeta(sc);
   if (out.type !== "object") out.type = "object";
   if (!out.properties || typeof out.properties !== "object") out.properties = {};
   return out;
@@ -524,16 +601,18 @@ const WS_TOOLS = [
   ["delete", "workspace_delete", "Delete a file or folder inside the workspace folder. The user must approve it.", { path: { type: "string" } }, ["path"]],
   ["run", "workspace_run", "Run a Windows command (cmd.exe) with the workspace folder as the working directory, e.g. 'rojo build -o game.rbxl'. The user must approve it. 2 minute limit.", { command: { type: "string" } }, ["command"]],
 ];
-function toolDefs() {
+function toolDefs(readOnly) {
   const defs = [], map = {};
   for (const t of (S.state.tools || [])) {
+    if (readOnly && !isReadOnly(t.name)) continue;
     let safe = String(t.name).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "tool";
     while (map[safe]) safe = safe.slice(0, 58) + "_" + Object.keys(map).length;
     map[safe] = { kind: "bridge", name: t.name };
     defs.push({ type: "function", function: { name: safe, description: String(t.description || t.name).slice(0, 1024), parameters: normSchema(t.inputSchema) } });
   }
-  if (S.settings.workspace_enabled && S.settings.workspace_dir) {
+  if (filesOn()) {
     for (const [op, name, desc, props, required] of WS_TOOLS) {
+      if (readOnly && !isReadOnly(name)) continue;
       map[name] = { kind: "ws", op, name };
       defs.push({ type: "function", function: { name, description: desc, parameters: { type: "object", properties: props, required } } });
     }
@@ -560,10 +639,10 @@ function addMsg(role, html) {
   body.scrollTop = body.scrollHeight;
   return m;
 }
-function typing() {
+function typing(label) {
   const m = document.createElement("div");
   m.className = "msg ai";
-  m.innerHTML = '<div class="bubble typing"><i></i><i></i><i></i></div>';
+  m.innerHTML = `<div class="bubble typing"><i></i><i></i><i></i>${label ? `<span>${esc(label)}</span>` : ""}</div>`;
   body.appendChild(m);
   body.scrollTop = body.scrollHeight;
   return m;
@@ -598,6 +677,11 @@ async function runCall(call, map) {
   if (!entry) { card.set("err", "unknown tool"); return `ERROR: there is no tool named '${fn.name}'.`; }
   try {
     if (entry.kind === "bridge") {
+      if (access() === "ask" && !isReadOnly(entry.name) &&
+          !(await approve("studio", "Studio change", `Allow ${entry.name}?`, JSON.stringify(args, null, 2).slice(0, 4000)))) {
+        card.set("deny", "denied"); return "The user denied this change. Don't retry it - ask what they want instead.";
+      }
+      if (!isReadOnly(entry.name)) chat.changed = true;
       const r = await invoke("bridge_request", { payload: { type: "call_tool", name: entry.name, arguments: args }, timeoutMs: 180000 });
       if (r && r.type === "tool_result" && r.ok) {
         let t = r.text || "(done - no output)";
@@ -619,7 +703,7 @@ async function runCall(call, map) {
     } else if (entry.op === "write") {
       const content = String(args.content == null ? "" : args.content);
       const preview = content.length > 1600 ? content.slice(0, 1600) + "\n…" : content;
-      if (!(await approve("write", "Write a file", "Allow writing this file?", `${path}\n${"─".repeat(40)}\n${preview}`))) {
+      if (access() === "ask" && !(await approve("write", "Write a file", "Allow writing this file?", `${path}\n${"─".repeat(40)}\n${preview}`))) {
         card.set("deny", "denied"); return "The user denied this write. Don't retry it - ask what they want instead.";
       }
       out = await invoke("ws_write", { path, content });
@@ -630,7 +714,7 @@ async function runCall(call, map) {
       out = await invoke("ws_delete", { path });
     } else if (entry.op === "run") {
       const command = String(args.command || "");
-      if (!(await approve("run", "Run a command", "Allow running this command?", `${command}\n\nin ${S.settings.workspace_dir}`))) {
+      if (access() === "ask" && !(await approve("run", "Run a command", "Allow running this command?", `${command}\n\nin ${S.settings.workspace_dir || "your home folder"}`))) {
         card.set("deny", "denied"); return "The user denied this command. Don't retry it - ask what they want instead.";
       }
       out = await invoke("ws_run", { command });
@@ -643,6 +727,128 @@ async function runCall(call, map) {
   }
 }
 
+// ── model calls: thinking + recovery ────────────────────────────────────────
+// Chat modes, kept per PC: effort, access level and three toggles.
+const MODE_DEFAULTS = { effort: "balanced", think: false, selfcheck: false, plan: false, memory: true };
+const mode = Object.assign({}, MODE_DEFAULTS);
+try { Object.assign(mode, JSON.parse(localStorage.getItem("vs-mode") || "{}")); } catch {}
+const EFFORT = {
+  fast: { steps: 12, tokens: 4096, reason: "low", line: "Effort: fast. Do the smallest thing that works and skip extra checks." },
+  balanced: { steps: 30, tokens: 6144, reason: "medium", line: "Effort: balanced. Plan briefly in your head, build, then do one quick check that it worked." },
+  deep: { steps: 50, tokens: 8192, reason: "high", line: "Effort: deep. Read the related scripts and instances first, build carefully, then verify (console output, a quick play test where it helps) before you finish." },
+};
+const effort = () => EFFORT[mode.effort] || EFFORT.balanced;
+const access = () => (S.settings && S.settings.access) || "sandbox";
+const filesOn = () => access() === "full" || !!(S.settings.workspace_enabled && S.settings.workspace_dir);
+function saveMode() { try { localStorage.setItem("vs-mode", JSON.stringify(mode)); } catch {} renderMode(); }
+function renderMode() {
+  $("seg-effort").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === mode.effort));
+  $("seg-access").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.v === access()));
+  $("btn-think").classList.toggle("on", !!mode.think);
+  $("btn-selfcheck").classList.toggle("on", !!mode.selfcheck);
+  $("btn-plan").classList.toggle("on", !!mode.plan);
+  $("btn-memory").classList.toggle("on", !!mode.memory);
+}
+$("seg-effort").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) { mode.effort = b.dataset.v; saveMode(); } });
+$("seg-access").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b || b.dataset.v === access()) return;
+  const v = b.dataset.v;
+  if (v === "full" && !(await approve("full", "Full PC access", "Let the AI use your whole PC?",
+    "It can read and write any file and run commands anywhere, without asking.\nDeleting still asks you first, and drives, your user folder and Windows are always protected.\n\nOnly use this with a model you trust. Switch back to Sandbox any time.", { once: true }))) return;
+  await saveSettings({ access: v }, { ask: "Ask: you approve every change in Studio and every file write.", sandbox: "Sandbox: Studio plus your workspace folder.", full: "Full PC access on." }[v]);
+  renderMode();
+});
+for (const [id, key, on, off] of [
+  ["btn-think", "think", "Thinking on: reasoning models think before answering.", "Thinking off."],
+  ["btn-selfcheck", "selfcheck", "Self-check on: the AI reviews and fixes its work before finishing.", "Self-check off."],
+  ["btn-plan", "plan", "Plan first on: you get a plan to approve before anything changes.", "Plan first off."],
+  ["btn-memory", "memory", "Project memory on: the AI remembers this game between chats.", "Project memory off."],
+]) $(id).onclick = () => { mode[key] = !mode[key]; saveMode(); toast(mode[key] ? on : off); };
+renderMode();
+
+// Studio tools that only look. Anything else changes the place.
+const READ_ONLY = /^(script_read|script_search|script_grep|search_game_tree|inspect_instance|get_[a-z_]+|list_[a-z_]+|search_asset|screen_capture|wait_job_finished|skill|http_get|workspace_list|workspace_read)$/;
+const isReadOnly = (name) => READ_ONLY.test(String(name));
+
+// Each API spells "think first" differently; models that don't reason ignore it.
+function thinkParams(p) {
+  return p === "openrouter"
+    ? { reasoning: { effort: effort().reason } }
+    : { chat_template_kwargs: { thinking: true, enable_thinking: true } };
+}
+
+async function pickAvailable(p, current) {
+  let list = [];
+  try { list = await loadModels(p); } catch { return null; }
+  const ids = new Set(list.map((m) => m.id));
+  const prefs = p === "nvidia" ? NV_FALLBACK : [DEFAULTS.openrouter];
+  const hit = prefs.find((id) => id !== current && ids.has(id));
+  if (hit) return hit;
+  const tooled = list.find((m) => m.id !== current && m.tools !== false && GOOD_MODEL.test(m.id));
+  return tooled ? tooled.id : null;
+}
+
+// One chat-completions call that recovers from the usual provider hiccups: a
+// retired model (switch to a listed one), a model without tool calling (retry as
+// plain chat), or an API that rejects the thinking switch (retry without it).
+async function callModel(req, opts = {}) {
+  const p = prov();
+  let model = curModel(p);
+  let useTools = !!req.tools, useThink = !!opts.think;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const body = Object.assign({}, req, { model }, useThink ? thinkParams(p) : {});
+    if (!useTools) { delete body.tools; delete body.tool_choice; }
+    try {
+      const res = await invoke("ai_chat", { body });
+      return { res, model, toolsDropped: !!req.tools && !useTools };
+    } catch (e) {
+      const msg = errText(e);
+      if (useThink && /chat_template_kwargs|reasoning|thinking|extra (fields|inputs)|not permitted|unrecognized/i.test(msg)) { useThink = false; continue; }
+      if (useTools && /API 4(00|22)/.test(msg) && /tool|function/i.test(msg)) { useTools = false; continue; }
+      if (/API 404|not found|does not exist|no such model|unknown model|is not available/i.test(msg)) {
+        const next = await pickAvailable(p, model);
+        if (next) {
+          if (!opts.quiet) toast(`${model} isn't available on ${PROV_NAME[p]} anymore. Switched to ${next}.`, 5000);
+          model = next;
+          await saveSettings({ [p + "_model"]: next });
+          continue;
+        }
+      }
+      throw e;
+    }
+  }
+  throw new Error(`${PROV_NAME[p]} kept failing. Try another model from the model menu.`);
+}
+
+// Reasoning arrives as a separate field (OpenRouter `reasoning`, NVIDIA/DeepSeek
+// `reasoning_content`) or inline as <think>…</think>. Split it from the answer so
+// it can be shown folded and is never sent back to the model.
+function splitThinking(m) {
+  let content = Array.isArray(m.content) ? m.content.map((x) => x.text || "").join("") : String(m.content || "");
+  let thought = m.reasoning || m.reasoning_content || "";
+  if (!thought && Array.isArray(m.reasoning_details)) thought = m.reasoning_details.map((d) => d.text || d.summary || "").join("\n");
+  const tag = /<think(?:ing)?>([\s\S]*?)(?:<\/think(?:ing)?>|$)/i;
+  const hit = content.match(tag);
+  if (hit) { thought = (thought ? thought + "\n" : "") + hit[1]; content = content.replace(tag, ""); }
+  else {
+    const end = content.search(/<\/think(?:ing)?>/i);
+    if (end >= 0) { thought = (thought ? thought + "\n" : "") + content.slice(0, end); content = content.slice(end).replace(/<\/think(?:ing)?>/i, ""); }
+  }
+  return { content: content.trim(), thought: String(thought).trim() };
+}
+function thoughtCard(text, secs) {
+  $("chat-empty").hidden = true;
+  const el = document.createElement("div");
+  el.className = "msg ai";
+  el.innerHTML = `<div class="thought"><button class="th-h"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>
+    <span>Thought for ${secs < 1 ? "a moment" : secs + "s"}</span><svg class="cv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button><div class="th-b"></div></div>`;
+  el.querySelector(".th-b").textContent = text;
+  el.querySelector(".th-h").onclick = () => el.querySelector(".thought").classList.toggle("open");
+  body.appendChild(el);
+  body.scrollTop = body.scrollHeight;
+}
+
 function setBusy(b) {
   chat.busy = b;
   $("btn-send").hidden = b;
@@ -650,8 +856,10 @@ function setBusy(b) {
   $("chat-input").disabled = false;
 }
 
-async function sendChat(text) {
+async function sendChat(text, opts = {}) {
   if (chat.busy) return;
+  const planning = mode.plan && !opts.build;
+  if (mode.memory && chat.memory == null) chat.memory = await readMemory();
   // Reference files ride along with THIS message (and so stay in the history).
   const refs = attachments.splice(0);
   renderAttachments();
@@ -669,32 +877,63 @@ async function sendChat(text) {
   }
   chat.stop = false;
   setBusy(true);
-  const { defs, map } = toolDefs();
-  const model = curModel();
+  const { defs, map } = toolDefs(planning);
+  const ef = effort();
+  chat.changed = false;
+  let reviewed = false, lastAi = null;
   try {
     let step = 0;
-    for (; step < MAX_STEPS && !chat.stop; step++) {
-      const t = typing();
-      let res;
+    let warnedNoTools = false;
+    for (; step < ef.steps && !chat.stop; step++) {
+      const t = typing(mode.think ? "Thinking" : planning ? "Planning" : reviewed ? "Checking" : "");
+      const t0 = Date.now();
+      let r;
       try {
-        const req = { model, messages: [{ role: "system", content: systemPrompt() }].concat(chat.messages), temperature: 0.2, top_p: 0.9, max_tokens: 4096 };
+        const req = { messages: [{ role: "system", content: systemPrompt({ plan: planning }) }].concat(chat.messages), temperature: mode.think ? 0.6 : 0.2, max_tokens: mode.think ? Math.max(12000, ef.tokens) : ef.tokens };
         if (defs.length) { req.tools = defs; req.tool_choice = "auto"; }
-        res = await invoke("ai_chat", { body: req });
+        r = await callModel(req, { think: mode.think });
       } finally { t.remove(); }
-      const m = res && res.choices && res.choices[0] && res.choices[0].message;
-      if (!m) throw new Error("The model returned an empty response.");
-      const calls = Array.isArray(m.tool_calls) ? m.tool_calls.filter((c) => c && c.function) : [];
-      const entry = { role: "assistant", content: m.content || "" };
+      const m = r.res && r.res.choices && r.res.choices[0] && r.res.choices[0].message;
+      if (!m) throw new Error("The model returned an empty response. Try again, or pick another model.");
+      if (r.toolsDropped && !warnedNoTools) {
+        warnedNoTools = true;
+        addMsg("note", esc(`${r.model} can't use tools, so it can only chat here. Pick a model tagged "tools" in the model menu to build in Studio.`));
+      }
+      const { content, thought } = splitThinking(m);
+      if (thought) thoughtCard(thought, Math.round((Date.now() - t0) / 1000));
+      // Normalise tool calls: some providers omit ids or send arguments as objects,
+      // and the follow-up request is rejected unless both are well-formed.
+      const calls = (Array.isArray(m.tool_calls) ? m.tool_calls : []).filter((c) => c && c.function && c.function.name).map((c, i) => ({
+        id: c.id || `call_${Date.now().toString(36)}_${i}`, type: "function",
+        function: { name: c.function.name, arguments: typeof c.function.arguments === "string" ? c.function.arguments : JSON.stringify(c.function.arguments || {}) },
+      }));
+      const entry = { role: "assistant", content };
       if (calls.length) entry.tool_calls = calls;
       chat.messages.push(entry);
-      if (m.content && m.content.trim()) addMsg("ai", md(m.content.trim()));
-      if (!calls.length) break;
+      if (content) lastAi = addMsg("ai", md(content));
+      if (!calls.length) {
+        if (!content && !thought) addMsg("note", esc("The model sent an empty reply. Try asking again, or switch models."));
+        // Self-check: one review pass after a turn that changed something.
+        if (mode.selfcheck && chat.changed && !reviewed && !planning && !chat.stop) {
+          reviewed = true;
+          chat.messages.push({ role: "user", content: "Self-check: review what you just changed. Re-read the scripts and instances you touched, look for bugs, typos, missing references and anything that would break in play, fix what you find, then sum up in one or two sentences." });
+          continue;
+        }
+        break;
+      }
       for (const c of calls) {
         const out = chat.stop ? "Stopped by the user." : await runCall(c, map);
         chat.messages.push({ role: "tool", tool_call_id: c.id, content: out });
       }
     }
-    if (step >= MAX_STEPS) addMsg("ai", esc(`Paused after ${MAX_STEPS} steps. Say "continue" to keep going.`));
+    if (step >= ef.steps) addMsg("ai", esc(`Paused after ${ef.steps} steps. Say "continue" to keep going.`));
+    if (planning && lastAi && !chat.stop) {
+      const bar = document.createElement("div");
+      bar.className = "plan-actions";
+      bar.innerHTML = '<button class="btn primary sm">Build it</button><span class="muted">or reply to change the plan</span>';
+      bar.querySelector("button").onclick = () => { bar.remove(); sendChat("The plan looks good. Build it.", { build: true }); };
+      lastAi.appendChild(bar);
+    }
     if (chat.stop) addMsg("ai", esc("Stopped."));
   } catch (e) {
     addMsg("err", esc(errText(e)));
@@ -765,7 +1004,7 @@ if (appWin.onDragDropEvent) {
 $("btn-stop-chat").onclick = () => { chat.stop = true; toast("Stopping after the current step…"); };
 $("btn-new-chat").onclick = () => {
   if (chat.busy) { toast("Stop the current reply first."); return; }
-  chat.messages = []; sessionAllow = {}; attachments = []; renderAttachments();
+  chat.messages = []; chat.memory = null; sessionAllow = {}; attachments = []; renderAttachments();
   body.querySelectorAll(".msg").forEach((m) => m.remove());
   $("chat-empty").hidden = false;
 };

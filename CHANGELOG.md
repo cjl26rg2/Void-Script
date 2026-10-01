@@ -2,6 +2,27 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.3.0] - 2026-10-01
+
+### Desktop app
+- **Chat modes** in a bar above the message box:
+  - **Effort:** Fast, Balanced or Deep (how much it reads, checks and how many steps it may take).
+  - **Access:** **Ask** (approve every Studio change, file write and command), **Sandbox** (Studio plus your workspace folder) or **Full PC** (any file, commands anywhere). Full PC asks once before it turns on; deletes always ask, and drives, your user folder and Windows are protected.
+  - **Thinking:** reasoning models think first; their thoughts show folded in the chat.
+  - **Self-check:** after building, the AI reviews its own changes and fixes what it finds.
+  - **Plan first:** the AI looks around with read-only tools and writes a plan; nothing changes until you press **Build it**.
+- **Project memory in the app.** The chat now uses the same memory the extension keeps in `ServerStorage.VoidScript.Memory`, saved inside your place. It's loaded at the start of each chat and kept up to date, so whichever AI opens the game next (in the app or the browser) knows what was built and where. Toggle it with **Memory** in the mode bar.
+- **Notion** in the MCP catalog: paste your integration token right on the card.
+- **NVIDIA fixed for everyone:** NVIDIA retired Llama 3.3 70B, the old default, so new installs got "model not found". The default is now Kimi K2.6, and if a model ever disappears the chat switches to one that's still listed. Pasted keys are cleaned up (`Bearer`, quotes, line breaks), non-chat models are hidden from the list, and models without tool calling fall back to plain chat with a note.
+- **Test** button next to your API key, and clearer API error messages.
+
+### Extension
+- **ChatGPT's new layout** is supported: command blocks are hidden and run again.
+- **Gemini (and other busy sites) could freeze or crash** on long chats. VoidScript re-read the whole conversation on every animation frame, and reacted to its own changes too. It now ignores its own changes and sweeps at most ~8 times a second.
+
+### Release
+- `make-release.bat` leaves the app source (`desktop/`) out of the zip.
+
 ## [5.2.0] - 2026-09-29
 
 ### VoidScript Desktop (new app)

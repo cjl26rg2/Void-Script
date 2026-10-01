@@ -151,6 +151,30 @@
           </div>
         </div>
       </div>
+      <div class="mode-bar" id="mode-bar">
+        <div class="mseg" id="seg-effort" title="How hard the AI works on each request">
+          <span class="mlbl">Effort</span>
+          <button data-v="fast" title="Quick: smallest change that works, no extra checks">Fast</button>
+          <button data-v="balanced" title="Plan briefly, build, one quick check">Balanced</button>
+          <button data-v="deep" title="Reads around first, tests and verifies before finishing">Deep</button>
+        </div>
+        <div class="mseg" id="seg-access" title="What the AI may touch">
+          <span class="mlbl">Access</span>
+          <button data-v="ask" title="You approve every change in Studio, every file write and every command">Ask</button>
+          <button data-v="sandbox" title="Studio plus your workspace folder. Deletes ask.">Sandbox</button>
+          <button data-v="full" title="Any file on this PC and commands anywhere. Deletes ask.">Full PC</button>
+        </div>
+        <div class="mtoggles">
+          <button class="mtog" id="btn-think" title="Reasoning models think before they answer. Open their thoughts in the chat.">
+            <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>Thinking<i></i></button>
+          <button class="mtog" id="btn-selfcheck" title="After building, the AI reviews its own work and fixes what it finds">
+            <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/></svg>Self-check<i></i></button>
+          <button class="mtog" id="btn-plan" title="The AI looks around and writes a plan first. Nothing changes until you press Build it.">
+            <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>Plan first<i></i></button>
+          <button class="mtog" id="btn-memory" title="Project memory: the AI keeps notes about this game in ServerStorage.VoidScript.Memory, shared with the browser extension, so it remembers what was done last time">
+            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>Memory<i></i></button>
+        </div>
+      </div>
       <div class="attach-row" id="attach-row" hidden></div>
       <div class="composer">
         <button class="btn icon" id="btn-attach" title="Attach reference files (or drop them on the window)" aria-label="Attach reference files">
@@ -228,6 +252,7 @@
           <div class="row">
             <input class="input mono grow" id="set-key" type="password" placeholder="nvapi-…" autocomplete="off" spellcheck="false" />
             <button class="btn primary sm" id="btn-save-key">Save</button>
+            <button class="btn sm" id="btn-test-key">Test</button>
             <button class="btn sm ghost" id="btn-clear-key">Remove</button>
           </div>
           <div class="hint" id="key-status"></div>
@@ -245,7 +270,7 @@
 
       <div class="card">
         <div class="card-t">Workspace access <span class="chip">off by default</span></div>
-        <p class="muted">Lets the built-in Chat read and write files and run commands — <b>only inside one folder you choose</b> (for example your Roblox project or Rojo folder). Paths outside it are blocked, and every write, delete or command asks for your approval first.</p>
+        <p class="muted">Lets the built-in Chat read and write files and run commands — <b>only inside one folder you choose</b> (for example your Roblox project or Rojo folder). Paths outside it are blocked. How much it asks first depends on <b>Access</b> above the chat box: <b>Ask</b> approves every write and command, <b>Sandbox</b> only asks before deleting, and <b>Full PC</b> lifts the folder limit (deletes still ask).</p>
         <label class="switch-row"><span>Allow workspace access</span><span class="switch"><input type="checkbox" id="set-ws-on" /><span class="track"></span></span></label>
         <div class="field">
           <label>Workspace folder</label>
@@ -290,7 +315,7 @@
     <ul class="disc">
       <li><b>AI makes mistakes.</b> It can break scripts or delete things in your place. Save and back up your work — VoidScript has Undo and place backups, but they are not a guarantee.</li>
       <li><b>You are in control.</b> The AI acts in your open Roblox Studio through the tools listed in this app. Stop it any time.</li>
-      <li><b>Workspace access is off by default.</b> If you turn it on, the AI can read and change files and run commands inside the one folder you choose. Only enable it for folders you are happy for it to change, and read each approval before you allow it.</li>
+      <li><b>Workspace access is off by default.</b> If you turn it on, the AI can read and change files and run commands inside the one folder you choose. <b>Full PC</b> access lifts that limit. Only use it with a model you trust, and read each approval before you allow it.</li>
       <li><b>Chat sites and API providers</b> see what you send them. Don't share secrets, passwords or personal data with the AI.</li>
       <li>VoidScript is free, open-source software provided <b>as is, without warranty</b>, and is <b>not affiliated with Roblox Corporation</b>, NVIDIA or any AI provider.</li>
     </ul>
