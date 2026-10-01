@@ -2,6 +2,12 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.4.2] - 2026-10-01
+
+### Fixed
+- **Update now said "Already up to date" on an older app.** If the folder already had the new release (the launcher updated it) but the open app was still the old version, it now reopens on the new app instead.
+- The release title no longer shows twice in the Updates tab's notes.
+
 ## [5.4.1] - 2026-10-01
 
 ### Added

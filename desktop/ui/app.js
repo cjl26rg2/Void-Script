@@ -391,7 +391,9 @@ async function checkUpdate(manual) {
     : "You're on the latest version.";
   $("upd-notes-card").hidden = !upd.notes;
   $("upd-notes-title").textContent = upd.name || `What's new in ${upd.latest}`;
-  $("upd-notes").innerHTML = notesHtml(upd.notes);
+  // Notes usually open with the release title again - the card already shows it.
+  const notes = String(upd.notes || "").replace(/\r/g, "").replace(/^\s*#{1,6}\s*([^\n]*)\n?/, (m, t) => (upd.name && t.trim() === String(upd.name).trim() ? "" : m));
+  $("upd-notes").innerHTML = notesHtml(notes);
   if (upd.newer) notify("update", `Update available: ${upd.latest}`, "Open Updates to install it. VoidScript reopens by itself.", { key: "update-" + upd.latest, go: "updates" });
   else if (manual) toast("You're on the latest version.");
 }
@@ -405,7 +407,16 @@ $("btn-upd-go").onclick = async () => {
   $("updating-line").textContent = "Getting the new version…";
   try {
     const r = await invoke("run_update");
-    if (r === "up-to-date") { $("updating").hidden = true; toast("Already up to date."); checkUpdate(); }
+    if (r === "up-to-date") {
+      // The folder already has the new release (e.g. start.bat updated it) but this
+      // running app is the old exe - reopen on the new one instead of doing nothing.
+      if (upd && upd.newer) {
+        $("updating-line").textContent = "Already downloaded. Reopening VoidScript…";
+        await invoke("relaunch");
+        return;
+      }
+      $("updating").hidden = true; toast("Already up to date."); checkUpdate();
+    }
     // "updated": the app closes and reopens on its own.
   } catch (e) {
     $("updating-err").textContent = errText(e);
