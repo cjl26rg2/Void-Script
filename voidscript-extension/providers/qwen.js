@@ -124,9 +124,25 @@ const VSProvider = (() => {
     // the fire-rate, block count and worst single-pass duration - but only when
     // it's actually notable, so a quiet page stays silent.
     let _snCount = 0, _snMaxMs = 0, _snMaxBlocks = 0, _snWinStart = Date.now();
-    const snapAll = () => {
+    // Only the code blocks a mutation actually touched. Rescanning every block in
+    // the conversation on every streamed character is what froze long chats.
+    const touched = (muts) => {
+      const set = new Set();
+      for (const m of muts) {
+        const t = m.target.nodeType === 1 ? m.target : m.target.parentElement;
+        const pre = t && t.closest && t.closest(S.codeWrap);
+        if (pre) set.add(pre);
+        for (const n of m.addedNodes) {
+          if (n.nodeType !== 1) continue;
+          if (n.matches(S.codeWrap)) set.add(n);
+          else n.querySelectorAll(S.codeWrap).forEach((p) => set.add(p));
+        }
+      }
+      return [...set];
+    };
+    const snapAll = (muts) => {
       const t0 = (self.performance || Date).now();
-      const blocks = document.querySelectorAll(S.codeWrap);
+      const blocks = muts ? touched(muts) : document.querySelectorAll(S.codeWrap);
       blocks.forEach(snapshotCode);
       const ms = (self.performance || Date).now() - t0;
       _snCount++;

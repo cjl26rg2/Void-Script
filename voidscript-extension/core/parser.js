@@ -83,13 +83,8 @@ const VSParse = (() => {
     // is still being streamed (a big multi_edit can take many seconds). Treat it as
     // open so the watcher keeps waiting instead of finalizing - and failing to parse -
     // half a command, which would drop the tool and end the turn as plain text.
-    for (const key of ['"command"', '"tool"']) {
-      const k = r.indexOf(key);
-      if (k === -1) continue;
-      const open = r.lastIndexOf("{", k);
-      if (open !== -1 && matchBrace(r, open) === -1) return true;
-    }
-    return false;
+    // With several commands in one reply, it's the LAST one that may still be open.
+    return scanCommands(r).open;
   }
 
   // Normalise a parsed JSON object into { tool, arguments }, accepting both the
@@ -188,6 +183,30 @@ const VSParse = (() => {
     return null;
   }
 
+  // Every JSON command in the reply, in order, plus whether the LAST one is still
+  // being written (an object that hasn't closed yet). Objects are taken left to
+  // right and never overlap, so a "command" key inside an earlier command's code
+  // string isn't mistaken for a second command.
+  function scanCommands(text) {
+    for (const key of ['"command"', '"tool"']) {
+      const calls = [];
+      let pos = 0, open = false;
+      while (true) {
+        const s = text.indexOf(key, pos);
+        if (s === -1) break;
+        const start = text.lastIndexOf("{", s);
+        if (start === -1 || start < pos) { pos = s + 1; continue; }
+        const end = matchBrace(text, start);
+        if (end === -1) { open = true; break; }
+        let call = null;
+        try { call = normalizeCall(parseLoose(text.slice(start, end + 1))); } catch {}
+        if (call) { calls.push(call); pos = end + 1; } else pos = s + 1;
+      }
+      if (calls.length || open) return { calls, open };
+    }
+    return { calls: [], open: false };
+  }
+
   function parseToolCalls(r) {
     // Lowercase for case-insensitive end-marker search. Models write
     // ###end_mcp_tool### (underscore) or ###end-mcp_tool### (dash).
@@ -228,10 +247,7 @@ const VSParse = (() => {
     // and the bare-marker fallback below would slice the still-ESCAPED JSON
     // source (literal \n, \") instead of the decoded code. extractToolAnywhere
     // JSON-decodes it; cleanLuaCall (applied at the end) then strips the markers.
-    if (out.length === 0) {
-      const f = extractToolAnywhere(r);
-      if (f) out.push(f);
-    }
+    if (out.length === 0) out.push(...scanCommands(r).calls);
     // Bare ###LUA### … ###END_LUA### block with no JSON envelope at all.
     if (out.length === 0) {
       const { pos: ls, len: luaLen, dm } = findLuaStart(r);

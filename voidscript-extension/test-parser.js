@@ -67,3 +67,13 @@ ok("salvage refuses trailing comma", VSParse.salvageCutOff('{"command": "multi_e
 // Escaped quotes inside values must not confuse the string tracking.
 const cutEsc = VSParse.salvageCutOff('{"command": "execute_luau", "params": {"code": "print(\\"hi\\")", "datamodel_type": "Edit"}');
 ok("salvage handles escaped quotes", cutEsc && cutEsc.tool === "execute_luau" && cutEsc.arguments.code === 'print("hi")');
+
+// Several commands in one reply run as a batch, in order.
+const batch = VSParse.parseToolCalls('Making both parts.\n```json\n{"command":"execute_luau","params":{"code":"local p = Instance.new(\\"Part\\") p.Parent = workspace","datamodel_type":"Edit"}}\n```\n```json\n{"command":"inspect_instance","params":{"path":"Workspace.Part"}}\n```');
+ok("batch: two commands in order", batch.length === 2 && batch[0].tool === "execute_luau" && batch[1].tool === "inspect_instance");
+// A "command" key inside an earlier command's code is not a second command.
+const nested = VSParse.parseToolCalls('{"command":"multi_edit","params":{"file_path":"game.ServerScriptService.S","datamodel_type":"Edit","edits":[{"old_string":"","new_string":"local t = {\\"command\\": \\"x\\"}"}]}}');
+ok("batch: no phantom command from code", nested.length === 1 && nested[0].tool === "multi_edit");
+// Second command still streaming -> the reply is open, not finished.
+ok("batch: last command still open", VSParse.hasOpenToolBlock('{"command":"list_commands"}\n{"command":"script_read","params":{"target_file":"game.Ser'));
+ok("batch: all closed", !VSParse.hasOpenToolBlock('{"command":"list_commands"}\n{"command":"get_studio_state"}'));

@@ -10,11 +10,12 @@ const listen = TAURI.event.listen;
 const appWin = TAURI.window.getCurrentWindow();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const DEFAULTS = { nvidia: "moonshotai/kimi-k2.6", openrouter: "openai/gpt-4o-mini" };
+const DEFAULTS = { nvidia: "deepseek-ai/deepseek-v4.1-flash", openrouter: "openai/gpt-4o-mini" };
 // NVIDIA retires models without notice (Llama 3.3 70B went in 2026). If the chosen
 // one is gone, the chat switches to the first of these that is still listed.
-const NV_FALLBACK = ["moonshotai/kimi-k2.6", "moonshotai/kimi-k3", "z-ai/glm-5.3", "deepseek-ai/deepseek-v4.1-flash",
-  "nvidia/nemotron-3-super-120b-a12b", "openai/gpt-oss-20b", "mistralai/mistral-large-2-instruct"];
+// Fast models first: the big ones (Kimi, full GLM) queue for a long time on the free tier.
+const NV_FALLBACK = ["deepseek-ai/deepseek-v4.1-flash", "z-ai/glm-5.3-flash", "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "moonshotai/kimi-k2.6", "z-ai/glm-5.3", "nvidia/nemotron-3-super-120b-a12b", "openai/gpt-oss-20b"];
 const PROV_NAME = { nvidia: "NVIDIA", openrouter: "OpenRouter" };
 const PROV_KEY_URL = { nvidia: "https://build.nvidia.com/", openrouter: "https://openrouter.ai/keys" };
 const TOOL_RESULT_CAP = 12000;
@@ -306,6 +307,120 @@ $("btn-mcp-add").onclick = () => {
     .then(() => { ["mcp-id", "mcp-cmd", "mcp-args"].forEach((k) => { $(k).value = ""; }); });
 };
 
+// ── notifications (bell in the title bar) ───────────────────────────────────
+// Kept on this PC. `key` de-dupes: the same update or problem is only added once.
+let notifs = [];
+try { notifs = JSON.parse(localStorage.getItem("vs-notifs") || "[]"); } catch {}
+const NOTIF_ICON = { update: "⬆", warn: "⚠", ok: "✓", info: "•" };
+function saveNotifs() { try { localStorage.setItem("vs-notifs", JSON.stringify(notifs.slice(0, 40))); } catch {} renderNotifs(); }
+function notify(kind, title, text, opts = {}) {
+  if (opts.key && notifs.some((n) => n.key === opts.key)) return;
+  notifs.unshift({ id: Date.now() + Math.random(), key: opts.key || "", kind, title, text, t: Date.now(), read: false, go: opts.go || "" });
+  saveNotifs();
+}
+function renderNotifs() {
+  const unread = notifs.filter((n) => !n.read).length;
+  const badge = $("bell-badge");
+  badge.hidden = !unread;
+  badge.textContent = unread > 5 ? "5+" : String(unread);
+  $("btn-bell").classList.toggle("has", !!unread);
+  $("notif-list").innerHTML = notifs.length ? notifs.map((n) => `
+    <button class="notif ${n.read ? "" : "unread"} k-${esc(n.kind)}" data-id="${n.id}">
+      <span class="ni">${NOTIF_ICON[n.kind] || "•"}</span>
+      <span class="nb"><b>${esc(n.title)}</b><span>${esc(n.text)}</span><i>${esc(ago(n.t))}</i></span>
+    </button>`).join("") : '<div class="notif-empty">You\'re all caught up.</div>';
+}
+function ago(t) {
+  const m = Math.round((Date.now() - t) / 60000);
+  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+}
+$("btn-bell").onclick = (e) => { e.stopPropagation(); $("notif-pop").hidden = !$("notif-pop").hidden; renderNotifs(); };
+$("notif-pop").addEventListener("click", (e) => {
+  e.stopPropagation();
+  const it = e.target.closest(".notif");
+  if (!it) return;
+  const n = notifs.find((x) => String(x.id) === it.dataset.id);
+  if (!n) return;
+  n.read = true; saveNotifs();
+  if (n.go) { $("notif-pop").hidden = true; go(n.go); }
+});
+document.addEventListener("click", () => { $("notif-pop").hidden = true; });
+$("btn-notif-read").onclick = () => { notifs.forEach((n) => { n.read = true; }); saveNotifs(); };
+$("btn-notif-clear").onclick = () => { notifs = []; saveNotifs(); };
+renderNotifs();
+
+// Bridge / Studio changes worth a notification (not every flicker: transitions only).
+let lastSeen = { process: "", studio: null };
+function watchState(st) {
+  if (st.process === "error" && lastSeen.process !== "error") notify("warn", "Bridge stopped", "The bridge stopped with an error. Check the Terminal, then press Start bridge.", { go: "terminal" });
+  if (lastSeen.studio === true && st.studio === false) notify("warn", "Roblox Studio disconnected", "Open your place in Studio and make sure its MCP server is on.", { go: "home" });
+  if (lastSeen.studio === false && st.studio === true) notify("ok", "Roblox Studio connected", st.place_name ? `Working in ${st.place_name}.` : "Ready to build.");
+  lastSeen = { process: st.process, studio: st.connected ? st.studio : lastSeen.studio };
+}
+
+// ── updates ─────────────────────────────────────────────────────────────────
+// Release notes are Markdown: headings, bullets, bold, `code` and links (shown as text).
+function notesHtml(src) {
+  const inline = (x) => esc(x.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"))
+    .replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+  return String(src || "").replace(/\r/g, "").replace(/```[^\n]*\n?/g, "").split("\n").map((l) => {
+    const t = l.trim();
+    if (!t) return "";
+    if (/^#{1,6}\s/.test(t)) return `<h4>${inline(t.replace(/^#+\s*/, ""))}</h4>`;
+    if (/^[-*]\s/.test(t)) return `<li class="${/^\s{2,}/.test(l) ? "sub" : ""}">${inline(t.slice(2))}</li>`;
+    return `<p>${inline(t)}</p>`;
+  }).join("");
+}
+let upd = null;
+async function checkUpdate(manual) {
+  $("upd-status").textContent = "Checking…";
+  try {
+    upd = await invoke("check_update");
+  } catch (e) {
+    $("upd-status").textContent = "Couldn't check for updates: " + errText(e);
+    if (manual) toast(errText(e), 4000);
+    return;
+  }
+  $("upd-cur").textContent = "v" + upd.current;
+  $("upd-new").textContent = upd.latest || "—";
+  $("upd-dot").hidden = !upd.newer;
+  $("btn-upd-go").hidden = !(upd.newer && upd.has_asset);
+  $("btn-upd-web").hidden = !upd.url;
+  $("upd-status").textContent = upd.newer
+    ? (upd.has_asset ? `${upd.latest} is ready to install.` : `${upd.latest} is out, but its download isn't up yet. Try again in a bit.`)
+    : "You're on the latest version.";
+  $("upd-notes-card").hidden = !upd.notes;
+  $("upd-notes-title").textContent = upd.name || `What's new in ${upd.latest}`;
+  $("upd-notes").innerHTML = notesHtml(upd.notes);
+  if (upd.newer) notify("update", `Update available: ${upd.latest}`, "Open Updates to install it. VoidScript reopens by itself.", { key: "update-" + upd.latest, go: "updates" });
+  else if (manual) toast("You're on the latest version.");
+}
+$("btn-upd-check").onclick = () => checkUpdate(true);
+$("btn-upd-web").onclick = () => upd && upd.url && invoke("open_url", { url: upd.url });
+$("btn-upd-go").onclick = async () => {
+  if (chat.busy) { toast("Stop the chat first, then update."); return; }
+  $("updating").hidden = false;
+  $("updating-fail").hidden = true;
+  $("updating-title").textContent = "VoidScript is currently updating";
+  $("updating-line").textContent = "Getting the new version…";
+  try {
+    const r = await invoke("run_update");
+    if (r === "up-to-date") { $("updating").hidden = true; toast("Already up to date."); checkUpdate(); }
+    // "updated": the app closes and reopens on its own.
+  } catch (e) {
+    $("updating-err").textContent = errText(e);
+    $("updating-fail").hidden = false;
+    $("updating-title").textContent = "The update didn't finish";
+    $("updating-line").textContent = "Nothing was changed. Check your internet connection and try again.";
+    notify("warn", "Update failed", errText(e).split("\n")[0], { go: "updates" });
+  }
+};
+$("btn-updating-close").onclick = () => { $("updating").hidden = true; };
+listen("update-log", (e) => {
+  const line = String(e.payload || "").replace(/^\[update\]\s*/, "").trim();
+  if (line) $("updating-line").textContent = line;
+});
+
 // ── bridge controls ─────────────────────────────────────────────────────────
 $("btn-bridge-toggle").onclick = async () => {
   const p = S.state.process;
@@ -332,7 +447,7 @@ function renderSettings() {
   $("set-model").placeholder = DEFAULTS[p];
   $("model-hint").textContent = p === "openrouter"
     ? "Load models to see which support tools (needed to build in Studio)."
-    : "Pick a model that supports tool calling, e.g. Kimi K2.6, GLM 5.3, DeepSeek V4.1 or Nemotron 3. Press Test to check your key.";
+    : "Pick a model that supports tool calling. Flash models (DeepSeek V4.1 Flash, GLM 5.3 Flash) answer fastest; Kimi K2.6 is stronger but slow. Press Test to check your key.";
   $("set-ws-on").checked = !!s.workspace_enabled;
   $("set-ws-dir").value = s.workspace_dir || "";
   $("set-lang").value = s.reply_language || "";
@@ -682,7 +797,8 @@ async function runCall(call, map) {
         card.set("deny", "denied"); return "The user denied this change. Don't retry it - ask what they want instead.";
       }
       if (!isReadOnly(entry.name)) chat.changed = true;
-      const r = await invoke("bridge_request", { payload: { type: "call_tool", name: entry.name, arguments: args }, timeoutMs: 180000 });
+      const r = await untilStopped(invoke("bridge_request", { payload: { type: "call_tool", name: entry.name, arguments: args }, timeoutMs: 180000 }));
+      if (r === STOPPED) { card.set("deny", "stopped"); return "Stopped by the user."; }
       if (r && r.type === "tool_result" && r.ok) {
         let t = r.text || "(done - no output)";
         if (r.images && r.images.length) t += `\n[${r.images.length} image(s) returned - not visible to this model]`;
@@ -726,6 +842,22 @@ async function runCall(call, map) {
     return cap("ERROR: " + errText(e));
   }
 }
+
+// ── live reply (streamed from the backend as "ai-delta" events) ─────────────
+let live = null;
+function liveStart(label) { live = { el: typing(label), text: "", thought: "" }; return live.el; }
+listen("ai-delta", (e) => {
+  if (!live) return;
+  const d = e.payload || {};
+  live.text += d.content || "";
+  live.thought += d.reasoning || "";
+  const tag = live.text.match(/<think(?:ing)?>([\s\S]*?)(?:<\/think(?:ing)?>|$)/i);
+  const shown = live.text.replace(/<think(?:ing)?>[\s\S]*?(?:<\/think(?:ing)?>|$)/gi, "").trim();
+  const thought = live.thought || (tag ? tag[1] : "");
+  if (!shown && !thought) return;
+  live.el.innerHTML = `<div class="bubble live">${!shown ? `<div class="live-th">${esc(thought.slice(-700))}</div>` : md(shown)}</div>`;
+  body.scrollTop = body.scrollHeight;
+});
 
 // ── model calls: thinking + recovery ────────────────────────────────────────
 // Chat modes, kept per PC: effort, access level and three toggles.
@@ -800,10 +932,12 @@ async function callModel(req, opts = {}) {
     const body = Object.assign({}, req, { model }, useThink ? thinkParams(p) : {});
     if (!useTools) { delete body.tools; delete body.tool_choice; }
     try {
-      const res = await invoke("ai_chat", { body });
+      const res = await untilStopped(invoke("ai_chat", { body }));
+      if (res === STOPPED) throw new Error("cancelled");
       return { res, model, toolsDropped: !!req.tools && !useTools };
     } catch (e) {
       const msg = errText(e);
+      if (chat.stop || msg === "cancelled") throw e;
       if (useThink && /chat_template_kwargs|reasoning|thinking|extra (fields|inputs)|not permitted|unrecognized/i.test(msg)) { useThink = false; continue; }
       if (useTools && /API 4(00|22)/.test(msg) && /tool|function/i.test(msg)) { useTools = false; continue; }
       if (/API 404|not found|does not exist|no such model|unknown model|is not available/i.test(msg)) {
@@ -849,6 +983,15 @@ function thoughtCard(text, secs) {
   body.scrollTop = body.scrollHeight;
 }
 
+// Race a slow call against Stop: the call may still finish in Studio, but the
+// chat stops waiting for it straight away.
+const STOPPED = Symbol("stopped");
+function untilStopped(promise) {
+  let timer;
+  const stop = new Promise((res) => { timer = setInterval(() => { if (chat.stop) res(STOPPED); }, 100); });
+  return Promise.race([promise, stop]).finally(() => clearInterval(timer));
+}
+
 function setBusy(b) {
   chat.busy = b;
   $("btn-send").hidden = b;
@@ -885,14 +1028,14 @@ async function sendChat(text, opts = {}) {
     let step = 0;
     let warnedNoTools = false;
     for (; step < ef.steps && !chat.stop; step++) {
-      const t = typing(mode.think ? "Thinking" : planning ? "Planning" : reviewed ? "Checking" : "");
+      const t = liveStart(mode.think ? "Thinking" : planning ? "Planning" : reviewed ? "Checking" : "");
       const t0 = Date.now();
       let r;
       try {
         const req = { messages: [{ role: "system", content: systemPrompt({ plan: planning }) }].concat(chat.messages), temperature: mode.think ? 0.6 : 0.2, max_tokens: mode.think ? Math.max(12000, ef.tokens) : ef.tokens };
         if (defs.length) { req.tools = defs; req.tool_choice = "auto"; }
         r = await callModel(req, { think: mode.think });
-      } finally { t.remove(); }
+      } finally { t.remove(); live = null; }
       const m = r.res && r.res.choices && r.res.choices[0] && r.res.choices[0].message;
       if (!m) throw new Error("The model returned an empty response. Try again, or pick another model.");
       if (r.toolsDropped && !warnedNoTools) {
@@ -936,7 +1079,8 @@ async function sendChat(text, opts = {}) {
     }
     if (chat.stop) addMsg("ai", esc("Stopped."));
   } catch (e) {
-    addMsg("err", esc(errText(e)));
+    if (chat.stop) addMsg("ai", esc("Stopped."));
+    else addMsg("err", esc(errText(e)));
   } finally {
     setBusy(false);
     $("chat-input").focus();
@@ -1001,7 +1145,7 @@ if (appWin.onDragDropEvent) {
     }
   });
 }
-$("btn-stop-chat").onclick = () => { chat.stop = true; toast("Stopping after the current step…"); };
+$("btn-stop-chat").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
 $("btn-new-chat").onclick = () => {
   if (chat.busy) { toast("Stop the current reply first."); return; }
   chat.messages = []; chat.memory = null; sessionAllow = {}; attachments = []; renderAttachments();
@@ -1019,8 +1163,15 @@ document.querySelectorAll(".sugg").forEach((b) => b.addEventListener("click", ()
   renderSettings(); render(); loadMcp();
   snap.log.forEach(addLog);
   if (!snap.log.length) $("home-log").innerHTML = '<div class="ln">Nothing yet.</div>';
-  await listen("bridge-state", (e) => { S.state = e.payload; render(); });
+  await listen("bridge-state", (e) => { S.state = e.payload; render(); watchState(S.state); });
   await listen("bridge-log", (e) => addLog(e.payload));
-  await listen("bridge-updated", () => { $("update-banner").hidden = false; });
+  // start.bat's own auto-update already swapped the files in: reopen on the new app.
+  await listen("bridge-updated", () => {
+    $("updating").hidden = false;
+    $("updating-line").textContent = "Update installed. Reopening VoidScript…";
+    invoke("relaunch").catch(() => { $("updating").hidden = true; $("update-banner").hidden = false; });
+  });
   if (!S.settings.accepted_disclaimer) $("disclaimer").hidden = false;
+  checkUpdate();
+  setInterval(checkUpdate, 3 * 60 * 60 * 1000); // and every few hours while it stays open
 })().catch((e) => toast("Startup error: " + errText(e), 8000));

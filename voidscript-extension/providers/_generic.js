@@ -379,6 +379,11 @@ function VSGeneric(cfg) {
     return false;
   }
 
+  // Editors reformat what we paste (line breaks become paragraphs, nbsp, trailing
+  // newlines), so an exact compare never matched and the whole prompt was pasted
+  // again every 700ms - a big paste (the setup prompt, list_commands) froze the tab.
+  const sameText = (a, b) => String(a || "").replace(/[\s\u00a0\u200b]+/g, "") === String(b || "").replace(/[\s\u00a0\u200b]+/g, "");
+
   async function typeAndSend(text, images) {
     const editor = getEditor();
     if (!editor) throw new Error(`${cfg.displayName} input box not found`);
@@ -388,9 +393,9 @@ function VSGeneric(cfg) {
       try { await attachImages(images); } catch {}
     }
     // Wait for the framework to register the text and enable the send button,
-    // re-asserting the value periodically in case a heavy re-render drops it.
+    // re-asserting the value (at most twice) in case a heavy re-render drops it.
     const t0 = Date.now();
-    let lastNudge = t0;
+    let lastNudge = t0, repastes = 0;
     const enabled = await waitFor(() => {
       const b = sendButton();
       if (b && !b.disabled) return true;
@@ -399,7 +404,7 @@ function VSGeneric(cfg) {
       if (!b && Date.now() - t0 > 1500) return true;
       if (Date.now() - lastNudge > 700) {
         lastNudge = Date.now();
-        if (editorText() !== text) setEditorValue(editor, text);
+        if (repastes < 2 && !sameText(editorText(), text)) { repastes++; setEditorValue(editor, text); }
         else editor.dispatchEvent(new Event("input", { bubbles: true }));
       }
       return false;

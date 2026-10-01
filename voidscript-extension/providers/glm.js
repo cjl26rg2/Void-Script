@@ -350,6 +350,11 @@ const VSProvider = (() => {
     return false;
   }
 
+  // Editors reformat pasted text (paragraphs, nbsp, trailing newlines), so compare
+  // ignoring whitespace - an exact compare never matched and re-pasted the whole
+  // prompt on every retry, which froze the tab on the big setup prompt.
+  const sameText = (a, b) => String(a || "").replace(/[\s\u00a0\u200b]+/g, "") === String(b || "").replace(/[\s\u00a0\u200b]+/g, "");
+
   async function typeAndSend(text, images) {
     const editor = getEditor();
     if (!editor) throw new Error("GLM input box not found");
@@ -376,7 +381,7 @@ const VSProvider = (() => {
       if (Date.now() - lastNudge > 700) {
         lastNudge = Date.now();
         // Re-assert the value (a heavy re-render can drop it) and re-fire input.
-        if (editorText() !== text) setTextareaValue(editor, text);
+        if (!sameText(editorText(), text)) setTextareaValue(editor, text);
         else editor.dispatchEvent(new Event("input", { bubbles: true }));
       }
       return false;

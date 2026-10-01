@@ -415,13 +415,18 @@ const VSProvider = (() => {
     document.execCommand("insertText", false, text);
   }
 
+  // Editors reformat pasted text (paragraphs, nbsp, trailing newlines), so compare
+  // ignoring whitespace - an exact compare never matched and re-pasted the whole
+  // prompt on every retry, which froze the tab on the big setup prompt.
+  const sameText = (a, b) => String(a || "").replace(/[\s\u00a0\u200b]+/g, "") === String(b || "").replace(/[\s\u00a0\u200b]+/g, "");
+
   async function typeAndSend(text, images) {
     const ed = getEditor();
     if (!ed) throw new Error("Kimi input box not found");
     const relock = _locked;
     if (relock) { _injecting = true; ed.setAttribute("contenteditable", "true"); } // injection needs it editable
     try {
-      if (editorText() !== text) setEditorText(ed, text);
+      if (!sameText(editorText(), text)) setEditorText(ed, text);
       // Attach images LAST, right before the send click - see gemini.js's
       // typeAndSend for why (attaching before retyping the text can sever the
       // site's binding between the pending upload and the message being sent).

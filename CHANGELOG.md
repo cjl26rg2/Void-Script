@@ -2,6 +2,35 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.4.0] - 2026-10-01
+
+### Desktop app: updates & notifications
+- **Updates tab.** Shows your version, the latest release and its notes, with **Update now**. A full-screen "VoidScript is currently updating" screen covers the update, then VoidScript closes and **reopens itself** on the new version. When the launcher's own auto-update runs, the app now reopens itself too instead of asking you to.
+- **Notifications.** A bell in the title bar with a 1-5+ badge: new updates, the bridge stopping, Roblox Studio connecting or disconnecting, and failed updates. Click one to jump to the right tab. The app checks for updates on launch and every few hours.
+
+### Desktop app: faster chat
+- **Replies stream in** as the AI writes them, instead of all at once at the end.
+- **Stop is instant.** It cancels the AI request itself and stops waiting on a Roblox tool call, instead of waiting for the current step to finish.
+- **Faster default NVIDIA model:** DeepSeek V4.1 Flash. Kimi K2.6 is stronger but queues for a long time on NVIDIA's free tier; it's still in the model menu. If a model disappears, the chat now falls back to fast models first.
+
+### Faster
+- **Batched commands.** The AI can now send up to 5 independent commands in one reply (read several scripts, inspect a few instances, create a couple of scripts). They run in order and all the results go back in one message, so it's one round trip instead of five. If one fails, the rest are skipped and the AI is told why. Before, a reply with more than one command was thrown away entirely.
+- **Quicker start.** The command list is handed to the AI in the setup message, so it's ready after one reply instead of two.
+- **Fewer pointless screenshots.** Auto-verify only screenshots changes you can actually see (new or moved parts, colours, models). Script edits and Lua that only reads or wires up logic no longer trigger a capture, an image upload and a slower reply.
+
+### Fixed
+- **ChatGPT loading as a black page.** ChatGPT's new layout finishes building itself after the page loads, and VoidScript could add its bar or a class in the middle of that, making ChatGPT give up. Whether it happened depended on timing, so it was random. VoidScript now waits until the page has settled (usually under a second) before touching anything.
+- **Freezing on AI sites.** The bar's positioning loop ran 60 times a second and searched the page for the composer, Send button and popups every time, plus rewrote styles on the site's own composer each frame. It now reuses those lookups for a moment and only writes styles when something actually moved.
+- **Long chats getting slower and slower.** VoidScript re-read every turn several times a second. It now checks the newest few turns right away and the whole chat every 2 seconds.
+- The "Agent is working…" cover no longer recalculates its colour every frame.
+- **Freezing while "Connecting to Roblox…".** After pasting the setup prompt, VoidScript checked that the chat box held exactly its text and pasted the whole prompt again if not. Rich editors (Gemini, ChatGPT, Kimi…) always reformat a paste, so it kept re-pasting tens of KB every 0.7s or on every retry, freezing the tab. It now ignores formatting differences and re-pastes at most twice.
+- **Tab locked solid in background mode.** Switching away from the AI tab mid-reply with "keep working in the background" on made the reply watcher spin without ever pausing, so the page never got control back. It now waits between checks.
+- **The debug log** rewrote its whole history (up to 300 entries) into the page on every event, which woke the site's own watchers each time. It's now written at most every 3 seconds.
+- **Qwen** re-read every code block in the conversation on each streamed character. It now only reads the blocks that changed.
+- **Stuck on "Starting…" when the AI doesn't answer.** There was no way to stop during startup. The button now reads **■ Stop** while connecting and cancels straight away, unlocking the chat box without waiting for the AI.
+- **Stuck on "⏳ Stopping…".** After Stop, VoidScript waited for the AI site to finish its reply, forever if the site ignored its own stop. VoidScript is fully stopped within a moment anyway, so the button now frees up after 4 seconds at most; the site's own stop button handles the rest of its reply.
+- **Gemini** inserts long text in smaller batches so the page stays clickable, and very long tool results are trimmed sooner.
+
 ## [5.3.0] - 2026-10-01
 
 ### Desktop app

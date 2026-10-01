@@ -169,6 +169,7 @@ struct AppState {
     pending: Mutex<HashMap<u64, oneshot::Sender<Value>>>,
     next_id: AtomicU64,
     http: reqwest::Client,
+    chat_cancel: Mutex<Option<oneshot::Sender<()>>>,
 }
 
 fn now_ms() -> u64 {
@@ -772,15 +773,64 @@ fn api_error_text(body: &str) -> String {
     cap_text(body.to_string(), 500)
 }
 
+// Streamed reply being put back together: text and reasoning arrive as deltas
+// (forwarded to the UI as they land), tool calls arrive in pieces keyed by index.
+#[derive(Default)]
+struct StreamAcc { content: String, reasoning: String, calls: Vec<Value>, plain: String }
+
+impl StreamAcc {
+    fn line(&mut self, app: &AppHandle, line: &str) -> Result<(), String> {
+        let line = line.trim();
+        if line.is_empty() || line.starts_with(':') { return Ok(()); }
+        let Some(data) = line.strip_prefix("data:") else { self.plain.push_str(line); return Ok(()); };
+        let data = data.trim();
+        if data == "[DONE]" { return Ok(()); }
+        let Ok(v) = serde_json::from_str::<Value>(data) else { return Ok(()); };
+        if let Some(err) = v.get("error") {
+            return Err(err.get("message").and_then(|m| m.as_str()).unwrap_or("the model returned an error").to_string());
+        }
+        let d = &v["choices"][0]["delta"];
+        let c = d["content"].as_str().unwrap_or("");
+        let r = d.get("reasoning_content").or_else(|| d.get("reasoning")).and_then(|x| x.as_str()).unwrap_or("");
+        if !c.is_empty() || !r.is_empty() {
+            self.content.push_str(c);
+            self.reasoning.push_str(r);
+            let _ = app.emit("ai-delta", json!({ "content": c, "reasoning": r }));
+        }
+        for tc in d["tool_calls"].as_array().into_iter().flatten() {
+            let i = tc["index"].as_u64().map(|i| i as usize).unwrap_or(self.calls.len());
+            while self.calls.len() <= i {
+                self.calls.push(json!({ "id": "", "type": "function", "function": { "name": "", "arguments": "" } }));
+            }
+            let slot = &mut self.calls[i];
+            if let Some(id) = tc["id"].as_str() { slot["id"] = json!(id); }
+            for key in ["name", "arguments"] {
+                if let Some(part) = tc["function"][key].as_str() {
+                    let cur = slot["function"][key].as_str().unwrap_or("").to_string();
+                    slot["function"][key] = json!(cur + part);
+                }
+            }
+        }
+        Ok(())
+    }
+}
+
 #[tauri::command]
-async fn ai_chat(st: State<'_, AppState>, body: Value) -> Result<Value, String> {
+async fn ai_chat(app: AppHandle, st: State<'_, AppState>, mut body: Value) -> Result<Value, String> {
     let p = active_provider(&st)?;
-    let r = with_headers(&p, st.http.post(format!("{}/chat/completions", p.base))).json(&body)
-        .timeout(Duration::from_secs(300)).send().await
-        .map_err(|e| format!("Could not reach {}: {e}", p.name))?;
+    // Stop in the UI fires this, which drops the request mid-flight.
+    let (tx, mut cancel) = oneshot::channel::<()>();
+    *st.chat_cancel.lock().unwrap() = Some(tx);
+    body["stream"] = json!(true);
+    let send = with_headers(&p, st.http.post(format!("{}/chat/completions", p.base))).json(&body)
+        .timeout(Duration::from_secs(600)).send();
+    let mut r = tokio::select! {
+        r = send => r.map_err(|e| format!("Could not reach {}: {e}", p.name))?,
+        _ = &mut cancel => return Err("cancelled".into()),
+    };
     let status = r.status();
-    let text = r.text().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
+        let text = r.text().await.unwrap_or_default();
         let hint = match status.as_u16() {
             401 | 403 => " - check your API key in Settings.",
             402 => " - your OpenRouter account is out of credits (or pick a :free model).",
@@ -790,13 +840,38 @@ async fn ai_chat(st: State<'_, AppState>, body: Value) -> Result<Value, String> 
         };
         return Err(format!("{} API {}{}\n{}", p.name, status.as_u16(), hint, api_error_text(&text)));
     }
-    let v: Value = serde_json::from_str(&text).map_err(|e| format!("Unexpected {} response: {e}", p.name))?;
-    // OpenRouter can return HTTP 200 with an error object from the upstream model.
-    if let Some(err) = v.get("error") {
-        let msg = err.get("message").and_then(|m| m.as_str()).unwrap_or("unknown error");
-        return Err(format!("{}: {}", p.name, msg));
+    let mut acc = StreamAcc::default();
+    let mut buf = String::new();
+    loop {
+        let chunk = tokio::select! {
+            c = r.chunk() => c.map_err(|e| format!("{} stopped mid-reply: {e}", p.name))?,
+            _ = &mut cancel => return Err("cancelled".into()),
+        };
+        let Some(bytes) = chunk else { break };
+        buf.push_str(&String::from_utf8_lossy(&bytes));
+        while let Some(nl) = buf.find('\n') {
+            let line: String = buf.drain(..=nl).collect();
+            acc.line(&app, &line).map_err(|e| format!("{}: {e}", p.name))?;
+        }
     }
-    Ok(v)
+    acc.line(&app, &buf).map_err(|e| format!("{}: {e}", p.name))?;
+    // A server that ignored stream:true answers with one plain JSON body.
+    if acc.content.is_empty() && acc.reasoning.is_empty() && acc.calls.is_empty() && !acc.plain.is_empty() {
+        let v: Value = serde_json::from_str(&acc.plain).map_err(|e| format!("Unexpected {} response: {e}", p.name))?;
+        if let Some(err) = v.get("error") {
+            return Err(format!("{}: {}", p.name, err.get("message").and_then(|m| m.as_str()).unwrap_or("unknown error")));
+        }
+        return Ok(v);
+    }
+    let mut msg = json!({ "role": "assistant", "content": acc.content });
+    if !acc.reasoning.is_empty() { msg["reasoning_content"] = json!(acc.reasoning); }
+    if !acc.calls.is_empty() { msg["tool_calls"] = Value::Array(acc.calls); }
+    Ok(json!({ "choices": [{ "message": msg }] }))
+}
+
+#[tauri::command]
+fn ai_cancel(st: State<'_, AppState>) {
+    if let Some(tx) = st.chat_cancel.lock().unwrap().take() { let _ = tx.send(()); }
 }
 
 // ── reference files (the user attaches them to a chat message as context) ───
@@ -940,6 +1015,106 @@ fn show_main(app: &AppHandle) {
     }
 }
 
+// ── updates ────────────────────────────────────────────────────────────────
+// The app checks GitHub itself and drives update.py (the same updater start.bat
+// uses), then reopens on the new version.
+
+const RELEASES_API: &str = "https://api.github.com/repos/cjl26rg2/Void-Script/releases/latest";
+
+fn version_parts(v: &str) -> Vec<u64> {
+    v.trim().trim_start_matches(['v', 'V']).split(|c: char| !c.is_ascii_digit())
+        .filter(|x| !x.is_empty()).filter_map(|x| x.parse().ok()).collect()
+}
+
+#[tauri::command]
+async fn check_update(app: AppHandle, st: State<'_, AppState>) -> Result<Value, String> {
+    let r = st.http.get(RELEASES_API).header("Accept", "application/vnd.github+json")
+        .timeout(Duration::from_secs(20)).send().await
+        .map_err(|e| format!("Could not reach GitHub: {e}"))?;
+    if !r.status().is_success() { return Err(format!("GitHub answered {}", r.status().as_u16())); }
+    let v: Value = r.json().await.map_err(|e| e.to_string())?;
+    let tag = v["tag_name"].as_str().unwrap_or("").to_string();
+    let current = app.package_info().version.to_string();
+    let newer = version_parts(&tag) > version_parts(&current);
+    Ok(json!({
+        "current": current, "latest": tag, "newer": newer,
+        "name": v["name"], "notes": v["body"], "url": v["html_url"], "published": v["published_at"],
+        "has_asset": v["assets"].as_array().map(|a| !a.is_empty()).unwrap_or(false),
+    }))
+}
+
+// Run update.py with whichever Python start.bat would find, streaming its log.
+fn run_updater(app: &AppHandle, root: &Path) -> Result<String, String> {
+    let script = root.join("update.py");
+    if !script.is_file() { return Err("update.py is missing from the VoidScript folder.".into()); }
+    let mut last_err = String::from("Python was not found. Run start.bat once so it can set Python up, then try again.");
+    for (exe, pre) in [("py", vec!["-3"]), ("python", vec![])] {
+        let mut c = Command::new(exe);
+        c.args(&pre).arg(&script).current_dir(root)
+            .env("PYTHONUNBUFFERED", "1").env("PYTHONIOENCODING", "utf-8")
+            .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped());
+        #[cfg(windows)]
+        c.creation_flags(CREATE_NO_WINDOW);
+        let mut child = match c.spawn() { Ok(ch) => ch, Err(e) => { last_err = format!("{exe}: {e}"); continue; } };
+        let err_pipe = child.stderr.take();
+        let err_t = std::thread::spawn(move || { let mut b = String::new(); if let Some(mut e) = err_pipe { let _ = e.read_to_string(&mut b); } b });
+        let mut out = String::new();
+        if let Some(o) = child.stdout.take() {
+            for line in BufReader::new(o).lines().map_while(Result::ok) {
+                let _ = app.emit("update-log", line.clone());
+                out.push_str(&line);
+                out.push('\n');
+            }
+        }
+        let status = child.wait().map_err(|e| e.to_string())?;
+        let err = err_t.join().unwrap_or_default();
+        if !status.success() {
+            return Err(format!("The update failed.\n{}", cap_text(format!("{out}{err}"), 1500)));
+        }
+        return Ok(out);
+    }
+    Err(last_err)
+}
+
+#[tauri::command]
+async fn run_update(app: AppHandle) -> Result<String, String> {
+    let root = app.state::<AppState>().root.clone().ok_or("VoidScript folder not found")?;
+    stop_bridge_proc(&app);
+    let app2 = app.clone();
+    let root2 = root.clone();
+    let out = tauri::async_runtime::spawn_blocking(move || run_updater(&app2, &root2))
+        .await.map_err(|e| e.to_string())??;
+    if out.contains("Already up to date") {
+        let _ = start_bridge_proc(&app, "--skip-update");
+        return Ok("up-to-date".into());
+    }
+    relaunch_proc(&app, &root)?;
+    Ok("updated".into())
+}
+
+// Reopen on the (new) exe. A short delay lets this instance - and its
+// single-instance lock - go away first, or the new one would just focus us.
+fn relaunch_proc(app: &AppHandle, root: &Path) -> Result<(), String> {
+    let exe = Some(root.join("VoidScript.exe")).filter(|p| p.is_file())
+        .or_else(|| std::env::current_exe().ok()).ok_or("cannot find VoidScript.exe")?;
+    let mut c = Command::new("cmd.exe");
+    c.arg("/d").arg("/c");
+    #[cfg(windows)]
+    c.raw_arg(format!("ping -n 3 127.0.0.1 >nul & start \"\" \"{}\"", display_path(&exe)));
+    c.current_dir(root).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
+    #[cfg(windows)]
+    c.creation_flags(CREATE_NO_WINDOW | 0x0000_0008); // DETACHED_PROCESS
+    c.spawn().map_err(|e| format!("Updated, but could not reopen VoidScript: {e}"))?;
+    quit(app);
+    Ok(())
+}
+
+#[tauri::command]
+fn relaunch(app: AppHandle) -> Result<(), String> {
+    let root = app.state::<AppState>().root.clone().ok_or("VoidScript folder not found")?;
+    relaunch_proc(&app, &root)
+}
+
 fn quit(app: &AppHandle) {
     let st = app.state::<AppState>();
     st.quitting.store(true, Ordering::SeqCst);
@@ -976,6 +1151,7 @@ fn main() {
                 pending: Mutex::new(HashMap::new()),
                 next_id: AtomicU64::new(1),
                 http: reqwest::Client::builder().user_agent("VoidScript-Desktop").build().unwrap_or_default(),
+                chat_cancel: Mutex::new(None),
             });
 
             let show = MenuItem::with_id(app, "show", "Open VoidScript", true, None::<&str>)?;
@@ -1018,7 +1194,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_snapshot, start_bridge, stop_bridge, restart_bridge, bridge_request,
             save_settings, pick_workspace, open_url, open_folder, mcp_list, mcp_add, mcp_remove,
-            ai_models, ai_chat, pick_reference_files, read_reference_files,
+            ai_models, ai_chat, ai_cancel, check_update, run_update, relaunch, pick_reference_files, read_reference_files,
             ws_list, ws_read, ws_write, ws_delete, ws_run, quit_app
         ])
         .build(tauri::generate_context!())

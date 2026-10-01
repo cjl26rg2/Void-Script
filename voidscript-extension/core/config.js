@@ -69,10 +69,10 @@ const VS = (() => {
       return notes[reason] || notes.malformed;
     },
     multiTool: (names) =>
-      "ERROR: You wrote multiple commands in one reply. Write ONE command at a " +
-      "time and wait for its result before the next. You tried: " +
+      "ERROR: Too many commands in one reply (" + names.length + "). Batch at most 5 " +
+      "at a time. You tried: " +
       names.join(", ") +
-      ". Start over and write only the first command you need.",
+      ". Nothing ran - send the first few again.",
     unknownTool: (name, valid) =>
       `ERROR: unknown command "${name}". It does not exist. Valid commands are: ` +
       valid.join(", ") +
@@ -169,7 +169,8 @@ return "result"
 ${BT}
 
 RULES:
-- ONE command block per reply, inside a fenced code block. If you need several, do them one at a time and wait for each result. (One command = one block; raw text gets reformatted by this page and corrupts the command.)
+- Each command goes in its own fenced code block. (Raw text gets reformatted by this page and corrupts the command.)
+- BATCH TO SAVE TIME: when several JSON commands don't depend on each other's results (read a few scripts, inspect several instances, create two or three new scripts with multi_edit), put up to 5 of them in ONE reply, one block each, in the order they should run. They run in order, you get all the results together, and if one fails the rest are skipped. Every reply costs the user a full round trip, so batch whenever you can. Send a command on its own when it needs an earlier result first (read a script, THEN edit it), and always send a ###LUA### execute_luau block on its own - but make that one block do as much as it can (build all the parts in one go, not one part per command).
 - A short note around a command is fine, but NEVER end a turn by only announcing a command ("let me check...", "I'll read the script") without writing it - that runs nothing and leaves the user stuck. Either write the command now, or give your final answer.
 - Final answers: plain text only, no Markdown or code fences. Do ONLY what was asked - fewest commands, no unrequested double-checks. When the task is done or the user is satisfied ("thanks", "perfect"...), reply ONE short sentence and STOP.
 - BE A NATURAL TEAMMATE, NOT A BOT: talk like a friendly Roblox dev helping out - brief, plain, human. No corporate disclaimers, no "As an AI…", no restating the request back, no over-explaining what you're about to do. Just do the work and say what you did in a sentence or two, the way a person would.
@@ -272,8 +273,17 @@ IMPORTANT: Your very first action is to write \`list_commands\` with no params (
       ? `\n\n━━━ LANGUAGE ━━━\nThe user's language is ${lang}. Write every message to the user in ${lang} - explanations, questions, progress notes and final answers - even though these instructions and the tool results are in English. Do NOT translate anything machine-read: command names, JSON keys and values, the ###LUA### / ###END_LUA### markers, file paths, Roblox API names and Luau code stay exactly as specified.`
       : "";
 
+    // Command reference handed over up front (startSession builds it locally), so
+    // the model doesn't spend its first round trip asking for list_commands.
+    const ref = String(opts.commandRef || "").trim();
+    const body = ref
+      ? prompt.replace(/IMPORTANT: Your very first action[\s\S]*$/,
+          "IMPORTANT: the full command reference (exactly what list_commands returns) is at the END of this message - so do NOT call list_commands now, and never guess a command name or parameter that isn't in it. Do NOT call `list_mcp_servers` at startup - only later, if a request seems to need a different server. Reply with exactly one short sentence confirming you are ready, then wait for the user's first request. (Do NOT read or create the project memory yet - only once a request actually needs editing or understanding the game; see PROJECT MEMORY above.)")
+      : prompt;
+    const refBlock = ref ? `\n\n━━━ COMMAND REFERENCE (list_commands) ━━━\n${ref}` : "";
+
     // The marker leads the prompt; it tags the bootstrap turn for camouflage.
-    return `${SYS_MARKER}\n${prompt}${extra}${prefLine}${genreExtra(opts.projectType)}${langLine}`;
+    return `${SYS_MARKER}\n${body}${extra}${prefLine}${genreExtra(opts.projectType)}${langLine}${refBlock}`;
   }
 
   // ── Genre-aware best practices (Feature: auto prompt-engineering) ─────────

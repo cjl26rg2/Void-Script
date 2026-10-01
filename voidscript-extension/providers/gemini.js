@@ -355,7 +355,7 @@ const VSProvider = (() => {
   // model's context: keep head+tail, drop the middle, and tell the model that
   // content was dropped so it does not re-run the command.
   const SEND_MAX_CHARS = 120000;
-  const SEND_MAX_LINES = 1200;   // the line count is what actually hurts
+  const SEND_MAX_LINES = 700;    // the line count is what actually hurts
   function truncateForSend(text) {
     if (!text) return text;
     const lines = String(text).split("\n");
@@ -388,7 +388,7 @@ const VSProvider = (() => {
   // click for its entire duration (the "I can't click anything anymore" report).
   // Yielding does not make the insert faster, it makes the page stay alive while
   // it happens - and lets the Stop button remain usable.
-  const INSERT_CHUNK_LINES = 120;
+  const INSERT_CHUNK_LINES = 40; // small batches: each line costs more as the editor fills up
   async function setEditorText(ed, text) {
     ed.focus();
     const sel = window.getSelection();
@@ -406,10 +406,15 @@ const VSProvider = (() => {
     if (lines.length > INSERT_CHUNK_LINES) diag("send.insertDone", { lines: lines.length, ms: Date.now() - t0 });
   }
 
+  // Editors reformat pasted text (paragraphs, nbsp, trailing newlines), so compare
+  // ignoring whitespace - an exact compare never matched and re-pasted the whole
+  // prompt on every retry, which froze the tab on the big setup prompt.
+  const sameText = (a, b) => String(a || "").replace(/[\s\u00a0\u200b]+/g, "") === String(b || "").replace(/[\s\u00a0\u200b]+/g, "");
+
   async function typeAndSend(text, images) {
     const ed = getEditor();
     if (!ed) throw new Error("Gemini input box not found");
-    // Cap BEFORE any comparison below, so the retry path's `editorText() !== text`
+    // Cap BEFORE any comparison below, so the retry path's sameText() check
     // test compares against what we actually typed.
     text = truncateForSend(text);
     const relock = _locked;
@@ -424,7 +429,7 @@ const VSProvider = (() => {
       // calls with 3 different files, and the model's replies stayed generic
       // - it never got one coherent image). So: only retype if the text isn't
       // already there, and only attach if nothing is pending yet.
-      if (editorText() !== text) await setEditorText(ed, text);
+      if (!sameText(editorText(), text)) await setEditorText(ed, text);
       const hasPendingAttachment = () => {
         const box = document.querySelector(S.inputArea);
         return !!(box && box.querySelector("[class*='preview'], [class*='thumbnail']"));
@@ -447,7 +452,7 @@ const VSProvider = (() => {
       // an empty editor and therefore no send button - the "Start did nothing,
       // the system prompt was never sent" report. Retyping now that the stop is
       // cleared is safe: the editor is either empty or holds our own text.
-      if (!sendButton() && editorText() !== text) {
+      if (!sendButton() && !sameText(editorText(), text)) {
         diag("send.retype", {});
         await setEditorText(ed, text);
         await waitFor(() => !!sendButton(), 2000);

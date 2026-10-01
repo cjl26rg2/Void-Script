@@ -127,6 +127,29 @@
   // DOM node for a main-world inspector). Each entry carries a turn snapshot.
   const VS_DIAG_MAX = 300;
   const _diag = [];
+  // Touch nothing until the site's own app has finished starting. Server-rendered
+  // apps (ChatGPT's newer layout) hydrate the HTML after load, and a node or class
+  // we add in the middle of that can make them give up and leave a black page -
+  // only sometimes, depending on who wins the race. "Settled" = loaded and the DOM
+  // quiet for a moment, capped so a page that never goes quiet still gets the bar.
+  let pageSettled = false;
+  const whenSettled = new Promise((resolve) => {
+    const t0 = Date.now();
+    let last = t0;
+    const watch = new MutationObserver(() => { last = Date.now(); });
+    watch.observe(document.documentElement, { childList: true, subtree: true });
+    const check = () => {
+      const now = Date.now();
+      if ((document.readyState === "complete" && now - last > 600) || now - t0 > 8000) {
+        watch.disconnect();
+        pageSettled = true;
+        resolve();
+      } else setTimeout(check, 150);
+    };
+    check();
+  });
+
+  let _diagFlush = 0;
   function diag(event, data) {
     const snap = { ...P.snapshot(), gen: P.isGenerating(), run: A.running };
     const e = { t: Date.now(), iso: new Date().toISOString().slice(11, 23), event,
@@ -134,12 +157,19 @@
     _diag.push(e);
     if (_diag.length > VS_DIAG_MAX) _diag.shift();
     try { console.log("[vs-diag]", e.iso, event, JSON.stringify({ ...data, ...snap })); } catch {}
+    // The DOM mirror re-serialised up to 300 entries on EVERY event, and each write
+    // woke the page's own observers. Batch it: one write per 3s at most.
+    if (!_diagFlush) _diagFlush = setTimeout(flushDiag, 3000);
+    try { window.__vsDiag = _diag; } catch {}
+  }
+  function flushDiag() {
+    _diagFlush = 0;
+    if (!pageSettled) { _diagFlush = setTimeout(flushDiag, 1000); return; }
     try {
       let n = document.getElementById("vs-diag-log");
-      if (!n) { n = document.createElement("script"); n.type = "application/json"; n.id = "vs-diag-log"; (document.body || document.documentElement).appendChild(n); }
+      if (!n) { n = document.createElement("script"); n.type = "application/json"; n.id = "vs-diag-log"; document.documentElement.appendChild(n); }
       n.textContent = JSON.stringify(_diag);
     } catch {}
-    try { window.__vsDiag = _diag; } catch {}
   }
   P.init({ diag });
 
@@ -657,6 +687,9 @@
           // deadline only while hidden means a genuinely stalled reply still
           // times out once the user returns to the foreground tab.
           lastActiveAt = Date.now();
+          // Without a pause this branch spun the loop flat out while the tab was
+          // hidden - the page never got control back and stayed frozen.
+          await sleep(500);
         } else {
           const parked = await parkHidden();
           if (A.stop) return { kind: "stopped" };
@@ -2022,12 +2055,17 @@
   // rides along on the SAME feedback message (A.pendingImages is consumed
   // right after this runs). Off via VS_CFG.vsAutoVerify=false. Never runs
   // when the provider's model cannot see images.
-  const AUTO_VERIFY_TOOLS = /^(execute_luau|multi_edit|generate_procedural_model|generate_mesh)$/;
+  // Only tools that change what Studio SHOWS. A screenshot of a script edit (or of
+  // Lua that just reads or wires up logic) can't confirm anything, and each one
+  // costs a capture, an image upload into the chat and a slower model reply.
+  const AUTO_VERIFY_TOOLS = /^(execute_luau|generate_procedural_model|generate_mesh)$/;
+  const VISUAL_LUA = /Instance\.new|:Clone\(|\.(Position|Size|CFrame|Color|BrickColor|Material|Transparency|Orientation|Anchored)\s*=|:PivotTo\(/;
   const PLAYTEST_INPUT_TOOLS = /^(user_keyboard_input|user_mouse_input)$/;
   async function maybeAutoVerify(call, feedback) {
     if (!vsOn("vsAutoVerify") || !P.supportsVision) return "";
     const bare = bareToolName(call && call.tool);
-    const want = AUTO_VERIFY_TOOLS.test(bare) || (A.playtest && PLAYTEST_INPUT_TOOLS.test(bare));
+    const visual = bare !== "execute_luau" || VISUAL_LUA.test(String((call.arguments && call.arguments.code) || ""));
+    const want = (AUTO_VERIFY_TOOLS.test(bare) && visual) || (A.playtest && PLAYTEST_INPUT_TOOLS.test(bare));
     if (!want) return "";
     if (feedbackIsError(feedback)) return "";
     const label = A.playtest && PLAYTEST_INPUT_TOOLS.test(bare) ? "playtest-step" : "after-edit";
@@ -2076,6 +2114,7 @@
     // claims a command "does not exist" after the 20-call interval that worked
     // for short sessions left too wide a gap in marathon builds.
     const REMIND_TOOLS_EVERY = 12;
+    const MAX_BATCH = 5; // commands the model may chain in one reply
     ui.showStop(true);
     P.setInputLock(true); // prevent user from typing while the agent is active
     ui.inputCover(true);  // keep the "Agent is working" cover up for the WHOLE loop
@@ -2188,11 +2227,43 @@
 
         if (res.kind === "tool") {
           const calls = res.calls;
-          if (calls.length > 1) {
+          if (calls.length > MAX_BATCH) {
             base = await submitAndGetBase(VS.FEEDBACK.multiTool(calls.map((c) => c.tool || "?")));
             continue;
           }
-          const call = calls[0];
+          // Several independent commands in one reply: run all but the last here,
+          // in order, and stop at the first error. The last one goes through the
+          // normal path below, which sends every result back in ONE message - a
+          // round trip per batch instead of one per command. Approvals, the
+          // destructive guard and undo snapshots all live in runTool, so they
+          // still apply to each command.
+          let batchOut = "";
+          if (calls.length > 1) {
+            const outs = [];
+            rememberExecuted(res.item); // the auto-resume watchdog must never replay a batch
+            for (const c of calls.slice(0, -1)) {
+              decorate.toolBox(res.item, c.tool, "run", `${outs.length + 1}/${calls.length} · ${argSummary(c)}`, true, callBody(c), VS.toolCategory(c.tool));
+              A.toolRunning = true; A.toolStart = Date.now(); A.toolName = c.tool; A.toolItem = res.item; A.toolArg = argSummary(c);
+              const fb = await runTool(c);
+              A.toolRunning = false;
+              outs.push(fb);
+              diag("batch.step", { name: c.tool, ok: !feedbackIsError(fb), n: outs.length, of: calls.length });
+              if (A.stop || feedbackIsError(fb)) break;
+            }
+            batchOut = outs.join("\n\n") + "\n\n";
+            if (A.stop) {
+              if (res.item) { res.item.dataset.zStopped = "1"; rememberHalted(res.item); }
+              decorate.toolBox(res.item, calls[outs.length - 1].tool, "err", "stopped", true, "", VS.toolCategory(calls[outs.length - 1].tool));
+              break;
+            }
+            if (outs.length < calls.length - 1 || feedbackIsError(outs[outs.length - 1])) {
+              const skipped = calls.slice(outs.length).map((c) => c.tool).join(", ");
+              decorate.toolBox(res.item, calls[outs.length - 1].tool, "err", outSummary(outs[outs.length - 1]), true, stripOutputPrefix(outs[outs.length - 1]), VS.toolCategory(calls[outs.length - 1].tool));
+              base = await submitAndGetBase(batchOut + `(System note: that command failed, so the rest of your batch was skipped: ${skipped}. Fix it, then continue.)`);
+              continue;
+            }
+          }
+          const call = calls[calls.length - 1];
           // A tool ALREADY seen to return an image this session gets the "screen"
           // chip optimistically at run time (parity with the known screen_capture),
           // even though its name alone wouldn't reveal it. First-ever call of an
@@ -2312,7 +2383,7 @@
           // model that has drifted from the exact command names gets re-anchored
           // without it looking like a new result to act on. Errors don't count
           // (they already restate what's wrong) and list_commands is redundant.
-          let toSend = feedback;
+          let toSend = batchOut + feedback;
           noteTokens("tool", feedback);
           if (!isErr && call.tool !== "list_commands" && A.toolList.length) {
             A.toolCallsSinceReminder++;
@@ -2542,6 +2613,17 @@
       rememberHalted(A.toolItem);
       decorate.toolBox(A.toolItem, A.toolName, "err", "stopped", true, "", VS.toolCategory(A.toolName));
     }
+    // Stopping during startup cancels it right away: the bootstrap may be parked
+    // on a reply that never comes, so don't wait for it to notice. Bumping
+    // startGen makes it bail at its next check without touching the UI again.
+    if (A.starting) {
+      A.startGen++;
+      A.starting = false;
+      A.startingKey = null;
+      ui.setStarting(false);
+      ui.inputCover(false);
+      P.setInputLock(false);
+    }
     ui.markStopping();    // instant feedback: button → "⏳ Stopping…", disabled
     P.stopGeneration();
     ui.toast("Stopping…");
@@ -2596,7 +2678,19 @@
       }
       // Reply language: the user's UI language (English = no instruction, prompt unchanged).
       const replyLang = (VS_CFG.vsLang && VS_CFG.vsLang !== "en" && typeof VS_I18N !== "undefined") ? VS_I18N.aiName(VS_CFG.vsLang) : "";
-      const prompt = VS.buildSystemPrompt({ siteName: P.displayName, customPrompt: ui.getCustomPrompt(), projectType: ui.getProjectType(), preferredModel: getPreferredModel(P.displayName), language: replyLang }) + resumeNote();
+      const promptOpts = { siteName: P.displayName, customPrompt: ui.getCustomPrompt(), projectType: ui.getProjectType(), preferredModel: getPreferredModel(P.displayName), language: replyLang };
+      // Hand the model its command reference up front instead of letting it ask
+      // for list_commands - that saves a whole round trip before it's ready.
+      // Only while Roblox is actually up, and only if the combined paste stays a
+      // sensible size (big pastes are slow on some editors - see Gemini's cap).
+      let prompt = VS.buildSystemPrompt(promptOpts) + resumeNote();
+      const ref = await runTool({ tool: "list_commands", arguments: {} });
+      if (!alive()) return;
+      if (!/OFFLINE|No commands available|^Output of '[^']*':\nERROR/.test(ref)) {
+        const withRef = VS.buildSystemPrompt({ ...promptOpts, commandRef: stripOutputPrefix(ref) }) + resumeNote();
+        if (withRef.length < 90000 && withRef.split("\n").length < 600) prompt = withRef;
+      }
+      diag("start.prompt", { inlineRef: prompt.includes("COMMAND REFERENCE"), len: prompt.length, lines: prompt.split("\n").length });
       const base = await submitAndGetBase(prompt);
       if (!alive()) return;
       noteTokens("prompt", prompt);
@@ -3281,10 +3375,18 @@
     sweep() {
       // Pass each turn's FOLLOWING turn too: a command chip needs it to know
       // whether its injected result was an ERROR (error-aware settle above).
+      // Re-reading every turn's text is what makes long chats sluggish, and old
+      // turns rarely change. Do the newest few each time and everything every 2s
+      // (that full pass also restores chips a re-render wiped further up).
       const items = P.allItems();
-      for (let i = 0; i < items.length; i++) this.classify(items[i], items[i + 1] || null);
-      // Annotate ###LUA### code blocks with Copy / Run buttons (chat replay).
-      for (let i = 0; i < items.length; i++) this.annotateCodeBlocks(items[i]);
+      const now = Date.now();
+      const full = now - (this.fullAt || 0) > 2000;
+      if (full) this.fullAt = now;
+      for (let i = full ? 0 : Math.max(0, items.length - 4); i < items.length; i++) {
+        this.classify(items[i], items[i + 1] || null);
+        // Annotate ###LUA### code blocks with Copy / Run buttons (chat replay).
+        this.annotateCodeBlocks(items[i]);
+      }
       // Safety net for stopped turns whose chip lives OUTSIDE the enumerated
       // message list. On Arena an A/B comparison renders each candidate as a
       // slide in the carousel's OWN nested <ol>, not the main flex-col-reverse
@@ -3363,7 +3465,7 @@
         <div id="vs-menu" hidden></div>
         ${P.unstableWarning ? `<button id="vs-unstable" aria-label="Provider may be unstable" hidden>⚠ unstable</button>` : ""}
       `;
-      document.documentElement.appendChild(root);
+      // Attached by placeBar's self-heal once the page has settled (see whenSettled).
       bar = root.querySelector("#vs-bar");
        dot = root.querySelector("#vs-dot");
       brandEl = root.querySelector("#vs-brand");
@@ -3389,7 +3491,7 @@
       // Provider hook on <html> so overlay.css can tune site-specific CHIP layout
       // (not just the bar). Meta's turn root is full-width with the reply in a
       // nested centered column, so whole-turn chips (result/sys) need re-centering.
-      document.documentElement.classList.add(`vs-site-${P.id}`);
+      whenSettled.then(() => { document.documentElement.classList.add(`vs-site-${P.id}`); applyTheme(); });
 
       actionBtn.addEventListener("click", onActionClick);
       stopBtn.addEventListener("click", stopLoop);
@@ -3692,6 +3794,7 @@
     function onActionClick() {
       const kind = actionBtn.dataset.kind;
       if (kind === "start" || kind === "start-degraded") startSession();
+      else if (kind === "starting") stopLoop();
     }
 
     // ── Custom prompt (persisted) ───────────────────────────────────────────
@@ -4771,7 +4874,8 @@
         `</div>` +
         videoBtn +
         `<button id="vs-setup-dismiss">Got it</button>`;
-      document.documentElement.appendChild(setupCard);
+      const card = setupCard;
+      whenSettled.then(() => { if (setupCard === card) document.documentElement.appendChild(card); });
 
       setupCard.querySelector("#vs-setup-copy").addEventListener("click", () => {
         try { navigator.clipboard.writeText(GITHUB_URL); } catch {
@@ -4838,7 +4942,8 @@
         toneClass = "starting";
         indicator = `<span class="vs-spin"></span>`;
          msg = `Connecting to Roblox…`;
-         label = tr("b_starting"); kind = "starting"; disabled = true;
+         // Clickable: if the AI never answers, this is the only way out of startup.
+         label = tr("b_stop"); kind = "starting"; disabled = false;
       } else if (A.started) {
         // Prefer the ADVERTISED list length (A.toolList - the AGGREGATE catalogue
         // across every connected MCP server, already filtered by the vision/blocked
@@ -5261,7 +5366,7 @@
         if (m.length < 3) return;
         light = 0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2] > 140;
       }
-      document.documentElement.classList.toggle("vs-light", light);
+      if (pageSettled) document.documentElement.classList.toggle("vs-light", light);
     }
 
     // Where the bar lives INSIDE the site's composer. We insert it as a real,
@@ -5290,6 +5395,23 @@
     // Floating fallback geometry (used only when no inline mount is available).
     const BAR_MAX_W = 560, BAR_GAP = 8;
 
+    // placeBar runs every frame. The DOM lookups it needs (composer, send button,
+    // login/captcha overlays) are the expensive part and rarely change, so keep each
+    // result for a moment instead of searching the page 60 times a second. A cached
+    // node that has left the page is looked up again right away.
+    const _lk = {};
+    const stillLive = (v) => !v || (v.nodeType ? v.isConnected : !v.parent || v.parent.isConnected);
+    function lookup(key, fn, ttl = 200) {
+      const c = _lk[key], now = performance.now();
+      if (c && now - c.t < ttl && stillLive(c.v)) return c.v;
+      const v = fn();
+      _lk[key] = { v, t: now };
+      return v;
+    }
+    // Style writes on every frame force the browser to redo layout; skip no-ops.
+    const setPx = (el, prop, n) => { const v = n + "px"; if (el.style[prop] !== v) el.style[prop] = v; };
+    const show = (el, d = "flex") => { if (el.style.display !== d) el.style.display = d; };
+
     // Anchored mode bookkeeping: the composer element whose top padding we are
     // borrowing to seat the bar (see the anchored branch below). Cleared when we
     // leave anchored mode so the site's composer returns to its normal layout.
@@ -5313,7 +5435,7 @@
 
     function placeBar() {
       barRaf = requestAnimationFrame(placeBar);
-      if (!bar) return;
+      if (!bar || !pageSettled) return;
 
       // Self-heal: a SPA navigation or a full re-render on the host (seen on Arena
       // when the message frame jumps/teleports to the bottom) can detach our whole
@@ -5337,18 +5459,15 @@
       // intercept clicks on the challenge's / modal's buttons (e.g. "Continue with
       // Google" at sign-in). Hide the bar and drop the reserved padding strip; it
       // reappears on the next frame once the overlay clears.
-      if (
-        (P.captchaPresent && P.captchaPresent()) ||
-        (P.overlayBlocking && P.overlayBlocking())
-      ) {
-        bar.style.display = "none";
+      if (lookup("blocked", () => (P.captchaPresent && P.captchaPresent()) || (P.overlayBlocking && P.overlayBlocking()))) {
+        show(bar, "none");
         clearAnchorPad();
         if (menuEl) menuEl.hidden = true;
         return;
       }
 
       // Preferred: in-flow mount inside the composer (no overlap, full width).
-      const mount = computeBarMount();
+      const mount = lookup("mount", computeBarMount);
       if (mount) {
         clearAnchorPad();
         // Re-insert ONLY when the bar has actually fallen OUT of the composer - never
@@ -5377,7 +5496,7 @@
         // Transparent (blends in) when mounted INSIDE the input box; surface card
         // when mounted ABOVE it. The provider's barMount() signals which via .inside.
         bar.classList.toggle("vs-bar-inside", !!mount.inside);
-        bar.style.display = "flex";
+        show(bar);
         if (menuEl && !menuEl.hidden) {
           const br = bar.getBoundingClientRect();
           menuEl.style.right = Math.round(window.innerWidth - br.right) + "px";
@@ -5399,22 +5518,22 @@
       // to the composer frame so the bar STILL hugs the chat box (connected look)
       // rather than dropping to the detached floating pill below. This keeps every
       // site — even generic-factory ones with no barMount — fused to the composer.
-      const anchorEl = (P.barAnchor && P.barAnchor()) ||
-                       (P.composerFrame && P.composerFrame()) || null;
+      const anchorEl = lookup("anchor", () => (P.barAnchor && P.barAnchor()) ||
+                       (P.composerFrame && P.composerFrame()) || null);
       if (anchorEl && anchorEl.isConnected) {
         bar.classList.remove("vs-bar-inline", "vs-bar-inside");
         bar.classList.add("vs-bar-anchored");
         if (root && bar.parentElement !== root) root.appendChild(bar);
         const r = anchorEl.getBoundingClientRect();
-        if (!r.width) { bar.style.display = "none"; clearAnchorPad(); if (menuEl) menuEl.hidden = true; return; }
-        bar.style.display = "flex";
+        if (!r.width) { show(bar, "none"); clearAnchorPad(); if (menuEl) menuEl.hidden = true; return; }
+        show(bar);
         const bh = bar.offsetHeight || 34;
         if (anchorPadEl && anchorPadEl !== anchorEl) clearAnchorPad();
         anchorPadEl = anchorEl;
-        anchorEl.style.paddingTop = (bh + 6) + "px"; // reserve the strip the bar sits in (+gap)
-        bar.style.left = Math.round(r.left) + "px";
-        bar.style.top = Math.round(r.top) + "px";
-        bar.style.width = Math.round(r.width) + "px";
+        setPx(anchorEl, "paddingTop", bh + 6); // reserve the strip the bar sits in (+gap)
+        setPx(bar, "left", Math.round(r.left));
+        setPx(bar, "top", Math.round(r.top));
+        setPx(bar, "width", Math.round(r.width));
         if (menuEl && !menuEl.hidden) {
           bar.classList.remove("vs-bar-inline"); // ensure fixed geometry for menu math
           menuEl.style.right = Math.round(window.innerWidth - (r.left + r.width)) + "px";
@@ -5432,18 +5551,18 @@
         bar.classList.remove("vs-bar-inline");
         if (root && bar.parentElement !== root) root.appendChild(bar);
       }
-      const f = (P.getEditor && P.getEditor()) || (P.composerFrame && P.composerFrame());
-      if (!f) { bar.style.display = "none"; if (menuEl) menuEl.hidden = true; return; }
-      bar.style.display = "flex";
+      const f = lookup("editor", () => (P.getEditor && P.getEditor()) || (P.composerFrame && P.composerFrame()));
+      if (!f) { show(bar, "none"); if (menuEl) menuEl.hidden = true; return; }
+      show(bar);
       const r = f.getBoundingClientRect();
-      if (!r.width) { bar.style.display = "none"; return; }
+      if (!r.width) { show(bar, "none"); return; }
       const w = Math.min(r.width, BAR_MAX_W);
       const left = Math.round(r.left + (r.width - w) / 2);
       const bh = bar.offsetHeight || 40;
       const top = Math.max(4, Math.round(r.top - bh - BAR_GAP));
-      bar.style.width = w + "px";
-      bar.style.left = left + "px";
-      bar.style.top = top + "px";
+      setPx(bar, "width", w);
+      setPx(bar, "left", left);
+      setPx(bar, "top", top);
       // Keep the open "more" menu anchored to the bar, opening upward.
       if (menuEl && !menuEl.hidden) {
         const br = bar.getBoundingClientRect();
@@ -5560,7 +5679,7 @@
           coverRaf = requestAnimationFrame(place);
           return;
         }
-        cover.style.display = "flex";
+        show(cover);
         let r = covNode.getBoundingClientRect();
         // Clip the cover to the composer's VISIBLE band. Some composers grow the
         // inner editor node past a scrolling ancestor that clips it (Kimi's Vue
@@ -5570,15 +5689,18 @@
         // Measuring the raw editor then centres the cover on the giant editor's
         // midpoint - far below the visible input - so it "vanishes" off the box.
         // Intersect with the nearest clipping ancestor to track what's on screen.
-        for (let a = covNode.parentElement, i = 0; a && a !== document.body && i < 8; a = a.parentElement, i++) {
-          const ov = getComputedStyle(a).overflowY;
-          if (ov === "auto" || ov === "scroll" || ov === "hidden") {
-            const ar = a.getBoundingClientRect();
-            const top = Math.max(r.top, ar.top);
-            const bottom = Math.min(r.bottom, ar.bottom);
-            if (bottom > top) r = new DOMRect(r.left, top, r.width, bottom - top);
-            break;
+        const clip = lookup("coverClip", () => {
+          for (let a = covNode.parentElement, i = 0; a && a !== document.body && i < 8; a = a.parentElement, i++) {
+            const ov = getComputedStyle(a).overflowY;
+            if (ov === "auto" || ov === "scroll" || ov === "hidden") return a;
           }
+          return null;
+        }, 500);
+        if (clip) {
+          const ar = clip.getBoundingClientRect();
+          const top = Math.max(r.top, ar.top);
+          const bottom = Math.min(r.bottom, ar.bottom);
+          if (bottom > top) r = new DOMRect(r.left, top, r.width, bottom - top);
         }
         // Optionally overshoot the editor box by PAD px on every side. Some
         // composers (Gemini's Quill) keep typed text near rounded corners, so a
@@ -5606,13 +5728,14 @@
         const MAXH = P.coverMaxH || 200;
         const h = Math.min(Math.max(r.height + PAD * 2, 36), MAXH);
         const centerY = r.top + r.height / 2 + OFFY;
-        cover.style.left = (r.left - PAD) + "px";
-        cover.style.top = (centerY - h / 2) + "px";
-        cover.style.width = (r.width + PAD * 2) + "px";
-        cover.style.height = h + "px";
+        setPx(cover, "left", r.left - PAD);
+        setPx(cover, "top", centerY - h / 2);
+        setPx(cover, "width", r.width + PAD * 2);
+        setPx(cover, "height", h);
         // Composite the surface BEHIND the cover target so the fill matches what
         // the user sees (a translucent composer card blends over the page).
-        cover.style.background = opaqueBg(covNode);
+        const bg = lookup("coverBg", () => opaqueBg(covNode), 500);
+        if (cover.style.background !== bg) cover.style.background = bg;
         // When the cover blankets a whole composer card (coverTarget), match its
         // corner radius so the cover's square corners don't poke past the card's
         // rounded ones. Editor-sized covers keep the CSS default.
@@ -5897,7 +6020,13 @@
     // sometimes gets swallowed by a re-render, and handing back a clickable
     // "■ Stop" the user has to press again is exactly the bounce we're killing.
     if (A.stopping && !A.running && !A.toolRunning) {
-      if (A.started && P.isHardGenerating()) {
+      if (Date.now() - (A.stopAt || 0) > 4000) {
+        // Our loop is already down. If the site keeps generating past this, that's
+        // the site's own reply - its native stop handles it. Never hold the user on
+        // a disabled "Stopping…" waiting for an AI that won't stop.
+        A.stopping = false;
+        diag("stop.released", { gen: P.isHardGenerating() });
+      } else if (A.started && P.isHardGenerating()) {
         // CRITICAL: only re-click the native stop if the reply has ACTUALLY kept
         // growing since the last stop click. On Gemini (and GLM) the stop button
         // WEDGES visible for up to ~10s after a successful stop, so the old
@@ -6138,7 +6267,7 @@
   // nonstop (Gemini's Angular, streaming) can't keep the main thread busy.
   let lastSweepAt = 0;
   function scheduleSweep() {
-    if (sweepScheduled) return;
+    if (sweepScheduled || !pageSettled) return;
     sweepScheduled = true;
     const wait = Math.max(0, 120 - (Date.now() - lastSweepAt));
     const run = () => {
@@ -6204,7 +6333,7 @@
   const onlyOurs = (recs) => recs.every((r) =>
     ours(r.target) || ([...r.addedNodes, ...r.removedNodes].length > 0 && [...r.addedNodes, ...r.removedNodes].every(ours)));
   const mo = new MutationObserver((recs) => {
-    if (moScheduled || onlyOurs(recs)) return;
+    if (moScheduled || !pageSettled || onlyOurs(recs)) return;
     moScheduled = true;
     requestAnimationFrame(() => {
       moScheduled = false;
@@ -6213,6 +6342,7 @@
     });
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
+  whenSettled.then(() => { preHideWholeItems(); scheduleSweep(); });
   // Belt-and-braces: a low-frequency sweep regardless of tab visibility or
   // mutation timing, so camouflage always converges.
   setInterval(scheduleSweep, 1500);
