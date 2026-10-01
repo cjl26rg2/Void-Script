@@ -68,7 +68,7 @@
     vsHumanizeSend: false,    // human-like randomized delay before each send
     vsPromptPerPlace: false,  // keep a separate custom prompt per open place
     vsShowTokenEstimate: false, // show a live token estimate in the bar while running
-    vsTheme: "system",          // UI theme: system | dark | light | soft-light
+    vsTheme: "system",          // UI theme: system | dark | light | soft-light | or
     vsVoiceLang: "en-US",       // speech recognition language tag for the voice button
     vsCowork: false,            // Co-work: human-in-the-loop steering of the running agent
     vsLang: "en",               // UI + AI reply language (core/i18n.js); English default
@@ -3706,7 +3706,8 @@
       }
       // If a theme was persisted, apply it immediately on script load (before the
       // menu's own handler runs) so the bar renders in the right theme from frame 1.
-      try { if (VS_CFG.vsTheme) applyVsTheme(VS_CFG.vsTheme); } catch {}
+      // Waits for the page to settle like every other write to <html> (see whenSettled).
+      whenSettled.then(() => { try { if (VS_CFG.vsTheme) applyVsTheme(VS_CFG.vsTheme); } catch {} });
       // Both bar controls open the same panel; the heart lands on the Support
       // section (last), the model button opens at the top with Switch AI.
       const toggleMenu = (toSupport) => {
@@ -4209,6 +4210,7 @@
               <option value="dark">Dark</option>
               <option value="light">Light</option>
               <option value="soft-light">Soft light</option>
+              <option value="or">OR</option>
             </select>
             <span id="vs-theme-status"></span>
           </section>`;

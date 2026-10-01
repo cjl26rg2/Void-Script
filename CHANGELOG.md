@@ -2,6 +2,16 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [5.4.1] - 2026-10-01
+
+### Added
+- **OR theme** (partner): near-black panels, a warm cream accent and spaced-out caps.
+  - Extension: pick **OR** in the popup's theme switch or under **UI theme** in the bar's menu. The popup itself switches to OR too.
+  - App: **Settings → App → Theme**.
+
+### Fixed
+- The extension's theme is now applied after the page settles, like everything else VoidScript adds (part of the ChatGPT black-page fix).
+
 ## [5.4.0] - 2026-10-01
 
 ### Desktop app: updates & notifications

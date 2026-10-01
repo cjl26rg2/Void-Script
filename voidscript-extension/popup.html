@@ -189,6 +189,18 @@
   .foot .flink svg{width:16px; height:16px}
   .foot .spacer{flex:1}
   .foot .made{font-size:9.5px; color:var(--dim); text-align:right; line-height:1.3}
+  /* OR theme (partner): near-black, warm cream accent, spaced caps */
+  html[data-theme="or"]{
+    --bg:#0e0e0e; --bg2:#121212; --card:#151515; --card2:#191919;
+    --line:#262626; --line2:#333; --fg:#ece6da; --muted:#b8b2a7; --dim:#7d786f;
+    --acc:#e9e1d1; --acc2:#e9e1d1; --acc-txt:#e9e1d1; --grad:linear-gradient(#e9e1d1,#e9e1d1);
+  }
+  html[data-theme="or"] body{background:var(--bg)}
+  html[data-theme="or"] .title{letter-spacing:2.4px; text-transform:uppercase}
+  html[data-theme="or"] .title .s{color:var(--fg); -webkit-text-fill-color:var(--fg); background:none}
+  html[data-theme="or"] .btn.primary, html[data-theme="or"] .seg button.on{color:#141414; box-shadow:none}
+  html[data-theme="or"] .sw input:checked ~ .knob{background:#141414}
+  html[data-theme="or"] .stat .v.ok{color:var(--fg); -webkit-text-fill-color:var(--fg); background:none}
 </style>
 </head>
 <body>
@@ -288,6 +300,7 @@
     <button data-theme="system" data-i18n="sys">System</button>
     <button data-theme="dark" data-i18n="dark">Dark</button>
     <button data-theme="light" data-i18n="light">Light</button>
+    <button data-theme="or">OR</button>
   </div>
 
   <!-- ── Leaderboard (compact) ──────────────────────── -->

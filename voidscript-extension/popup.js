@@ -241,7 +241,12 @@ chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   const seg = $("theme-seg");
   if (seg) {
     const buttons = [...seg.querySelectorAll("button")];
-    const setActive = (t) => buttons.forEach((b) => b.classList.toggle("on", b.dataset.theme === t));
+    // The popup itself wears the OR theme too; the other themes only restyle the page overlay.
+    const setActive = (t) => {
+      buttons.forEach((b) => b.classList.toggle("on", b.dataset.theme === t));
+      if (t === "or") document.documentElement.setAttribute("data-theme", "or");
+      else document.documentElement.removeAttribute("data-theme");
+    };
     setActive(cfg.vsTheme || "system");
     buttons.forEach((b) => b.addEventListener("click", () => {
       setActive(b.dataset.theme);

@@ -453,6 +453,7 @@ function renderSettings() {
   $("set-lang").value = s.reply_language || "";
   $("set-autostart").checked = s.auto_start_bridge !== false;
   $("set-tray").checked = s.close_to_tray !== false;
+  applyTheme(s.theme);
   $("chat-empty-sub").textContent = keySet()
     ? "Describe a feature and VoidScript builds it in your open Studio place. Attach reference files with the paperclip."
     : `This chat runs on your own API key. Add your ${PROV_NAME[p]} key in Settings, or use the browser extension for ChatGPT, Gemini, DeepSeek and more.`;
@@ -602,6 +603,17 @@ $("btn-open-ws").onclick = () => invoke("open_folder", { which: "workspace" }).c
 $("set-lang").addEventListener("change", () => saveSettings({ reply_language: $("set-lang").value }, "Reply language saved."));
 $("set-autostart").addEventListener("change", () => saveSettings({ auto_start_bridge: $("set-autostart").checked }));
 $("set-tray").addEventListener("change", () => saveSettings({ close_to_tray: $("set-tray").checked }));
+// Theme: "or" is the partner look; anything else is VoidScript's own.
+function applyTheme(t) {
+  const or = t === "or";
+  if (or) document.documentElement.setAttribute("data-theme", "or");
+  else document.documentElement.removeAttribute("data-theme");
+  document.querySelectorAll("#theme-seg button").forEach((b) => b.classList.toggle("on", (b.dataset.theme === "or") === or));
+}
+document.querySelectorAll("#theme-seg button").forEach((b) => b.addEventListener("click", () => {
+  applyTheme(b.dataset.theme);
+  saveSettings({ theme: b.dataset.theme });
+}));
 $("btn-quit").onclick = () => invoke("quit_app");
 
 // ── disclaimer ──────────────────────────────────────────────────────────────
