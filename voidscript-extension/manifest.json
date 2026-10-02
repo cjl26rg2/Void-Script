@@ -159,7 +159,7 @@
         "https://gemini.google.com/*",
         "https://grok.com/*",
         "https://groq.com/*",
-        "https://huggingface.co/chat/*",
+        "https://huggingface.co/*",
         "https://hume.ai/*",
         "https://hunyuan.tencent.com/*",
         "https://jupi.io/*",
