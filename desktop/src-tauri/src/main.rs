@@ -28,6 +28,8 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const BRIDGE_URL: &str = "ws://127.0.0.1:17613";
 const NVIDIA_BASE: &str = "https://integrate.api.nvidia.com/v1";
 const OPENROUTER_BASE: &str = "https://openrouter.ai/api/v1";
+// Gemini's OpenAI-compatible endpoint (free key from aistudio.google.com).
+const GOOGLE_BASE: &str = "https://generativelanguage.googleapis.com/v1beta/openai";
 const LOG_CAP: usize = 3000;
 const RUN_TIMEOUT: Duration = Duration::from_secs(120);
 const OUTPUT_CAP: usize = 60_000;
@@ -41,11 +43,13 @@ fn yes() -> bool { true }
 #[serde(default)]
 struct Settings {
     accepted_disclaimer: bool,
-    provider: String, // "nvidia" | "openrouter"
+    provider: String, // "nvidia" | "openrouter" | "google"
     nvidia_key: String,
     nvidia_model: String,
     openrouter_key: String,
     openrouter_model: String,
+    google_key: String,
+    google_model: String,
     workspace_enabled: bool,
     workspace_dir: String,
     access: String, // "ask" | "sandbox" | "full"
@@ -66,6 +70,8 @@ impl Default for Settings {
             nvidia_model: String::new(),
             openrouter_key: String::new(),
             openrouter_model: String::new(),
+            google_key: String::new(),
+            google_model: String::new(),
             workspace_enabled: false,
             workspace_dir: String::new(),
             access: "sandbox".into(),
@@ -88,6 +94,9 @@ struct SettingsView {
     openrouter_key_set: bool,
     openrouter_key_hint: String,
     openrouter_model: String,
+    google_key_set: bool,
+    google_key_hint: String,
+    google_model: String,
     workspace_enabled: bool,
     workspace_dir: String,
     access: String,
@@ -117,13 +126,16 @@ impl From<&Settings> for SettingsView {
     fn from(s: &Settings) -> Self {
         SettingsView {
             accepted_disclaimer: s.accepted_disclaimer,
-            provider: if s.provider == "openrouter" { "openrouter".into() } else { "nvidia".into() },
+            provider: match s.provider.as_str() { "openrouter" | "google" => s.provider.clone(), _ => "nvidia".into() },
             nvidia_key_set: !s.nvidia_key.trim().is_empty(),
             nvidia_key_hint: key_hint(&s.nvidia_key),
             nvidia_model: s.nvidia_model.clone(),
             openrouter_key_set: !s.openrouter_key.trim().is_empty(),
             openrouter_key_hint: key_hint(&s.openrouter_key),
             openrouter_model: s.openrouter_model.clone(),
+            google_key_set: !s.google_key.trim().is_empty(),
+            google_key_hint: key_hint(&s.google_key),
+            google_model: s.google_model.clone(),
             workspace_enabled: s.workspace_enabled,
             access: match s.access.as_str() { "ask" | "full" => s.access.clone(), _ => "sandbox".into() },
             workspace_dir: s.workspace_dir.clone(),
@@ -597,15 +609,17 @@ fn save_settings(st: State<'_, AppState>, patch: Value) -> Result<SettingsView, 
     if let (Some(obj), Some(p)) = (v.as_object_mut(), patch.as_object()) {
         for (k, val) in p {
             // An empty key field means "keep the saved key" (the UI never sees it).
-            if (k == "nvidia_key" || k == "openrouter_key") && val.as_str().map(|x| x.trim().is_empty()).unwrap_or(true) { continue; }
+            if (k == "nvidia_key" || k == "openrouter_key" || k == "google_key") && val.as_str().map(|x| x.trim().is_empty()).unwrap_or(true) { continue; }
             if k == "clear_nvidia_key" { obj.insert("nvidia_key".into(), json!("")); continue; }
             if k == "clear_openrouter_key" { obj.insert("openrouter_key".into(), json!("")); continue; }
+            if k == "clear_google_key" { obj.insert("google_key".into(), json!("")); continue; }
             obj.insert(k.clone(), val.clone());
         }
     }
     let mut next: Settings = serde_json::from_value(v).map_err(|e| e.to_string())?;
     next.nvidia_key = clean_key(&next.nvidia_key);
     next.openrouter_key = clean_key(&next.openrouter_key);
+    next.google_key = clean_key(&next.google_key);
     save_settings_file(&st.settings_path, &next)?;
     *s = next;
     Ok(SettingsView::from(&*s))
@@ -619,6 +633,19 @@ async fn pick_workspace(app: AppHandle) -> Option<String> {
         let _ = tx.send(f.and_then(|p| p.into_path().ok()).map(|p| display_path(&p)));
     });
     rx.await.ok().flatten()
+}
+
+// "Save .txt" for generated model scripts: a normal Windows save dialog.
+#[tauri::command]
+async fn save_text(app: AppHandle, name: String, content: String) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let (tx, rx) = oneshot::channel();
+    app.dialog().file().set_title("Save the model script").set_file_name(&name)
+        .add_filter("Text", &["txt", "lua", "luau"])
+        .save_file(move |f| { let _ = tx.send(f.and_then(|p| p.into_path().ok())); });
+    let Some(path) = rx.await.ok().flatten() else { return Ok(false) };
+    std::fs::write(&path, content).map_err(|e| format!("could not save: {e}"))?;
+    Ok(true)
 }
 
 #[tauri::command]
@@ -703,19 +730,26 @@ fn mcp_remove(st: State<'_, AppState>, id: String) -> Result<(), String> {
 
 // The active AI provider. Both speak the OpenAI chat-completions API, so one code
 // path serves both; only the base URL, key and a couple of headers differ.
-struct Provider { name: &'static str, base: &'static str, key: String, openrouter: bool }
+struct Provider { name: &'static str, base: &'static str, key: String, openrouter: bool, google: bool }
 
 fn active_provider(st: &AppState) -> Result<Provider, String> { provider_for(st, None) }
 
 // `which` lets the model picker list another provider's models without switching.
 fn provider_for(st: &AppState, which: Option<&str>) -> Result<Provider, String> {
     let s = st.settings.lock().unwrap();
-    if which.unwrap_or(s.provider.as_str()) == "openrouter" {
-        if s.openrouter_key.is_empty() { return Err("Add your OpenRouter API key in Settings first.".into()); }
-        Ok(Provider { name: "OpenRouter", base: OPENROUTER_BASE, key: clean_key(&s.openrouter_key), openrouter: true })
-    } else {
-        if s.nvidia_key.is_empty() { return Err("Add your NVIDIA API key in Settings first.".into()); }
-        Ok(Provider { name: "NVIDIA", base: NVIDIA_BASE, key: clean_key(&s.nvidia_key), openrouter: false })
+    match which.unwrap_or(s.provider.as_str()) {
+        "openrouter" => {
+            if s.openrouter_key.is_empty() { return Err("Add your OpenRouter API key in Settings first.".into()); }
+            Ok(Provider { name: "OpenRouter", base: OPENROUTER_BASE, key: clean_key(&s.openrouter_key), openrouter: true, google: false })
+        }
+        "google" => {
+            if s.google_key.is_empty() { return Err("Add your free Google AI Studio key in Settings first.".into()); }
+            Ok(Provider { name: "Google Gemini", base: GOOGLE_BASE, key: clean_key(&s.google_key), openrouter: false, google: true })
+        }
+        _ => {
+            if s.nvidia_key.is_empty() { return Err("Add your NVIDIA API key in Settings first.".into()); }
+            Ok(Provider { name: "NVIDIA", base: NVIDIA_BASE, key: clean_key(&s.nvidia_key), openrouter: false, google: false })
+        }
     }
 }
 
@@ -746,14 +780,15 @@ async fn ai_models(st: State<'_, AppState>, provider: Option<String>) -> Result<
     let v: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
     let mut out: Vec<ModelInfo> = v.get("data").and_then(|d| d.as_array()).map(|a| {
         a.iter().filter_map(|m| {
-            let id = m.get("id").and_then(|x| x.as_str())?.to_string();
+            let id = m.get("id").and_then(|x| x.as_str())?.trim_start_matches("models/").to_string();
+            if p.google && (!id.starts_with("gemini") || ["embedding", "image", "tts", "audio", "live"].iter().any(|w| id.contains(w))) { return None; }
             // OpenRouter lists each model's supported parameters; NVIDIA doesn't.
             let params = m.get("supported_parameters").and_then(|x| x.as_array());
             let tools = params.map(|ps| ps.iter().any(|x| x.as_str() == Some("tools")));
             let reasoning = params.map(|ps| ps.iter().any(|x| x.as_str() == Some("reasoning")));
             // NVIDIA's catalogue also lists embedding, reranking, safety, speech and
             // image models that can't chat at all - picking one only ever errors.
-            if !p.openrouter && NON_CHAT.iter().any(|w| id.to_ascii_lowercase().contains(w)) { return None; }
+            if !p.openrouter && !p.google && NON_CHAT.iter().any(|w| id.to_ascii_lowercase().contains(w)) { return None; }
             Some(ModelInfo { id, tools, reasoning })
         }).collect()
     }).unwrap_or_default();
@@ -1193,7 +1228,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             get_snapshot, start_bridge, stop_bridge, restart_bridge, bridge_request,
-            save_settings, pick_workspace, open_url, open_folder, mcp_list, mcp_add, mcp_remove,
+            save_settings, pick_workspace, save_text, open_url, open_folder, mcp_list, mcp_add, mcp_remove,
             ai_models, ai_chat, ai_cancel, check_update, run_update, relaunch, pick_reference_files, read_reference_files,
             ws_list, ws_read, ws_write, ws_delete, ws_run, quit_app
         ])

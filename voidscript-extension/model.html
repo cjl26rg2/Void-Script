@@ -1,0 +1,16 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- 3D preview for the model generator, embedded in VoidScript's panel as an
+     iframe so three.js only loads when the panel is open, never on every page. -->
+<html>
+<head>
+<meta charset="utf-8" />
+<style>html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; } #v { position: absolute; inset: 0; }</style>
+</head>
+<body>
+<div id="v"></div>
+<script src="vendor/three.min.js"></script>
+<script src="core/modelview.js"></script>
+<script src="model-viewer.js"></script>
+</body>
+</html>

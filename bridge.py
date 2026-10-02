@@ -91,7 +91,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "5.5.0"
+BRIDGE_VERSION = "6.0.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -1331,12 +1331,39 @@ class MCPClient:
             self.tools_cache = msg["result"].get("tools", [])
         return self.tools_cache
 
+    # Roblox's StudioMCP (Oct 2026 builds) refuses every tool call that has no
+    # `studio_id` - so none of our commands reached Studio any more. Look the id
+    # up with list_roblox_studios and fill it in ourselves; the AI never sees it
+    # (it's stripped from the advertised schemas in MCPManager.list_tools).
+    def _studio_args(self, name, arguments):
+        args = dict(arguments or {})
+        if self.id != PRIMARY_SERVER_ID or name == STUDIO_PROBE_TOOL:
+            return args
+        schema = next((t.get("inputSchema") or {} for t in (self.tools_cache or []) if t.get("name") == name), {})
+        if "studio_id" not in (schema.get("properties") or {}):
+            return args
+        sid = self._studio_id()
+        if sid:
+            args["studio_id"] = sid
+        return args
+
+    def _studio_id(self, fresh=False):
+        now = time.time()
+        if not fresh and getattr(self, "_sid", None) and now - getattr(self, "_sid_at", 0) < 15:
+            return self._sid
+        msg = self._request("tools/call", {"name": STUDIO_PROBE_TOOL, "arguments": {}}, timeout=8)
+        content = ((msg or {}).get("result") or {}).get("content") or []
+        self._sid = _pick_studio_id("\n".join(it.get("text", "") for it in content if it.get("type") == "text"))
+        self._sid_at = now
+        return self._sid
+
     def call_tool(self, name, arguments, timeout):
         """Returns {"text":..., "images":[...]}. Raises on error/timeout."""
         with self.call_lock:
             for attempt in (1, 2):
                 if not self.is_alive():
                     self.restart()
+                arguments = self._studio_args(name, arguments)
                 msg = self._request("tools/call",
                                     {"name": name, "arguments": arguments}, timeout)
                 if msg is None:
@@ -1350,6 +1377,10 @@ class MCPClient:
                 if msg.get("error"):
                     err = msg["error"]
                     err_text = err.get("message", json.dumps(err))
+                    if attempt == 1 and "studio_id" in err_text and self.id == PRIMARY_SERVER_ID:
+                        log(f"[{self.id}] {name}: Studio id changed, looking it up again...", "yl")
+                        self._studio_id(fresh=True)
+                        continue
                     if attempt == 1 and _looks_like_transient_studio_drop(err_text):
                         log(f"[{self.id}] {name}: transient Studio drop, retrying once...", "yl")
                         time.sleep(1.5)
@@ -1475,6 +1506,12 @@ class MCPManager:
                 tt = dict(t)
                 tt["name"] = advertised
                 tt["server"] = sid
+                schema = tt.get("inputSchema")
+                if isinstance(schema, dict) and "studio_id" in (schema.get("properties") or {}):
+                    schema = dict(schema)
+                    schema["properties"] = {k: v for k, v in schema["properties"].items() if k != "studio_id"}
+                    schema["required"] = [r for r in (schema.get("required") or []) if r != "studio_id"]
+                    tt["inputSchema"] = schema
                 out.append(tt)
         out.extend(self._creative_tool_defs())
         return out
@@ -1580,6 +1617,29 @@ NO_PLACE_MARKERS = ("doesn't have a place", "no place opened", "place opened",
                     "has disconnected", "no active studio")
 
 
+def _pick_studio_id(text):
+    """The id of the Studio to target from list_roblox_studios' reply: the active
+    one with a place open, else any active one, else the first. None if empty."""
+    try:
+        studios = json.loads(text).get("studios") or []
+    except Exception:
+        m = re.search(r'"(?:studio_?id|studioId|id|instance_?id)"\s*:\s*"?([\w-]+)', text or "")
+        return m.group(1) if m else None
+    def sid(st):
+        if not isinstance(st, dict):
+            return str(st) if st else None
+        for k in ("studio_id", "studioId", "id", "instance_id", "instanceId", "uuid"):
+            if st.get(k) not in (None, ""):
+                return str(st[k])
+        return None
+    ranked = sorted(studios, key=lambda st: (not (isinstance(st, dict) and st.get("active")),
+                                              not (isinstance(st, dict) and st.get("name"))))
+    for st in ranked:
+        if sid(st):
+            return sid(st)
+    return None
+
+
 def _probe_tool_text(tool):
     """Call a side-effect-free probe tool with no args; return its text, or None if
     the tool is unavailable / the server is busy / it errored (best-effort)."""
@@ -1594,7 +1654,8 @@ def _probe_tool_text(tool):
     try:
         if not holder.is_alive():
             return None
-        msg = holder._request("tools/call", {"name": real_name, "arguments": {}}, timeout=8)
+        args = holder._studio_args(real_name, {}) if hasattr(holder, "_studio_args") else {}
+        msg = holder._request("tools/call", {"name": real_name, "arguments": args}, timeout=8)
         if not msg or msg.get("error"):
             return None
         content = msg.get("result", {}).get("content", [])
@@ -2686,6 +2747,20 @@ async def main():
         if getattr(e, "errno", None) in (98, 10048) or "10048" in str(e):
             owner = await asyncio.to_thread(_port_owner, PORT)
             who = f" by '{owner[1]}' (pid {owner[0]})" if owner else ""
+            # Most often it's another bridge: VoidScript.exe already started one, or
+            # ZeroScript (same port) is open. Ask it - a bridge answers a ping.
+            other = None
+            try:
+                async with websockets.connect(f"ws://127.0.0.1:{PORT}", open_timeout=3) as ws:
+                    await ws.send(json.dumps({"type": "ping", "id": "who"}))
+                    other = json.loads(await asyncio.wait_for(ws.recv(), 3))
+            except Exception:
+                pass
+            if other and other.get("type") in ("pong", "connected", "status"):
+                log("VoidScript (or ZeroScript) is already running on this PC - that's what is using the port.", "yl")
+                log("    If VoidScript.exe is open, you don't need start.bat: the app runs the bridge for you.", "yl")
+                log("    If ZeroScript is running, close its window first - both use the same port.", "yl")
+                return
             log(f"could not start: port {PORT} is already in use{who}.", "rd")
             log(f"    A previous bridge may still be running, or another app took "
                 f"the port. Close it, then relaunch. To find it:", "yl")

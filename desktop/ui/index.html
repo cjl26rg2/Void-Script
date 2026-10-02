@@ -40,6 +40,12 @@
       <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
     <button class="nav-item" data-view="chat">
       <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>Chat</span></button>
+    <button class="nav-item" data-view="models">
+      <svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg><span>Models</span></button>
+    <button class="nav-item" data-view="uib">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 13h4M8 15.5h7"/></svg><span>UI builder</span></button>
+    <button class="nav-item" data-view="kit">
+      <svg viewBox="0 0 24 24"><path d="M3 7h18v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 12h18"/></svg><span>Toolkit</span></button>
     <button class="nav-item" data-view="tools">
       <svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Tools</span></button>
     <button class="nav-item" data-view="mcp">
@@ -141,6 +147,7 @@
               <div class="seg" id="pop-seg">
                 <button data-prov="nvidia">NVIDIA</button>
                 <button data-prov="openrouter">OpenRouter</button>
+                <button data-prov="google">Gemini</button>
               </div>
               <input class="input" id="pop-search" placeholder="Search models, or type any model ID…" autocomplete="off" spellcheck="false" />
               <div class="pop-list" id="pop-list"></div>
@@ -195,6 +202,184 @@
         <textarea id="chat-input" rows="1" placeholder="Ask VoidScript to build something…"></textarea>
         <button class="btn primary" id="btn-send">Send</button>
         <button class="btn danger" id="btn-stop-chat" hidden>Stop</button>
+      </div>
+    </section>
+
+    <!-- ── MODELS (3D model generator) ───────────────────────────────────── -->
+    <section class="view" id="view-models">
+      <div class="view-h">
+        <div><h2>Models</h2><p class="muted">Describe something and the AI builds it out of parts. Preview it in 3D, tweak it, then drop it into Studio.</p></div>
+      </div>
+      <div class="mg">
+        <div class="mg-side">
+          <div class="card">
+            <div class="card-t">New model</div>
+            <textarea class="input mg-desc" id="mg-desc" rows="4" placeholder="A red phoenix with golden wing tips…"></textarea>
+            <div class="field">
+              <label>Detail</label>
+              <div class="seg" id="mg-detail">
+                <button data-v="low">Low</button><button data-v="medium" class="on">Medium</button><button data-v="high">High</button>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn primary grow" id="btn-mg-go">Generate</button>
+              <button class="btn" id="btn-mg-stop" hidden>Stop</button>
+            </div>
+            <div class="mg-ideas" id="mg-ideas">
+              <button>Bullet train</button><button>Phoenix</button><button>Medieval tower</button><button>Food truck</button><button>Robot dog</button><button>Pirate ship</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-t">Saved <span class="tag" id="mg-count">0</span></div>
+            <div class="mg-list" id="mg-list"></div>
+          </div>
+        </div>
+
+        <div class="mg-card" id="mg-card">
+          <div class="mg-head">
+            <b id="mg-name">No model yet</b><span class="mg-badge" id="mg-badge" hidden>Generated</span>
+            <div class="mg-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
+          </div>
+          <div class="mg-tools">
+            <button class="btn sm" id="btn-mg-txt" disabled>Save .txt</button>
+            <button class="btn sm" id="btn-mg-copy" disabled>Copy script</button>
+            <button class="btn sm primary" id="btn-mg-insert" disabled>Insert into Studio</button>
+            <button class="btn sm" id="btn-mg-save" disabled>Save</button>
+            <span class="grow"></span>
+            <button class="btn sm" id="btn-mg-reset" disabled>Reset view</button>
+          </div>
+          <div class="mg-stage">
+            <div class="mg-view" id="mg-view"></div>
+            <pre class="mg-script" id="mg-script" hidden></pre>
+            <div class="mg-empty" id="mg-empty">
+              <svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
+              <p>Your model shows up here.</p>
+            </div>
+            <div class="mg-busy" id="mg-busy" hidden><span class="spin"></span><span id="mg-busy-t">Designing…</span></div>
+            <div class="mg-stats" id="mg-stats" hidden></div>
+          </div>
+          <div class="mg-revise">
+            <input class="input grow" id="mg-change" placeholder='Ask for a change — "make the wings bigger"' disabled />
+            <button class="btn" id="btn-mg-revise" disabled>Revise</button>
+          </div>
+          <p class="mg-foot">Insert into Studio builds it as one Model in front of your camera (Ctrl+Z undoes it). Or copy the script into Studio's command bar.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── UI BUILDER ────────────────────────────────────────────────────── -->
+    <section class="view" id="view-uib">
+      <div class="view-h">
+        <div><h2>UI builder</h2><p class="muted">Describe a GUI - a shop, a HUD, a main menu - and get it designed, previewed and wired up with its LocalScript.</p></div>
+      </div>
+      <div class="mg">
+        <div class="mg-side">
+          <div class="card">
+            <div class="card-t">New UI</div>
+            <textarea class="input mg-desc" id="ub-desc" rows="4" placeholder="A shop with 3 items, prices in coins and a close button…"></textarea>
+            <div class="field">
+              <label>Style</label>
+              <div class="seg" id="ub-style">
+                <button data-v="chunky" class="on">Chunky</button><button data-v="clean">Clean</button><button data-v="dark">Dark</button><button data-v="cartoon">Cartoon</button>
+              </div>
+            </div>
+            <div class="row">
+              <button class="btn primary grow" id="btn-ub-go">Generate</button>
+              <button class="btn" id="btn-ub-stop" hidden>Stop</button>
+            </div>
+            <div class="mg-ideas" id="ub-ideas">
+              <button>Shop menu</button><button>Main menu</button><button>Health + coins HUD</button><button>Settings panel</button><button>Daily reward popup</button><button>Inventory grid</button>
+            </div>
+          </div>
+        </div>
+        <div class="mg-card">
+          <div class="mg-head">
+            <b id="ub-name">No UI yet</b><span class="mg-badge" id="ub-badge" hidden></span>
+            <div class="mg-tabs" id="ub-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
+          </div>
+          <div class="mg-tools">
+            <button class="btn sm" id="btn-ub-txt" disabled>Save .txt</button>
+            <button class="btn sm" id="btn-ub-copy" disabled>Copy script</button>
+            <button class="btn sm primary" id="btn-ub-insert" disabled>Insert into Studio</button>
+          </div>
+          <div class="mg-stage ub-stage">
+            <div class="ub-view" id="ub-view"></div>
+            <pre class="mg-script" id="ub-script" hidden></pre>
+            <div class="mg-empty" id="ub-empty"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg><p>Your UI shows up here, on a 16:9 game screen.</p></div>
+            <div class="mg-busy" id="ub-busy" hidden><span class="spin"></span><span id="ub-busy-t">Designing…</span></div>
+            <div class="mg-stats" id="ub-stats" hidden></div>
+          </div>
+          <div class="mg-revise">
+            <input class="input grow" id="ub-change" placeholder='Ask for a change — "make the buy buttons green"' disabled />
+            <button class="btn" id="btn-ub-revise" disabled>Revise</button>
+          </div>
+          <p class="mg-foot">Insert into Studio adds the ScreenGui (and its LocalScript) to StarterGui. Ctrl+Z undoes it.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── TOOLKIT ───────────────────────────────────────────────────────── -->
+    <section class="view" id="view-kit">
+      <div class="view-h">
+        <div><h2>Toolkit</h2><p class="muted">Start a game in one click, run quick jobs on your scripts, and keep your place healthy.</p></div>
+        <button class="btn sm" id="btn-undo-studio" title="Undo the last change made in Studio">Undo last Studio change</button>
+      </div>
+      <div class="card">
+        <div class="card-t">Game templates <span class="tag">the AI builds it in Studio</span></div>
+        <div class="kit-grid" id="kit-templates"></div>
+      </div>
+      <div class="card">
+        <div class="card-t">Script tools <span class="tag">works on your open place</span></div>
+        <div class="kit-grid" id="kit-tools"></div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-t">Lighting <span class="tag">one click, Ctrl+Z to undo</span></div>
+          <div class="kit-grid kit-small" id="kit-lighting"></div>
+        </div>
+        <div class="card">
+          <div class="card-t">Terrain generator</div>
+          <div class="kit-grid kit-small" id="kit-terrain"></div>
+          <div class="row kit-row">
+            <div class="seg" id="ter-size"><button data-v="small">Small</button><button data-v="medium" class="on">Medium</button><button data-v="large">Large</button></div>
+            <input class="input" id="ter-seed" type="number" value="1" title="Seed - same seed, same terrain" style="width:90px" />
+            <button class="btn sm ghost" id="btn-ter-dice" title="Random seed">🎲</button>
+            <label class="check"><input type="checkbox" id="ter-replace" /> Replace existing terrain</label>
+          </div>
+          <button class="btn primary" id="btn-ter-go">Generate terrain</button>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-t">Asset finder <span class="tag">free Creator Store</span></div>
+          <div class="row kit-row">
+            <input class="input grow" id="as-q" placeholder="Search - tree, sword, car, lava sound…" />
+            <select class="input" id="as-type"><option>Model</option><option>Audio</option><option>MeshPart</option><option>Decal</option></select>
+            <button class="btn sm primary" id="btn-as-go">Search</button>
+          </div>
+          <div class="kit-assets" id="as-out"><p class="muted small-p">Results insert straight into Studio's Workspace.</p></div>
+        </div>
+        <div class="card">
+          <div class="card-t">Luau console
+            <span class="row" style="margin-left:auto"><button class="btn sm" id="btn-play">▶ Play</button><button class="btn sm" id="btn-stopplay">■ Stop</button></span></div>
+          <textarea class="input kit-code" id="lc-code" rows="6" spellcheck="false" placeholder='return #workspace:GetDescendants() .. " objects"'></textarea>
+          <div class="row kit-row">
+            <select class="input" id="lc-dm"><option>Edit</option><option>Server</option><option>Client</option></select>
+            <button class="btn sm primary" id="btn-lc-run">Run (Ctrl+Enter)</button>
+          </div>
+          <pre class="kit-out" id="lc-out" hidden></pre>
+        </div>
+      </div>
+      <div class="grid2">
+        <div class="card">
+          <div class="card-t">Health check <button class="btn sm" id="btn-health" style="margin-left:auto">Run check</button></div>
+          <div id="health-out"><p class="muted small-p">Scans every script and part for backdoors in free models, loose parts, lag sources and outdated code. Read-only - nothing is changed.</p></div>
+        </div>
+        <div class="card">
+          <div class="card-t">Backups <button class="btn sm" id="btn-backup" style="margin-left:auto">Back up now</button></div>
+          <p class="muted small-p">Copies of your saved place file. Restoring replaces the file on disk - close and reopen the place in Studio afterwards.</p>
+          <div class="kit-backups" id="kit-backups"></div>
+        </div>
       </div>
     </section>
 
@@ -281,6 +466,7 @@
         <div class="seg" id="prov-seg">
           <button data-prov="nvidia">NVIDIA</button>
           <button data-prov="openrouter">OpenRouter</button>
+                <button data-prov="google">Gemini</button>
         </div>
         <p class="hint" id="prov-hint"></p>
         <div class="field">
@@ -402,6 +588,11 @@
     </div>
   </div>
 </div>
+<script src="vendor/three.min.js"></script>
+<script src="modelkit.js"></script>
+<script src="modelview.js"></script>
+<script src="uikit.js"></script>
+<script src="toolkit.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

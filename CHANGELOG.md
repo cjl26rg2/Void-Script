@@ -2,6 +2,48 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [6.0.0] - 2026-10-02
+
+### Fixed: connecting to Roblox Studio (start.bat and VoidScript.exe)
+- **Roblox changed Studio's MCP server** so every command now needs a `studio_id`. VoidScript (and ZeroScript) never sent one, so nothing reached Studio after the update. The bridge now looks up your open Studio and adds the id to every command automatically - it also picks the right one when several Studios are open, and finds it again if you restart Studio. The AI never has to deal with it.
+- Roblox's new "Studio not connected" messages are recognised, so the bar shows the real status again.
+- **"Port 17613 is already in use"** now tells you what's going on: if another VoidScript or ZeroScript bridge is already running (ZeroScript uses the same port), it says so and which one to close, instead of a wall of netstat instructions.
+
+### World tools (app + extension)
+- **Terrain generator:** Island, Mountains, Desert dunes, Snowy hills or Plains + lake, in Small / Medium / Large, from a seed (roll the dice for a new one). Real smooth terrain with water, sand, grass, rock and snow in seconds - no AI needed. Optionally replaces your existing terrain.
+- **Lighting presets:** Sunny day, Golden sunset, Night, Foggy horror, Neon city, Cartoon bright - one click sets the sky, fog, atmosphere, bloom, sun rays and color grading. Ctrl+Z undoes it.
+- **Asset finder:** search the free Creator Store (models, audio, meshes, decals) and insert with one click.
+- **Luau console:** run code in Studio from the app or the browser and see what it returns (Ctrl+Enter), with Play / Stop buttons.
+
+### Extension extras
+- **Changes:** every script the agent edited this session, newest first - **Undo** any one, or **Undo everything**.
+- **Snippets:** save your own prompts and send them to the agent in one click.
+- **Shortcuts:** Alt+Shift+T Toolkit, Alt+Shift+G Model generator, Alt+Shift+U UI builder.
+
+### Model generator (app + extension)
+- **Describe a model, get it built out of parts.** "A red phoenix", "a bullet train", "a medieval tower" - the AI designs it as a part model.
+- **Live 3D preview** before anything touches Studio: drag to orbit, scroll to zoom, Reset view. Shows the part count and size in studs.
+- **Revise** it in plain words ("make the wings bigger") as many times as you like.
+- **Script tab** shows the Luau. **Copy** it for Studio's command bar, **Save .txt**, or press **Insert into Studio** to build it as one Model in front of your camera (Ctrl+Z undoes it).
+- Low / Medium / High detail (roughly 25 to 220 parts).
+- **App:** a new **Models** tab, with saved models you can reopen.
+- **Extension:** open the VoidScript menu → **Create → Model generator**. It uses the AI site you're on, so on gemini.google.com it's **Gemini with no API key**. The 3D viewer only loads while the panel is open.
+
+### UI builder (app + extension)
+- **Describe a GUI** - a shop, a main menu, a coins HUD, a daily reward popup - and get it designed, previewed on a 16:9 game screen, and inserted into StarterGui **with a working LocalScript**.
+- **Styles that look like real Roblox games**, not AI dashboards: Chunky (front-page simulator: thick outlines, solid shadows, big outlined text), Clean, Dark and Cartoon.
+- Revise it in plain words, see the Luau in the Script tab, Copy, Save .txt or Insert (Ctrl+Z undoes it).
+
+### Toolkit (app + extension)
+- **12 game templates**, one click each: Obby, Tycoon, Simulator, Round system, Shop + saving, Global leaderboard, Admin commands, Day / night, Sprint + stamina, Pets, Double jump, Music + SFX. The agent builds and wires them up in your open place.
+- **Script tools:** Fix errors in Output, Find bugs, Speed it up, Security audit, Explain this game, Make it mobile-friendly.
+- **Health check:** a read-only scan of every script and part with a grade out of 100 - **free-model backdoor detection** (`require(id)`, `getfenv`, `setfenv`, `loadstring`, obfuscated byte strings), loose unanchored parts, lag sources and outdated calls (`wait()`, `spawn()`, `:connect()`). **Fix with AI** hands the findings to the agent.
+- **App extras:** **Backups** (back up now, see and restore your place backups) and **Undo last Studio change**.
+- **Extension:** VoidScript menu → **Create → Toolkit / UI builder / Model generator**.
+
+### Google Gemini in the app
+- **Gemini** is now a provider next to NVIDIA and OpenRouter. Google AI Studio keys are free (no card) - get one at aistudio.google.com/apikey. Flash models are picked by default.
+
 ## [5.5.0] - 2026-10-01
 
 ### Added

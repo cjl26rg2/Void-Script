@@ -1916,7 +1916,7 @@
     // (Studio closed / no place / MCP option disabled) - with an explanatory
     // text instead of a result. Surface it as a proper environment ERROR so the
     // model stops and tells the user, instead of treating it as tool output.
-    if (r.ok && /Unable to find an active Studio instance|previously active Studio has disconnected/i.test(r.text || "")) {
+    if (r.ok && /Unable to find an active Studio instance|previously active Studio has disconnected|No Roblox Studio instances are connected|Unable to reach Roblox Studio|`studio_id` is not connected/i.test(r.text || "")) {
       ui.banner("warn", "Roblox Studio is not connected",
         "Open your place in Roblox Studio and enable the MCP server (Assistant AI → … → Manage MCP Servers → Enable Studio as MCP Server), then try again.");
       return VS.FEEDBACK.studioOffline;
@@ -4086,6 +4086,12 @@
            <button class="vs-tip-opt vs-tip-update" data-u="https://github.com/cjl26rg2/Void-Script/releases"><span>Update available · v${esc(vsUpdateTag.replace(/^[vV]/, ""))}</span><span class="vs-tip-sub">get the latest build</span></button>
          </section>` : ""}
          <section class="vs-menu-sec">
+           <div class="vs-sec-label"><span>Create</span></div>
+           <button class="vs-tip-opt" id="vs-open-models"><span>Model generator</span><span class="vs-tip-sub">describe it, see it in 3D, drop it into Studio</span></button>
+           <button class="vs-tip-opt" id="vs-open-ui"><span>UI builder</span><span class="vs-tip-sub">shops, menus, HUDs - previewed, then inserted</span></button>
+           <button class="vs-tip-opt" id="vs-open-kit"><span>Toolkit</span><span class="vs-tip-sub">game templates, script fixes, health check</span></button>
+         </section>
+         <section class="vs-menu-sec">
            <div class="vs-sec-label"><span>Switch AI</span></div>
            ${sites}
          </section>
@@ -4342,6 +4348,12 @@
           ui.toast(projectType ? `Project type set to ${projectType}.` : "Project type cleared.");
         });
       }
+      const mgOpen = menuEl.querySelector("#vs-open-models");
+      if (mgOpen) mgOpen.addEventListener("click", () => { menuEl.hidden = true; openModels(); });
+      const uiOpen = menuEl.querySelector("#vs-open-ui");
+      if (uiOpen) uiOpen.addEventListener("click", () => { menuEl.hidden = true; openGen("ui"); });
+      const kitOpen = menuEl.querySelector("#vs-open-kit");
+      if (kitOpen) kitOpen.addEventListener("click", () => { menuEl.hidden = true; openKit(); });
       // Theme picker (Feature): persist vsTheme to chrome.storage + apply immediately.
       const themeSel = menuEl.querySelector("#vs-theme");
       const themeStatus = menuEl.querySelector("#vs-theme-status");
@@ -5781,6 +5793,343 @@
       place();
     }
 
+    // ── Create panels: model generator + UI builder ───────────────────────────
+    // The site's own AI designs it (core/modelkit.js, core/uikit.js); previews
+    // live in extension-page iframes so three.js and our preview styles stay
+    // out of the AI site. One panel per kind, built on first open.
+    const GEN = {
+      model: { kit: () => VSModel, page: "model.html", channel: "model", title: "Model generator", noun: "model",
+        hint: "Describe a model - a red phoenix, a bullet train…",
+        opts: `<select data-o="detail"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>`,
+        prompt: (desc, o) => VSModel.buildPrompt(desc, o.detail || "medium"),
+        stats: (spec) => { const st = VSModel.stats(spec); return `${st.parts} parts · ${st.size.join(" × ")} studs`; },
+        done: (spec) => `${spec.name} is in Studio. Ctrl+Z undoes it.`, reset: true },
+      ui: { kit: () => VSUI, page: "ui-view.html", channel: "ui", title: "UI builder", noun: "UI",
+        hint: "Describe a GUI - a shop with 3 items, a main menu, a coins HUD…",
+        opts: `<select data-o="style"><option value="chunky" selected>Chunky</option><option value="clean">Clean</option><option value="dark">Dark</option><option value="cartoon">Cartoon</option></select>`,
+        prompt: (desc, o) => VSUI.buildPrompt(desc, o.style || "chunky"),
+        stats: (spec) => `${spec.elements.length} elements${spec.script.trim() ? " · with LocalScript" : ""}`,
+        done: (spec) => `${spec.name} is in StarterGui. Press Play to try it.`, reset: false },
+    };
+    const genPanels = {};
+    function openModels() { openGen("model"); }
+    function openGen(kind) {
+      for (const k in genPanels) if (k !== kind) genPanels[k].el.hidden = true;
+      if (kitPanel) kitPanel.hidden = true;
+      if (!genPanels[kind]) genPanels[kind] = buildGen(kind);
+      genPanels[kind].el.hidden = false;
+      genPanels[kind].el.querySelector(".vs-mg-desc").focus();
+    }
+    // Hand a prompt to the site's AI in this chat and read the reply back.
+    async function askSite(text) {
+      if (A.running || A.starting || A.injecting) throw new Error("Wait for the agent to finish (or stop it) first.");
+      A.stop = false;
+      const base = await submitAndGetBase(text);
+      const res = await waitForResponse(base);
+      if (res.kind === "text") return res.text;
+      throw new Error(res.kind === "stopped" ? "Stopped." : `${P.displayName} didn't answer. Try again.`);
+    }
+    function buildGen(kind) {
+      const G = GEN[kind], st = { spec: null, badge: "", revs: 0, busy: false, ready: false, opts: {} };
+      const el = document.createElement("div");
+      el.className = "vs-gen";
+      el.innerHTML = `
+        <div class="vs-mg-head"><b class="vs-mg-name">${G.title}</b><span class="vs-mg-badge" hidden></span>
+          <div class="vs-mg-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
+          <button class="vs-mg-x" title="Close">&times;</button></div>
+        <div class="vs-mg-new"><input class="vs-mg-desc" type="text" placeholder="${G.hint}" autocomplete="off" />${G.opts}
+          <button class="vs-mg-go vs-mg-primary">Generate</button></div>
+        <div class="vs-mg-tools"><button data-a="txt">Save .txt</button><button data-a="copy">Copy script</button>
+          <button data-a="insert" class="vs-mg-primary">Insert into Studio</button><span class="vs-mg-grow"></span>${G.reset ? '<button data-a="reset">Reset view</button>' : ""}</div>
+        <div class="vs-mg-stage"><iframe title="Preview"></iframe><pre class="vs-mg-script" hidden></pre>
+          <div class="vs-mg-empty">Your ${G.noun} shows up here. ${P.displayName} designs it - no API key needed.</div>
+          <div class="vs-mg-busy" hidden><span class="vs-spin"></span><span class="vs-mg-busy-t"></span></div>
+          <div class="vs-mg-stats" hidden></div></div>
+        <div class="vs-mg-rev"><input class="vs-mg-change" type="text" placeholder="Ask for a change…" autocomplete="off" /><button class="vs-mg-revise">Revise</button></div>`;
+      root.appendChild(el);
+      const q = (sel) => el.querySelector(sel);
+      const frame = q("iframe");
+      frame.src = chrome.runtime.getURL(G.page);
+      const post = (msg) => { if (st.ready) frame.contentWindow.postMessage({ vs: G.channel, ...msg }, "*"); };
+      window.addEventListener("message", (e) => {
+        if (e.source !== frame.contentWindow || !e.data || e.data.vs !== G.channel || e.data.type !== "ready") return;
+        st.ready = true;
+        if (st.spec) post({ type: "show", spec: st.spec });
+      });
+      const render = (busyText) => {
+        const has = !!st.spec;
+        q(".vs-mg-name").textContent = has ? st.spec.name : G.title;
+        q(".vs-mg-badge").hidden = !st.badge;
+        q(".vs-mg-badge").textContent = st.badge;
+        q(".vs-mg-empty").hidden = has || st.busy;
+        q(".vs-mg-busy").hidden = !st.busy;
+        if (busyText) q(".vs-mg-busy-t").textContent = busyText;
+        el.querySelectorAll(".vs-mg-tools button, .vs-mg-change, .vs-mg-revise").forEach((b) => { b.disabled = !has || st.busy; });
+        q(".vs-mg-go").disabled = st.busy;
+        q(".vs-mg-revise").textContent = st.revs ? `Revise · ${st.revs}` : "Revise";
+        q(".vs-mg-stats").hidden = !has;
+        if (has) { q(".vs-mg-stats").textContent = G.stats(st.spec); q(".vs-mg-script").textContent = G.kit().toLuau(st.spec); }
+      };
+      const show = (spec, badge) => { st.spec = spec; st.badge = badge; render(); post({ type: "show", spec }); };
+      const run = async (text, label, badge, after) => {
+        st.busy = true;
+        render(`${label}… ${P.displayName} is working on it`);
+        try {
+          const spec = G.kit().parse(await askSite(text));
+          after();
+          show(spec, badge);
+          sfx("done");
+        } catch (e) { toast(String((e && e.message) || e)); sfx("error"); }
+        finally { st.busy = false; render(); }
+      };
+      el.querySelectorAll("select[data-o]").forEach((sel) => { st.opts[sel.dataset.o] = sel.value; sel.onchange = () => { st.opts[sel.dataset.o] = sel.value; }; });
+      const generate = () => {
+        const desc = q(".vs-mg-desc").value.trim();
+        if (!desc) return q(".vs-mg-desc").focus();
+        run(G.prompt(desc, st.opts), "Designing", "Generated", () => { st.revs = 0; });
+      };
+      const revise = () => {
+        const change = q(".vs-mg-change").value.trim();
+        if (!change || !st.spec) return;
+        run(G.kit().revisePrompt(st.spec, change), "Revising", "Revised", () => { st.revs++; q(".vs-mg-change").value = ""; });
+      };
+      q(".vs-mg-x").onclick = () => { el.hidden = true; };
+      q(".vs-mg-go").onclick = generate;
+      q(".vs-mg-desc").addEventListener("keydown", (e) => { if (e.key === "Enter") generate(); });
+      q(".vs-mg-revise").onclick = revise;
+      q(".vs-mg-change").addEventListener("keydown", (e) => { if (e.key === "Enter") revise(); });
+      el.querySelectorAll(".vs-mg-tabs button").forEach((b) => b.addEventListener("click", () => {
+        el.querySelectorAll(".vs-mg-tabs button").forEach((x) => x.classList.toggle("on", x === b));
+        q(".vs-mg-script").hidden = b.dataset.t !== "script";
+      }));
+      q(".vs-mg-tools").addEventListener("click", async (e) => {
+        const b = e.target.closest("button[data-a]");
+        if (!b || !st.spec) return;
+        const code = G.kit().toLuau(st.spec);
+        if (b.dataset.a === "reset") post({ type: "reset" });
+        if (b.dataset.a === "copy") {
+          try { await navigator.clipboard.writeText(code); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
+        }
+        if (b.dataset.a === "txt") {
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(new Blob([code], { type: "text/plain" }));
+          a.download = st.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".txt";
+          a.click();
+          setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+        }
+        if (b.dataset.a === "insert") {
+          b.disabled = true;
+          const out = await runTool({ tool: "execute_luau", arguments: { code, datamodel_type: "Edit" } });
+          if (/^ERROR/.test(out)) { toast("Studio couldn't build it: " + out.replace(/^ERROR:?\s*/, "").slice(0, 160)); sfx("error"); }
+          else { toast(G.done(st.spec)); sfx("done"); }
+          render();
+        }
+      });
+      render();
+      return { el };
+    }
+
+    // ── Toolkit panel: templates, script tools, health check ─────────────────
+    let kitPanel = null;
+    function openKit() {
+      for (const k in genPanels) genPanels[k].el.hidden = true;
+      if (!kitPanel) kitPanel = buildKit();
+      kitPanel.hidden = false;
+    }
+    // Templates and tools are build briefs for the running agent.
+    async function runBrief(item) {
+      if (!A.started) { toast("Press Start VoidScript first, then pick it again."); return; }
+      if (A.running || A.starting || A.injecting) { toast("The agent is busy - wait for it or press Stop."); return; }
+      kitPanel.hidden = true;
+      try { const base = await submitAndGetBase(`${item.name}: ${item.brief}`); await agentLoop(base); }
+      catch (e) { toast(String((e && e.message) || e)); }
+    }
+    function buildKit() {
+      const el = document.createElement("div");
+      el.className = "vs-gen vs-kit";
+      const cards = (list) => list.map((t) => `<button class="vs-kit-card" data-id="${t.id}"><span class="vs-kit-i">${t.icon}</span><b>${t.name}</b><span>${t.desc}</span></button>`).join("");
+      el.innerHTML = `
+        <div class="vs-mg-head"><b>Toolkit</b><div class="vs-mg-tabs"><button data-k="tpl" class="on">Templates</button><button data-k="tools">Script tools</button><button data-k="world">World</button><button data-k="assets">Assets</button><button data-k="console">Console</button><button data-k="changes">Changes</button><button data-k="snips">Snippets</button><button data-k="health">Health</button></div>
+          <button class="vs-mg-x" title="Close">&times;</button></div>
+        <div class="vs-kit-body" data-k="tpl"><div class="vs-kit-note">One click and the agent builds it in your open place.</div><div class="vs-kit-grid">${cards(VSKit.TEMPLATES)}</div></div>
+        <div class="vs-kit-body" data-k="tools" hidden><div class="vs-kit-note">Quick jobs on your current game.</div><div class="vs-kit-grid">${cards(VSKit.TOOLS)}</div></div>
+        <div class="vs-kit-body" data-k="world" hidden>
+          <div class="vs-kit-note">Lighting - one click sets the whole mood (Ctrl+Z in Studio undoes it).</div>
+          <div class="vs-kit-grid vs-kit-small">${VSKit.LIGHTING.map((p) => `<button class="vs-kit-card" data-l="${p.id}"><span class="vs-kit-i">${p.icon}</span><b>${p.name}</b><span>apply</span></button>`).join("")}</div>
+          <div class="vs-kit-note" style="margin-top:14px">Terrain - real smooth terrain from a seed, in seconds.</div>
+          <div class="vs-kit-grid vs-kit-small vs-ter">${VSKit.TERRAIN.map((p, i) => `<button class="vs-kit-card${i ? "" : " on"}" data-t="${p.id}"><span class="vs-kit-i">${p.icon}</span><b>${p.name}</b><span>preset</span></button>`).join("")}</div>
+          <div class="vs-kit-row"><select class="vs-ter-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select>
+            <input class="vs-ter-seed" type="number" value="1" title="Seed" /><button class="vs-ter-dice" title="Random seed">🎲</button>
+            <label class="vs-kit-check"><input type="checkbox" class="vs-ter-replace" /> Replace existing</label>
+            <button class="vs-mg-primary vs-ter-go">Generate</button></div></div>
+        <div class="vs-kit-body" data-k="assets" hidden>
+          <div class="vs-kit-row"><input class="vs-as-q" type="text" placeholder="Search the free Creator Store - tree, sword, lava sound…" />
+            <select class="vs-as-type"><option>Model</option><option>Audio</option><option>MeshPart</option><option>Decal</option></select>
+            <button class="vs-mg-primary vs-as-go">Search</button></div><div class="vs-kit-list vs-as-out"></div></div>
+        <div class="vs-kit-body" data-k="console" hidden>
+          <textarea class="vs-lc-code" rows="7" spellcheck="false" placeholder='return #workspace:GetDescendants() .. " objects"'></textarea>
+          <div class="vs-kit-row"><select class="vs-lc-dm"><option>Edit</option><option>Server</option><option>Client</option></select>
+            <button class="vs-mg-primary vs-lc-run">Run (Ctrl+Enter)</button><span class="vs-mg-grow"></span><button class="vs-lc-play">▶ Play</button><button class="vs-lc-stop">■ Stop</button></div>
+          <pre class="vs-kit-pre vs-lc-out" hidden></pre></div>
+        <div class="vs-kit-body" data-k="changes" hidden><div class="vs-kit-note">Scripts the agent edited. Undo puts a script back to how it was before that edit.</div>
+          <div class="vs-kit-list vs-ch-out"></div><button class="vs-ch-all">Undo everything</button></div>
+        <div class="vs-kit-body" data-k="snips" hidden><div class="vs-kit-note">Your own prompts, one click to send to the agent.</div>
+          <div class="vs-kit-row"><input class="vs-sn-name" type="text" placeholder="Name" style="max-width:150px" /><input class="vs-sn-text" type="text" placeholder="Prompt - e.g. add a kill brick that respawns the player" />
+            <button class="vs-mg-primary vs-sn-add">Save</button></div><div class="vs-kit-list vs-sn-out"></div></div>
+        <div class="vs-kit-body" data-k="health" hidden><div class="vs-kit-note">Scans every script and part for free-model backdoors, loose parts, lag sources and outdated code. Read-only.</div>
+          <button class="vs-mg-primary vs-kit-run">Run health check</button><div class="vs-kit-out"></div></div>`;
+      root.appendChild(el);
+      el.querySelector(".vs-mg-x").onclick = () => { el.hidden = true; };
+      el.querySelectorAll(".vs-mg-tabs button").forEach((b) => b.addEventListener("click", () => {
+        el.querySelectorAll(".vs-mg-tabs button").forEach((x) => x.classList.toggle("on", x === b));
+        el.querySelectorAll(".vs-kit-body").forEach((x) => { x.hidden = x.dataset.k !== b.dataset.k; });
+      }));
+      el.addEventListener("click", (e) => {
+        const c = e.target.closest(".vs-kit-card");
+        if (c) runBrief(VSKit.TEMPLATES.concat(VSKit.TOOLS).find((t) => t.id === c.dataset.id));
+      });
+      const $k = (sel) => el.querySelector(sel);
+      const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      const luau = async (code, okMsg) => {
+        const res = await runTool({ tool: "execute_luau", arguments: { code, datamodel_type: "Edit" } });
+        if (/^ERROR/.test(res)) { toast(res.replace(/^ERROR:?\s*/, "").slice(0, 180)); sfx("error"); return null; }
+        if (okMsg) { toast(okMsg); sfx("done"); }
+        return res;
+      };
+      // World: lighting + terrain
+      let terPreset = "island";
+      el.addEventListener("click", (e) => {
+        const l = e.target.closest("[data-l]");
+        if (l) luau(VSKit.lightingLuau(l.dataset.l), "Lighting set: " + VSKit.LIGHTING.find((p) => p.id === l.dataset.l).name + ".");
+        const t = e.target.closest("[data-t]");
+        if (t) { terPreset = t.dataset.t; el.querySelectorAll(".vs-ter .vs-kit-card").forEach((x) => x.classList.toggle("on", x === t)); }
+      });
+      $k(".vs-ter-dice").onclick = () => { $k(".vs-ter-seed").value = String(Math.floor(Math.random() * 99999) + 1); };
+      $k(".vs-ter-go").onclick = async () => {
+        const b = $k(".vs-ter-go");
+        b.disabled = true; b.textContent = "Generating…";
+        await luau(VSKit.terrainLuau(terPreset, $k(".vs-ter-size").value, Number($k(".vs-ter-seed").value) || 1, $k(".vs-ter-replace").checked), "Terrain generated. Ctrl+Z undoes it.");
+        b.disabled = false; b.textContent = "Generate";
+      };
+      // Assets: free Creator Store search + insert
+      const search = async () => {
+        const q = $k(".vs-as-q").value.trim();
+        if (!q) return;
+        const out = $k(".vs-as-out");
+        out.innerHTML = '<div class="vs-kit-note">Searching…</div>';
+        const res = await runTool({ tool: "search_asset", arguments: { query: q, assetType: $k(".vs-as-type").value, scope: "creator_store", priceFilter: "free", maxResults: 12 } });
+        if (/^ERROR/.test(res)) { out.innerHTML = `<div class="vs-kit-note">${esc2(res.slice(0, 200))}</div>`; return; }
+        const list = VSKit.parseAssets(res);
+        out.innerHTML = list.length ? list.map((a) => `<div class="vs-kit-item"><b>${esc2(a.name)}</b><span>${esc2([a.type, a.creator].filter(Boolean).join(" · "))}</span>
+          <button data-ins="${esc2(a.id)}" data-name="${esc2(a.name)}" data-type="${esc2(a.type)}">Insert</button></div>`).join("")
+          : `<pre class="vs-kit-pre">${esc2(res.slice(0, 1500))}</pre>`;
+      };
+      $k(".vs-as-go").onclick = search;
+      $k(".vs-as-q").addEventListener("keydown", (e) => { if (e.key === "Enter") search(); });
+      $k(".vs-as-out").addEventListener("click", async (e) => {
+        const b = e.target.closest("[data-ins]");
+        if (!b) return;
+        b.disabled = true; b.textContent = "Inserting…";
+        const args = { assetId: b.dataset.ins, assetName: b.dataset.name };
+        if (b.dataset.type) args.assetType = b.dataset.type;
+        const res = await runTool({ tool: "insert_asset", arguments: args });
+        if (/^ERROR/.test(res)) { toast(res.slice(0, 180)); b.disabled = false; b.textContent = "Insert"; }
+        else { toast(`${b.dataset.name} is in Studio.`); sfx("done"); b.textContent = "Inserted ✓"; }
+      });
+      // Console: run Luau, Play / Stop
+      const runLc = async () => {
+        const code = $k(".vs-lc-code").value.trim();
+        if (!code) return;
+        const out = $k(".vs-lc-out");
+        out.hidden = false; out.textContent = "Running…";
+        const res = await runTool({ tool: "execute_luau", arguments: { code, datamodel_type: $k(".vs-lc-dm").value } });
+        out.classList.toggle("vs-err", /^ERROR/.test(res));
+        out.textContent = res.replace(/^Output of '[^']*':\n?/, "") || "(done - no output; use return to see a value)";
+      };
+      $k(".vs-lc-run").onclick = runLc;
+      $k(".vs-lc-code").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runLc(); } e.stopPropagation(); });
+      $k(".vs-lc-play").onclick = async () => toast(/^ERROR/.test(await runTool({ tool: "start_stop_play", arguments: { is_start: true } })) ? "Couldn't start Play." : "Playing in Studio.");
+      $k(".vs-lc-stop").onclick = async () => toast(/^ERROR/.test(await runTool({ tool: "start_stop_play", arguments: { is_start: false } })) ? "Couldn't stop." : "Stopped.");
+      // Changes: the session's script edits, newest first, each undoable
+      const renderChanges = () => {
+        const rows = _undoStack.map((u, i) => ({ u, i })).reverse();
+        $k(".vs-ch-out").innerHTML = rows.length ? rows.map(({ u, i }) => `<div class="vs-kit-item"><b>${esc2(u.path.replace(/^game\./, ""))}</b>
+          <span>${new Date(u.t).toLocaleTimeString()}</span><button data-undo="${i}">Undo</button></div>`).join("") : '<div class="vs-kit-note">No script edits yet.</div>';
+        $k(".vs-ch-all").hidden = !rows.length;
+      };
+      $k(".vs-ch-out").addEventListener("click", async (e) => {
+        const b = e.target.closest("[data-undo]");
+        if (!b) return;
+        const i = Number(b.dataset.undo), entry = _undoStack[i];
+        b.disabled = true; b.textContent = "Undoing…";
+        const res = await revertEntry(entry);
+        if (res !== "OK") { toast(res.slice(0, 180)); b.disabled = false; b.textContent = "Undo"; return; }
+        // That edit and any later ones to the same script are now gone.
+        for (let k = _undoStack.length - 1; k >= i; k--) if (_undoStack[k].path === entry.path) _undoStack.splice(k, 1);
+        persistUndoStack();
+        toast("Undone."); renderChanges();
+      });
+      $k(".vs-ch-all").onclick = async () => {
+        while (_undoStack.length) {
+          const res = await revertEntry(_undoStack[_undoStack.length - 1]);
+          if (res !== "OK") { toast(res.slice(0, 180)); break; }
+          _undoStack.pop();
+        }
+        persistUndoStack(); renderChanges();
+      };
+      // Snippets: saved prompts
+      let snips = [];
+      const renderSnips = () => {
+        $k(".vs-sn-out").innerHTML = snips.length ? snips.map((sn, i) => `<div class="vs-kit-item"><b>${esc2(sn.name)}</b><span>${esc2(sn.text.slice(0, 90))}</span>
+          <button data-send="${i}">Send</button><button data-del="${i}" title="Delete">×</button></div>`).join("") : '<div class="vs-kit-note">No snippets yet.</div>';
+      };
+      try { chrome.storage.local.get("vsSnippets", (r) => { snips = (r && Array.isArray(r.vsSnippets)) ? r.vsSnippets : []; renderSnips(); }); } catch {}
+      const saveSnips = () => { try { chrome.storage.local.set({ vsSnippets: snips }); } catch {} renderSnips(); };
+      $k(".vs-sn-add").onclick = () => {
+        const text = $k(".vs-sn-text").value.trim();
+        if (!text) return;
+        snips.push({ name: $k(".vs-sn-name").value.trim() || text.slice(0, 24), text });
+        $k(".vs-sn-name").value = $k(".vs-sn-text").value = "";
+        saveSnips();
+      };
+      $k(".vs-sn-out").addEventListener("click", (e) => {
+        const send = e.target.closest("[data-send]"), del = e.target.closest("[data-del]");
+        if (send) { const sn = snips[Number(send.dataset.send)]; runBrief({ name: sn.name, brief: sn.text }); }
+        if (del) { snips.splice(Number(del.dataset.del), 1); saveSnips(); }
+      });
+      // Keep typing inside the panel from reaching the AI site's shortcuts.
+      el.addEventListener("keydown", (e) => e.stopPropagation());
+      el.querySelectorAll(".vs-mg-tabs button").forEach((b) => b.addEventListener("click", () => { if (b.dataset.k === "changes") renderChanges(); }));
+
+      const runBtn = el.querySelector(".vs-kit-run"), out = el.querySelector(".vs-kit-out");
+      runBtn.onclick = async () => {
+        runBtn.disabled = true; runBtn.textContent = "Scanning…";
+        try {
+          const res = await runTool({ tool: "execute_luau", arguments: { code: VSKit.HEALTH_LUAU, datamodel_type: "Edit" } });
+          if (/^ERROR/.test(res)) throw new Error(res.replace(/^ERROR:?\s*/, "").slice(0, 200));
+          const h = VSKit.report(res), r = h.raw;
+          const e = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+          out.innerHTML = `<div class="vs-hc-top"><span class="vs-hc-grade vs-g-${h.grade}">${h.grade}</span><div><b>${h.score}/100</b>
+            <span>${r.parts.toLocaleString()} parts · ${r.scripts + r.localScripts + r.modules} scripts</span></div></div>` +
+            (h.issues.length ? h.issues.map((i) => `<div class="vs-hc-i vs-s-${i.sev}"><b>${e(i.title)}</b><span>${e(i.text)}</span></div>`).join("") +
+              `<button class="vs-mg-primary vs-kit-fix">Fix with the agent</button>` : "<div class=\"vs-kit-note\">No problems found. Nice.</div>");
+          const fix = out.querySelector(".vs-kit-fix");
+          if (fix) fix.onclick = () => runBrief({ name: "Health check fixes", brief: VSKit.fixPrompt(h) });
+        } catch (err) { toast("Health check failed: " + String((err && err.message) || err)); }
+        finally { runBtn.disabled = false; runBtn.textContent = "Run health check"; }
+      };
+      return el;
+    }
+
+    // Shortcuts: Alt+Shift+T toolkit, +G models, +U UI builder.
+    document.addEventListener("keydown", (e) => {
+      if (!e.altKey || !e.shiftKey || e.ctrlKey || e.metaKey) return;
+      const k = e.key.toLowerCase();
+      if (k === "t") { e.preventDefault(); openKit(); }
+      else if (k === "g") { e.preventDefault(); openGen("model"); }
+      else if (k === "u") { e.preventDefault(); openGen("ui"); }
+    }, true);
+
     function toast(msg) {
       const t = document.createElement("div");
       t.className = "vs-toast";
@@ -5837,7 +6186,7 @@
     }
 
     build();
-    return { setStatus, setStarted, setStarting, showStop, markStopping, inputCover, toast, banner, showImages, nudgeStart, updateStartGate, refreshSetup, getCustomPrompt, setCustomPrompt, getProjectType, setProjectType, getCustomMcpServers, takeWizardPrompt, setWizardPrompt, takeCompactionHandoff, openMenu: (toSupport) => openMenuFn && openMenuFn(toSupport) };
+    return { openModels, setStatus, setStarted, setStarting, showStop, markStopping, inputCover, toast, banner, showImages, nudgeStart, updateStartGate, refreshSetup, getCustomPrompt, setCustomPrompt, getProjectType, setProjectType, getCustomMcpServers, takeWizardPrompt, setWizardPrompt, takeCompactionHandoff, openMenu: (toSupport) => openMenuFn && openMenuFn(toSupport) };
   })();
 
   // ── Live token + timer, shown ONLY on a tool call's chip detail. The

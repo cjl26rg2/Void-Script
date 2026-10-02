@@ -10,14 +10,14 @@ const listen = TAURI.event.listen;
 const appWin = TAURI.window.getCurrentWindow();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const DEFAULTS = { nvidia: "deepseek-ai/deepseek-v4.1-flash", openrouter: "openai/gpt-4o-mini" };
+const DEFAULTS = { nvidia: "deepseek-ai/deepseek-v4.1-flash", openrouter: "openai/gpt-4o-mini", google: "gemini-2.5-flash" };
 // NVIDIA retires models without notice (Llama 3.3 70B went in 2026). If the chosen
 // one is gone, the chat switches to the first of these that is still listed.
 // Fast models first: the big ones (Kimi, full GLM) queue for a long time on the free tier.
 const NV_FALLBACK = ["deepseek-ai/deepseek-v4.1-flash", "z-ai/glm-5.3-flash", "nvidia/nemotron-3.5-lightning-30b-a3b",
   "moonshotai/kimi-k2.6", "z-ai/glm-5.3", "nvidia/nemotron-3-super-120b-a12b", "openai/gpt-oss-20b"];
-const PROV_NAME = { nvidia: "NVIDIA", openrouter: "OpenRouter" };
-const PROV_KEY_URL = { nvidia: "https://build.nvidia.com/", openrouter: "https://openrouter.ai/keys" };
+const PROV_NAME = { nvidia: "NVIDIA", openrouter: "OpenRouter", google: "Gemini" };
+const PROV_KEY_URL = { nvidia: "https://build.nvidia.com/", openrouter: "https://openrouter.ai/keys", google: "https://aistudio.google.com/apikey" };
 const TOOL_RESULT_CAP = 12000;
 const REF_TOTAL_CAP = 400 * 1024;
 
@@ -29,7 +29,7 @@ const LANGS = [
 ];
 
 let S = { state: {}, settings: {}, version: "" };
-const prov = () => (S.settings.provider === "openrouter" ? "openrouter" : "nvidia");
+const prov = () => (PROV_NAME[S.settings.provider] ? S.settings.provider : "nvidia");
 const curModel = (p) => { p = p || prov(); return S.settings[p + "_model"] || DEFAULTS[p]; };
 const keySet = (p) => !!S.settings[(p || prov()) + "_key_set"];
 
@@ -56,6 +56,8 @@ function go(view) {
   if (view === "terminal") $("term").scrollTop = $("term").scrollHeight;
   if (view === "chat") $("chat-input").focus();
   if (view === "mcp") loadMcp();
+  if (view === "models") mgView();
+  if (view === "kit") loadBackups();
 }
 document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => go(b.dataset.view)));
 $("btn-go-chat").onclick = () => go("chat");
@@ -432,6 +434,382 @@ listen("update-log", (e) => {
   if (line) $("updating-line").textContent = line;
 });
 
+// ── models: AI-designed part models with a 3D preview ───────────────────────
+// While a generator is working, streamed text goes to it instead of the chat.
+const gen = { busy: false, onDelta() {} };
+const mg = { spec: null, prompt: "", detail: "medium", badge: "", revs: 0, busy: false, text: "", view: null };
+let mgSaved = [];
+try { mgSaved = JSON.parse(localStorage.getItem("vs-models") || "[]"); } catch {}
+const MG_SYSTEM = "You are a Roblox builder who designs 3D models out of simple parts. You reply with JSON only.";
+
+function mgView() {
+  if (!mg.view && window.VSModelView && window.THREE) mg.view = VSModelView.create($("mg-view"));
+  return mg.view;
+}
+function mgRender() {
+  const has = !!mg.spec;
+  $("mg-name").textContent = has ? mg.spec.name : "No model yet";
+  $("mg-badge").hidden = !mg.badge;
+  $("mg-badge").textContent = mg.badge;
+  $("mg-empty").hidden = has || mg.busy;
+  for (const id of ["btn-mg-txt", "btn-mg-copy", "btn-mg-insert", "btn-mg-save", "btn-mg-reset", "mg-change", "btn-mg-revise"]) $(id).disabled = !has || mg.busy;
+  $("btn-mg-go").disabled = mg.busy;
+  $("btn-mg-stop").hidden = !mg.busy;
+  $("mg-busy").hidden = !mg.busy;
+  $("btn-mg-revise").textContent = mg.revs ? `Revise · ${mg.revs}` : "Revise";
+  if (has) {
+    const st = VSModel.stats(mg.spec);
+    $("mg-stats").hidden = false;
+    $("mg-stats").textContent = `${st.parts} parts · ${st.size.join(" × ")} studs`;
+    $("mg-script").textContent = VSModel.toLuau(mg.spec);
+  } else $("mg-stats").hidden = true;
+  $("mg-count").textContent = String(mgSaved.length);
+  $("mg-list").innerHTML = mgSaved.length ? mgSaved.map((m, i) => `
+    <div class="mg-item" data-i="${i}"><b>${esc(m.spec.name)}</b><span>${m.spec.parts.length} parts · ${esc(ago(m.t))}</span><button class="link" data-del="${i}" title="Delete">×</button></div>`).join("")
+    : '<p class="muted small-p">Models you save show up here.</p>';
+}
+function mgShow(spec, badge) {
+  mg.spec = spec;
+  mg.badge = badge;
+  mgRender();
+  const v = mgView();
+  if (v) v.show(spec);
+}
+async function mgAsk(userText, label) {
+  if (chat.busy || gen.busy) { toast("The chat is busy - wait for it or press Stop first."); return null; }
+  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return null; }
+  mg.busy = gen.busy = true; mg.text = ""; chat.stop = false;
+  $("mg-busy-t").textContent = label;
+  gen.onDelta = (t) => {
+    mg.text += t;
+    const n = (mg.text.match(/"n"\s*:/g) || []).length;
+    if (n) $("mg-busy-t").textContent = `${label} · ${n} parts so far`;
+  };
+  mgRender();
+  try {
+    const { res } = await callModel({
+      messages: [{ role: "system", content: MG_SYSTEM }, { role: "user", content: userText }],
+      temperature: 0.4, max_tokens: 16000,
+    });
+    const m = res && res.choices && res.choices[0] && res.choices[0].message;
+    return VSModel.parse(splitThinking(m || {}).content || mg.text);
+  } catch (e) {
+    if (!chat.stop) { toast(errText(e), 6000); sfx("error"); }
+    return null;
+  } finally {
+    mg.busy = gen.busy = false;
+    mgRender();
+  }
+}
+$("mg-detail").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  mg.detail = b.dataset.v;
+  $("mg-detail").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+});
+$("mg-ideas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("mg-desc").value = b.textContent; $("mg-desc").focus(); } });
+$("btn-mg-go").onclick = async () => {
+  const desc = $("mg-desc").value.trim();
+  if (!desc) { toast("Describe the model first."); $("mg-desc").focus(); return; }
+  const spec = await mgAsk(VSModel.buildPrompt(desc, mg.detail), "Designing");
+  if (!spec) return;
+  mg.prompt = desc; mg.revs = 0;
+  mgShow(spec, "Generated");
+  sfx("done");
+};
+$("btn-mg-stop").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
+async function mgRevise() {
+  const change = $("mg-change").value.trim();
+  if (!change || !mg.spec) return;
+  const spec = await mgAsk(VSModel.revisePrompt(mg.spec, change), "Revising");
+  if (!spec) return;
+  mg.revs++;
+  $("mg-change").value = "";
+  mgShow(spec, "Revised");
+  sfx("done");
+}
+$("btn-mg-revise").onclick = mgRevise;
+$("mg-change").addEventListener("keydown", (e) => { if (e.key === "Enter") mgRevise(); });
+document.querySelectorAll(".mg-tabs button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".mg-tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  const script = b.dataset.t === "script";
+  $("mg-script").hidden = !script;
+  $("mg-view").style.visibility = script ? "hidden" : "visible";
+}));
+$("btn-mg-reset").onclick = () => mg.view && mg.view.reset();
+$("btn-mg-copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(VSModel.toLuau(mg.spec)); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
+};
+$("btn-mg-txt").onclick = async () => {
+  const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".txt";
+  try { if (await invoke("save_text", { name, content: VSModel.toLuau(mg.spec) })) toast("Saved."); }
+  catch (e) { toast(errText(e)); }
+};
+$("btn-mg-insert").onclick = async () => {
+  if (!S.state.connected) { toast("Start the bridge and open Roblox Studio first.", 3500); return; }
+  const btn = $("btn-mg-insert");
+  btn.disabled = true; btn.textContent = "Inserting…";
+  try {
+    const r = await invoke("bridge_request", { payload: { type: "call_tool", name: "execute_luau", arguments: { code: VSModel.toLuau(mg.spec), datamodel_type: "Edit" } }, timeoutMs: 90000 });
+    if (r && r.type === "tool_result" && r.ok) { toast(`${mg.spec.name} is in Studio. Ctrl+Z undoes it.`, 3500); sfx("done"); }
+    else { toast("Studio couldn't build it: " + ((r && (r.error || r.text)) || "unknown error"), 6000); sfx("error"); }
+  } catch (e) { toast(errText(e), 5000); }
+  finally { btn.textContent = "Insert into Studio"; mgRender(); }
+};
+$("btn-mg-save").onclick = () => {
+  mgSaved = [{ spec: mg.spec, prompt: mg.prompt, t: Date.now() }].concat(mgSaved.filter((m) => m.spec.name !== mg.spec.name)).slice(0, 30);
+  try { localStorage.setItem("vs-models", JSON.stringify(mgSaved)); } catch { toast("Not enough room to save more models - delete some first."); return; }
+  mg.badge = "Saved";
+  mgRender();
+  toast("Saved.");
+};
+$("mg-list").addEventListener("click", (e) => {
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    mgSaved.splice(Number(del.dataset.del), 1);
+    try { localStorage.setItem("vs-models", JSON.stringify(mgSaved)); } catch {}
+    mgRender();
+    return;
+  }
+  const it = e.target.closest(".mg-item");
+  if (!it) return;
+  const m = mgSaved[Number(it.dataset.i)];
+  mg.prompt = m.prompt || ""; mg.revs = 0;
+  mgShow(m.spec, "Saved");
+});
+mgRender();
+
+// ── UI builder ──────────────────────────────────────────────────────────────
+const ub = { spec: null, badge: "", revs: 0, busy: false, text: "", style: "chunky" };
+$("ub-style").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  ub.style = b.dataset.v;
+  $("ub-style").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+});
+const UB_SYSTEM = "You are a Roblox UI designer who builds polished game GUIs. You reply with JSON only.";
+function ubRender() {
+  const has = !!ub.spec;
+  $("ub-name").textContent = has ? ub.spec.name : "No UI yet";
+  $("ub-badge").hidden = !ub.badge;
+  $("ub-badge").textContent = ub.badge;
+  $("ub-empty").hidden = has || ub.busy;
+  $("ub-busy").hidden = !ub.busy;
+  for (const id of ["btn-ub-txt", "btn-ub-copy", "btn-ub-insert", "ub-change", "btn-ub-revise"]) $(id).disabled = !has || ub.busy;
+  $("btn-ub-go").disabled = ub.busy;
+  $("btn-ub-stop").hidden = !ub.busy;
+  $("btn-ub-revise").textContent = ub.revs ? `Revise · ${ub.revs}` : "Revise";
+  $("ub-stats").hidden = !has;
+  if (has) {
+    $("ub-stats").textContent = `${ub.spec.elements.length} elements${ub.spec.script.trim() ? " · with LocalScript" : ""}`;
+    $("ub-script").textContent = VSUI.toLuau(ub.spec);
+  }
+}
+async function ubAsk(userText, label) {
+  if (chat.busy || gen.busy) { toast("Something else is generating - wait for it or press Stop first."); return null; }
+  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return null; }
+  ub.busy = gen.busy = true; ub.text = ""; chat.stop = false;
+  $("ub-busy-t").textContent = label;
+  gen.onDelta = (t) => {
+    ub.text += t;
+    const n = (ub.text.match(/"n"\s*:/g) || []).length;
+    if (n) $("ub-busy-t").textContent = `${label} · ${n} elements so far`;
+  };
+  ubRender();
+  try {
+    const { res } = await callModel({ messages: [{ role: "system", content: UB_SYSTEM }, { role: "user", content: userText }], temperature: 0.5, max_tokens: 16000 });
+    const m = res && res.choices && res.choices[0] && res.choices[0].message;
+    return VSUI.parse(splitThinking(m || {}).content || ub.text);
+  } catch (e) {
+    if (!chat.stop) { toast(errText(e), 6000); sfx("error"); }
+    return null;
+  } finally {
+    ub.busy = gen.busy = false;
+    ubRender();
+  }
+}
+function ubShow(spec, badge) {
+  ub.spec = spec; ub.badge = badge;
+  ubRender();
+  VSUI.render($("ub-view"), spec);
+}
+$("ub-ideas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("ub-desc").value = b.textContent; $("ub-desc").focus(); } });
+$("btn-ub-go").onclick = async () => {
+  const desc = $("ub-desc").value.trim();
+  if (!desc) { toast("Describe the UI first."); $("ub-desc").focus(); return; }
+  const spec = await ubAsk(VSUI.buildPrompt(desc, ub.style), "Designing");
+  if (spec) { ub.revs = 0; ubShow(spec, "Generated"); sfx("done"); }
+};
+$("btn-ub-stop").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
+async function ubRevise() {
+  const change = $("ub-change").value.trim();
+  if (!change || !ub.spec) return;
+  const spec = await ubAsk(VSUI.revisePrompt(ub.spec, change), "Revising");
+  if (spec) { ub.revs++; $("ub-change").value = ""; ubShow(spec, "Revised"); sfx("done"); }
+}
+$("btn-ub-revise").onclick = ubRevise;
+$("ub-change").addEventListener("keydown", (e) => { if (e.key === "Enter") ubRevise(); });
+document.querySelectorAll("#ub-tabs button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("#ub-tabs button").forEach((x) => x.classList.toggle("on", x === b));
+  $("ub-script").hidden = b.dataset.t !== "script";
+}));
+$("btn-ub-copy").onclick = async () => {
+  try { await navigator.clipboard.writeText(VSUI.toLuau(ub.spec)); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
+};
+$("btn-ub-txt").onclick = async () => {
+  try { if (await invoke("save_text", { name: ub.spec.name + ".txt", content: VSUI.toLuau(ub.spec) })) toast("Saved."); } catch (e) { toast(errText(e)); }
+};
+$("btn-ub-insert").onclick = () => runLuau(VSUI.toLuau(ub.spec), `${ub.spec.name} is in StarterGui. Press Play to try it.`, $("btn-ub-insert"));
+ubRender();
+
+// Run Luau in Studio (Edit) from a button, with feedback on the button itself.
+async function runLuau(code, okMsg, btn) {
+  if (!S.state.connected) { toast("Start the bridge and open Roblox Studio first.", 3500); return null; }
+  const label = btn && btn.textContent;
+  if (btn) { btn.disabled = true; btn.textContent = "Working…"; }
+  try {
+    const r = await invoke("bridge_request", { payload: { type: "call_tool", name: "execute_luau", arguments: { code, datamodel_type: "Edit" } }, timeoutMs: 90000 });
+    if (r && r.type === "tool_result" && r.ok) { if (okMsg) { toast(okMsg, 3500); sfx("done"); } return r.text || ""; }
+    toast("Studio said: " + ((r && (r.error || r.text)) || "unknown error"), 6000); sfx("error");
+    return null;
+  } catch (e) { toast(errText(e), 5000); return null; }
+  finally { if (btn) { btn.disabled = false; btn.textContent = label; } }
+}
+
+// ── Toolkit: templates, script tools, health check, backups ─────────────────
+function kitCards(list) {
+  return list.map((t) => `<button class="kit-card" data-id="${t.id}"><span class="ki">${t.icon}</span><b>${esc(t.name)}</b><span>${esc(t.desc)}</span></button>`).join("");
+}
+$("kit-templates").innerHTML = kitCards(VSKit.TEMPLATES);
+$("kit-tools").innerHTML = kitCards(VSKit.TOOLS);
+// Templates and tools are build briefs: hand them to the chat agent.
+function runBrief(item) {
+  if (chat.busy || gen.busy) { toast("The AI is busy - wait for it or press Stop first."); return; }
+  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return; }
+  if (!S.state.connected) toast("Heads up: the bridge is offline, so the AI can't touch Studio yet.", 4000);
+  go("chat");
+  sendChat(`${item.name}: ${item.brief}`);
+}
+$("kit-templates").addEventListener("click", (e) => { const b = e.target.closest(".kit-card"); if (b) runBrief(VSKit.TEMPLATES.find((t) => t.id === b.dataset.id)); });
+$("kit-tools").addEventListener("click", (e) => { const b = e.target.closest(".kit-card"); if (b) runBrief(VSKit.TOOLS.find((t) => t.id === b.dataset.id)); });
+
+let lastHealth = null;
+$("btn-health").onclick = async () => {
+  const out = await runLuau(VSKit.HEALTH_LUAU, "", $("btn-health"));
+  if (out == null) return;
+  try { lastHealth = VSKit.report(out); } catch { toast("Couldn't read the health check result."); return; }
+  const h = lastHealth, r = h.raw;
+  $("health-out").innerHTML = `
+    <div class="hc-top"><span class="hc-grade g-${h.grade}">${h.grade}</span>
+      <div><b>${h.score}/100</b><span class="muted">${r.parts.toLocaleString()} parts · ${r.scripts + r.localScripts + r.modules} scripts · ${r.lines.toLocaleString()} lines</span></div></div>
+    ${h.issues.length ? `<div class="hc-list">${h.issues.map((i) => `<div class="hc-i s-${i.sev}"><b>${esc(i.title)}</b><span>${esc(i.text)}</span></div>`).join("")}</div>
+      <button class="btn sm primary" id="btn-health-fix">Fix with AI</button>` : '<p class="muted small-p">No problems found. Nice.</p>'}`;
+  const fix = $("btn-health-fix");
+  if (fix) fix.onclick = () => runBrief({ name: "Health check fixes", brief: VSKit.fixPrompt(lastHealth) });
+  if (h.issues.some((i) => i.sev === "high")) notify("warn", "Possible backdoor found", "The health check flagged suspicious code. Open Toolkit to review it.", { go: "kit" });
+};
+
+async function loadBackups() {
+  if (!S.state.connected) { $("kit-backups").innerHTML = '<p class="muted small-p">Start the bridge to see your backups.</p>'; return; }
+  try {
+    const r = await invoke("bridge_request", { payload: { type: "list_backups" }, timeoutMs: 15000 });
+    const list = (r && r.backups) || [];
+    $("kit-backups").innerHTML = list.length ? list.slice(0, 12).map((b) => `
+      <div class="kit-bk"><b>${esc(b.name)}</b><span>${Math.round(b.size / 1024).toLocaleString()} KB · ${esc(ago(b.mtime * 1000))}</span>
+      <button class="btn sm" data-restore="${esc(b.name)}">Restore</button></div>`).join("") : '<p class="muted small-p">No backups yet.</p>';
+  } catch (e) { $("kit-backups").innerHTML = `<p class="muted small-p">${esc(errText(e))}</p>`; }
+}
+$("btn-backup").onclick = async () => {
+  try {
+    const r = await invoke("bridge_request", { payload: { type: "backup_place" }, timeoutMs: 60000 });
+    if (r && r.ok) { toast("Backed up."); loadBackups(); } else toast((r && r.error) || "Backup failed - save the place in Studio first.", 5000);
+  } catch (e) { toast(errText(e), 5000); }
+};
+$("kit-backups").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-restore]");
+  if (!b) return;
+  if (!(await approve("restore", "Restore backup", "Replace your place file with this backup?", `${b.dataset.restore}\n\nYour current saved file is overwritten. Close and reopen the place in Studio afterwards.`, { once: true }))) return;
+  try {
+    const r = await invoke("bridge_request", { payload: { type: "restore_backup", name: b.dataset.restore }, timeoutMs: 60000 });
+    toast(r && r.ok ? "Restored. Reopen the place in Studio." : (r && r.error) || "Restore failed.", 5000);
+  } catch (err) { toast(errText(err), 5000); }
+});
+// Lighting presets and the terrain generator: deterministic Luau, no AI needed.
+$("kit-lighting").innerHTML = VSKit.LIGHTING.map((p) => `<button class="kit-card" data-l="${p.id}"><span class="ki">${p.icon}</span><b>${esc(p.name)}</b><span>apply</span></button>`).join("");
+$("kit-lighting").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-l]");
+  if (b) runLuau(VSKit.lightingLuau(b.dataset.l), `Lighting set: ${VSKit.LIGHTING.find((p) => p.id === b.dataset.l).name}.`, null);
+});
+let terPreset = "island", terSize = "medium";
+$("kit-terrain").innerHTML = VSKit.TERRAIN.map((p) => `<button class="kit-card${p.id === terPreset ? " on" : ""}" data-t="${p.id}"><span class="ki">${p.icon}</span><b>${esc(p.name)}</b><span>preset</span></button>`).join("");
+$("kit-terrain").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-t]");
+  if (!b) return;
+  terPreset = b.dataset.t;
+  $("kit-terrain").querySelectorAll(".kit-card").forEach((x) => x.classList.toggle("on", x === b));
+});
+$("ter-size").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  terSize = b.dataset.v;
+  $("ter-size").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+});
+$("btn-ter-dice").onclick = () => { $("ter-seed").value = String(Math.floor(Math.random() * 99999) + 1); };
+$("btn-ter-go").onclick = () => runLuau(VSKit.terrainLuau(terPreset, terSize, Number($("ter-seed").value) || 1, $("ter-replace").checked),
+  "Terrain generated. Ctrl+Z undoes it.", $("btn-ter-go"));
+
+// Creator Store search + insert, through the Roblox MCP's own tools.
+async function callTool(name, args, timeoutMs) {
+  if (!S.state.connected) throw new Error("Start the bridge and open Roblox Studio first.");
+  const r = await invoke("bridge_request", { payload: { type: "call_tool", name, arguments: args }, timeoutMs: timeoutMs || 60000 });
+  if (!r || r.type !== "tool_result" || !r.ok) throw new Error((r && (r.error || r.text)) || "the tool failed");
+  return r.text || "";
+}
+$("btn-as-go").onclick = async () => {
+  const q = $("as-q").value.trim();
+  if (!q) { $("as-q").focus(); return; }
+  const btn = $("btn-as-go");
+  btn.disabled = true; btn.textContent = "Searching…";
+  try {
+    const text = await callTool("search_asset", { query: q, assetType: $("as-type").value, scope: "creator_store", priceFilter: "free", maxResults: 12 });
+    const list = VSKit.parseAssets(text);
+    $("as-out").innerHTML = list.length ? list.map((a) => `
+      <div class="kit-bk"><b>${esc(a.name)}</b><span>${esc([a.type, a.creator].filter(Boolean).join(" · ") || "asset " + a.id)}</span>
+      <button class="btn sm" data-ins="${esc(a.id)}" data-name="${esc(a.name)}" data-type="${esc(a.type)}">Insert</button></div>`).join("")
+      : `<pre class="kit-out">${esc(text.slice(0, 2000) || "No results.")}</pre>`;
+  } catch (e) { $("as-out").innerHTML = `<p class="muted small-p">${esc(errText(e))}</p>`; }
+  finally { btn.disabled = false; btn.textContent = "Search"; }
+};
+$("as-q").addEventListener("keydown", (e) => { if (e.key === "Enter") $("btn-as-go").click(); });
+$("as-out").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-ins]");
+  if (!b) return;
+  b.disabled = true; b.textContent = "Inserting…";
+  try {
+    const args = { assetId: b.dataset.ins, assetName: b.dataset.name };
+    if (b.dataset.type) args.assetType = b.dataset.type;
+    await callTool("insert_asset", args, 90000);
+    toast(`${b.dataset.name} is in Studio.`); sfx("done");
+    b.textContent = "Inserted ✓";
+  } catch (err) { toast(errText(err), 5000); b.disabled = false; b.textContent = "Insert"; }
+});
+
+// Luau console: run code in Studio and see what it returns.
+async function runConsole() {
+  const code = $("lc-code").value.trim();
+  if (!code) return;
+  const out = $("lc-out");
+  out.hidden = false; out.className = "kit-out"; out.textContent = "Running…";
+  try { out.textContent = (await callTool("execute_luau", { code, datamodel_type: $("lc-dm").value }, 60000)) || "(done - no output; use return to see a value)"; }
+  catch (e) { out.classList.add("err"); out.textContent = errText(e); }
+}
+$("btn-lc-run").onclick = runConsole;
+$("lc-code").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); runConsole(); } });
+$("btn-play").onclick = () => callTool("start_stop_play", { is_start: true }).then(() => toast("Playing in Studio.")).catch((e) => toast(errText(e), 4000));
+$("btn-stopplay").onclick = () => callTool("start_stop_play", { is_start: false }).then(() => toast("Stopped.")).catch((e) => toast(errText(e), 4000));
+
+$("btn-undo-studio").onclick = () => runLuau('game:GetService("ChangeHistoryService"):Undo() return "ok"', "Undid the last Studio change.", $("btn-undo-studio"));
+
 // ── bridge controls ─────────────────────────────────────────────────────────
 $("btn-bridge-toggle").onclick = async () => {
   const p = S.state.process;
@@ -449,14 +827,17 @@ function renderSettings() {
   const p = prov();
   document.querySelectorAll("#prov-seg button").forEach((b) => b.classList.toggle("on", b.dataset.prov === p));
   $("key-label").textContent = `${PROV_NAME[p]} API key`;
-  $("set-key").placeholder = p === "openrouter" ? "sk-or-…" : "nvapi-…";
-  $("prov-hint").innerHTML = p === "openrouter"
-    ? `Hundreds of models (GPT, Claude, Gemini, Llama, Qwen…) with one key. Get one at <button class="link" data-url="${PROV_KEY_URL.openrouter}">openrouter.ai/keys</button> — models ending in <code>:free</code> cost nothing.`
-    : `Free API access to Kimi, GLM, DeepSeek, Nemotron and more. Get a key at <button class="link" data-url="${PROV_KEY_URL.nvidia}">build.nvidia.com</button>.`;
+  $("set-key").placeholder = { openrouter: "sk-or-…", google: "AIza…" }[p] || "nvapi-…";
+  $("prov-hint").innerHTML = {
+    openrouter: `Hundreds of models (GPT, Claude, Gemini, Llama, Qwen…) with one key. Get one at <button class="link" data-url="${PROV_KEY_URL.openrouter}">openrouter.ai/keys</button> — models ending in <code>:free</code> cost nothing.`,
+    google: `Google's Gemini models with a <b>free</b> key - no card needed. Get one in a minute at <button class="link" data-url="${PROV_KEY_URL.google}">aistudio.google.com/apikey</button>.`,
+  }[p] || `Free API access to Kimi, GLM, DeepSeek, Nemotron and more. Get a key at <button class="link" data-url="${PROV_KEY_URL.nvidia}">build.nvidia.com</button>.`;
   $("key-status").textContent = s[p + "_key_set"] ? `Key saved (${s[p + "_key_hint"] || "hidden"}).` : "No key saved yet.";
   $("set-model").value = s[p + "_model"] || "";
   $("set-model").placeholder = DEFAULTS[p];
-  $("model-hint").textContent = p === "openrouter"
+  $("model-hint").textContent = p === "google"
+    ? "Flash models are fast and free-tier friendly; Pro models think harder. Press Test to check your key."
+    : p === "openrouter"
     ? "Load models to see which support tools (needed to build in Studio)."
     : "Pick a model that supports tool calling. Flash models (DeepSeek V4.1 Flash, GLM 5.3 Flash) answer fastest; Kimi K2.6 is stronger but slow. Press Test to check your key.";
   $("set-ws-on").checked = !!s.workspace_enabled;
@@ -507,8 +888,8 @@ document.querySelectorAll("#prov-seg button").forEach((b) => b.addEventListener(
 
 // Models for a provider, cached per session. Tool-capable / well-known coding
 // models first, since the chat needs tool calling to build in Studio.
-const modelCache = { nvidia: null, openrouter: null };
-const GOOD_MODEL = /kimi-k|glm-5|qwen3|deepseek-(v[34]|chat)|nemotron-3|nemotron-ultra|mistral-large|gpt-oss|gpt-4|gpt-5|claude|gemini|llama-3\.[13]-(70b|405b)/i;
+const modelCache = { nvidia: null, openrouter: null, google: null };
+const GOOD_MODEL = /gemini-[\d.]+-(flash|pro)|kimi-k|glm-5|qwen3|deepseek-(v[34]|chat)|nemotron-3|nemotron-ultra|mistral-large|gpt-oss|gpt-4|gpt-5|claude|gemini|llama-3\.[13]-(70b|405b)/i;
 function rankModels(list) {
   const score = (m) => (m.tools === true ? 0 : m.tools === false ? 3 : 1) + (GOOD_MODEL.test(m.id) ? 0 : 1);
   return list.slice().sort((a, b) => score(a) - score(b) || a.id.localeCompare(b.id));
@@ -559,7 +940,9 @@ function renderPop() {
       m.tools === true ? '<span class="tl">tools</span>' : m.tools === false ? '<span class="tl no">no tools</span>' : ""}</button>`).join("") + (q.includes("/") ? custom : "");
   }
   box.innerHTML = html;
-  $("pop-foot").innerHTML = popProv === "openrouter"
+  $("pop-foot").innerHTML = popProv === "google"
+    ? "Every Gemini model here can build in Studio. Flash is fastest."
+    : popProv === "openrouter"
     ? 'Models tagged <span class="tl">tools</span> can build in Studio. <code>:free</code> models cost nothing.'
     : "Pick a model that supports tool calling to build in Studio.";
 }
@@ -912,6 +1295,7 @@ async function runCall(call, map) {
 let live = null;
 function liveStart(label) { live = { el: typing(label), text: "", thought: "" }; return live.el; }
 listen("ai-delta", (e) => {
+  if (gen.busy) { gen.onDelta((e.payload || {}).content || ""); return; }
   if (!live) return;
   const d = e.payload || {};
   live.text += d.content || "";
@@ -970,16 +1354,18 @@ const isReadOnly = (name) => READ_ONLY.test(String(name));
 
 // Each API spells "think first" differently; models that don't reason ignore it.
 function thinkParams(p) {
-  return p === "openrouter"
-    ? { reasoning: { effort: effort().reason } }
-    : { chat_template_kwargs: { thinking: true, enable_thinking: true } };
+  if (p === "openrouter") return { reasoning: { effort: effort().reason } };
+  if (p === "google") return { reasoning_effort: effort().reason };
+  return { chat_template_kwargs: { thinking: true, enable_thinking: true } };
 }
 
 async function pickAvailable(p, current) {
   let list = [];
   try { list = await loadModels(p); } catch { return null; }
   const ids = new Set(list.map((m) => m.id));
-  const prefs = p === "nvidia" ? NV_FALLBACK : [DEFAULTS.openrouter];
+  const prefs = p === "nvidia" ? NV_FALLBACK
+    : p === "google" ? list.map((m) => m.id).filter((id) => /flash/.test(id) && !/lite|preview|exp/.test(id)).sort().reverse()
+    : [DEFAULTS.openrouter];
   const hit = prefs.find((id) => id !== current && ids.has(id));
   if (hit) return hit;
   const tooled = list.find((m) => m.id !== current && m.tools !== false && GOOD_MODEL.test(m.id));
@@ -1066,6 +1452,7 @@ function setBusy(b) {
 
 async function sendChat(text, opts = {}) {
   if (chat.busy) return;
+  if (gen.busy) { toast("Wait for the generator to finish first."); return; }
   const planning = mode.plan && !opts.build;
   if (mode.memory && chat.memory == null) chat.memory = await readMemory();
   // Reference files ride along with THIS message (and so stay in the history).

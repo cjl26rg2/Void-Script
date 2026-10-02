@@ -1308,3 +1308,93 @@ html[data-vs-theme="or"] .vs-banner-m { color: #9a958b; }
 html[data-vs-theme="or"] .vs-banner-video { background: #e9e1d1; color: #141414; }
 html[data-vs-theme="or"] #vs-input-cover { color: #b8b2a7; }
 html[data-vs-theme="or"] .vs-code-btn { background: #1a1a1a; color: #e5dfd3; border-color: #333; }
+
+/* ── Create panels (model generator, UI builder, toolkit) ──────────────────────────────────────────────── */
+.vs-gen {
+  position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 2147483640;
+  width: min(820px, calc(100vw - 32px)); max-height: calc(100vh - 40px); display: flex; flex-direction: column;
+  background: #12141c; color: #eef0f6; border: 1px solid rgba(255, 255, 255, 0.12); border-radius: 16px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6); overflow: hidden; font-size: 13px;
+  font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+.vs-gen[hidden] { display: none !important; }
+.vs-mg-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.vs-mg-head b { font-family: ui-monospace, Consolas, monospace; letter-spacing: 1.5px; text-transform: uppercase; font-size: 12.5px; }
+.vs-mg-badge { font: 10.5px ui-monospace, Consolas, monospace; letter-spacing: 1px; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; color: #ff9a5c; background: rgba(255, 138, 61, 0.15); }
+.vs-mg-tabs { margin-left: auto; display: flex; gap: 4px; }
+.vs-mg-tabs button, .vs-mg-x { font: 11px ui-monospace, Consolas, monospace; letter-spacing: 1px; text-transform: uppercase; border: 1px solid transparent; background: none; color: #8a91a3; padding: 6px 11px; border-radius: 8px; cursor: pointer; }
+.vs-mg-tabs button.on { color: #eef0f6; border-color: rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); }
+.vs-mg-x { font-size: 18px; padding: 2px 8px; }
+.vs-mg-x:hover { color: #fff; }
+.vs-mg-new, .vs-mg-tools, .vs-mg-rev { display: flex; align-items: center; gap: 8px; padding: 10px 16px; }
+.vs-mg-new, .vs-mg-tools { border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.vs-mg-rev { border-top: 1px solid rgba(255, 255, 255, 0.08); }
+.vs-gen input, .vs-gen select {
+  background: rgba(255, 255, 255, 0.05); color: #eef0f6; border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px; padding: 8px 11px; font: inherit; outline: none;
+}
+.vs-gen input { flex: 1; min-width: 0; }
+.vs-gen input:focus, .vs-gen select:focus { border-color: rgba(255, 138, 61, 0.65); }
+.vs-gen select option { background: #171a24; }
+.vs-mg-tools button, .vs-mg-new button, .vs-mg-rev button {
+  border: 1px solid rgba(255, 255, 255, 0.14); background: rgba(255, 255, 255, 0.05); color: #e3e6ee;
+  border-radius: 9px; padding: 7px 12px; font-weight: 600; font-size: 12.5px; cursor: pointer; white-space: nowrap;
+}
+.vs-mg-tools button:hover:not(:disabled), .vs-mg-rev button:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
+.vs-gen .vs-mg-primary { background: linear-gradient(135deg, #ff5c8a, #ff8a3d); color: #fff; border-color: transparent; }
+.vs-gen button:disabled, .vs-gen input:disabled { opacity: 0.45; cursor: not-allowed; }
+.vs-mg-grow { flex: 1; }
+.vs-mg-stage { position: relative; height: min(440px, 52vh); background: radial-gradient(120% 90% at 50% 20%, #1d2330 0%, #10131b 70%); }
+.vs-gen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; }
+.vs-mg-script { position: absolute; inset: 0; margin: 0; padding: 14px 16px; overflow: auto; background: #07080c; color: #cfd6e6; font: 12px/1.55 ui-monospace, Consolas, monospace; white-space: pre; }
+.vs-mg-script[hidden] { display: none !important; }
+.vs-mg-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #6f7688; text-align: center; padding: 20px; pointer-events: none; }
+.vs-mg-busy { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.14); }
+.vs-mg-stats { position: absolute; left: 14px; bottom: 12px; padding: 5px 11px; border-radius: 8px; background: rgba(255, 255, 255, 0.92); color: #333; font: 12px ui-monospace, Consolas, monospace; }
+.vs-gen [hidden] { display: none !important; }
+
+html[data-vs-theme="or"] .vs-gen { background: #111; color: #ece6da; border-color: #2a2a2a; border-radius: 12px; }
+html[data-vs-theme="or"] .vs-mg-badge { color: #e9e1d1; background: rgba(233, 225, 209, 0.12); }
+html[data-vs-theme="or"] .vs-gen .vs-mg-primary { background: #e9e1d1; color: #141414; }
+html[data-vs-theme="or"] .vs-gen input, html[data-vs-theme="or"] .vs-gen select { background: #0d0d0d; border-color: #333; color: #ece6da; border-radius: 6px; }
+html[data-vs-theme="or"] .vs-mg-tools button, html[data-vs-theme="or"] .vs-mg-new button, html[data-vs-theme="or"] .vs-mg-rev button { border-radius: 6px; }
+html[data-vs-theme="or"] .vs-mg-stage { background: radial-gradient(120% 90% at 50% 20%, #1c1c1c 0%, #0c0c0c 70%); }
+
+/* Toolkit */
+.vs-kit-body { padding: 14px 16px 16px; overflow-y: auto; max-height: min(520px, 62vh); }
+.vs-kit-note { color: #8a91a3; font-size: 12.5px; margin-bottom: 10px; }
+.vs-kit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.vs-kit-card { display: grid; grid-template-columns: auto 1fr; gap: 1px 9px; align-items: center; text-align: left; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); color: #eef0f6; cursor: pointer; font: inherit; }
+.vs-kit-card:hover { border-color: rgba(255,138,61,.55); background: rgba(255,138,61,.07); }
+.vs-kit-i { grid-row: 1 / span 2; font-size: 18px; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: rgba(255,255,255,.06); }
+.vs-kit-card b { font-size: 12.5px; }
+.vs-kit-card span:last-child { font-size: 11px; color: #8a91a3; line-height: 1.3; }
+.vs-gen .vs-kit-run, .vs-gen .vs-kit-fix { border: 0; border-radius: 9px; padding: 8px 14px; font-weight: 700; cursor: pointer; margin: 4px 0 12px; }
+.vs-hc-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.vs-hc-top div { display: flex; flex-direction: column; } .vs-hc-top b { font-size: 17px; } .vs-hc-top span { color: #8a91a3; font-size: 12px; }
+.vs-hc-grade { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; font-size: 22px; font-weight: 900; color: #0b0d13; }
+.vs-g-A { background: #3ddc97; } .vs-g-B { background: #9be36b; } .vs-g-C { background: #f5b942; } .vs-g-D { background: #ff9a5c; } .vs-g-F { background: #ff6b7a; }
+.vs-hc-i { display: flex; flex-direction: column; gap: 2px; padding: 7px 10px; margin-bottom: 6px; border-radius: 8px; border-left: 3px solid #6f7688; background: rgba(255,255,255,.03); font-size: 12px; }
+.vs-hc-i span { color: #a6acbd; word-break: break-word; }
+.vs-s-high { border-left-color: #ff6b7a; } .vs-s-medium { border-left-color: #f5b942; } .vs-s-low { border-left-color: #8ea0ff; }
+html[data-vs-theme="or"] .vs-kit-card { border-color: #2a2a2a; background: #151515; color: #ece6da; }
+html[data-vs-theme="or"] .vs-kit-card:hover { border-color: #e9e1d1; background: #1c1c1c; }
+
+.vs-kit-small { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+.vs-kit-card.on { border-color: rgba(255,138,61,.75); background: rgba(255,138,61,.1); }
+.vs-kit-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+.vs-kit-row input[type="text"], .vs-kit-row input[type="number"] { flex: 1; min-width: 0; }
+.vs-ter-seed { max-width: 90px; }
+.vs-kit-check { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #a6acbd; }
+.vs-kit-list { display: flex; flex-direction: column; gap: 6px; }
+.vs-kit-item { display: grid; grid-template-columns: 1fr auto auto; gap: 1px 8px; align-items: center; padding: 7px 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; }
+.vs-kit-item b { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-kit-item span { grid-column: 1; font-size: 11px; color: #8a91a3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vs-kit-item button { grid-row: 1 / span 2; }
+.vs-kit-item button, .vs-gen .vs-ch-all, .vs-gen .vs-lc-play, .vs-gen .vs-lc-stop, .vs-gen .vs-ter-dice {
+  border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.05); color: #e3e6ee; border-radius: 8px; padding: 6px 11px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.vs-gen .vs-ch-all { margin-top: 10px; }
+.vs-gen textarea { width: 100%; box-sizing: border-box; background: #07080c; color: #e3e6ee; border: 1px solid rgba(255,255,255,.14); border-radius: 9px; padding: 10px 12px; font: 12.5px/1.5 ui-monospace, Consolas, monospace; resize: vertical; }
+.vs-kit-pre { margin: 0; max-height: 220px; overflow: auto; background: #07080c; border: 1px solid rgba(255,255,255,.1); border-radius: 9px; padding: 10px 12px; font: 12px/1.5 ui-monospace, Consolas, monospace; color: #cfd6e6; white-space: pre-wrap; word-break: break-word; }
+.vs-kit-pre.vs-err { color: #ffc2c8; }
+.vs-gen .vs-mg-tabs { flex-wrap: wrap; justify-content: flex-end; }

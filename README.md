@@ -97,3 +97,7 @@ Go to a supported AI and open a new chat. The VoidScript bar appears above the i
 - Browse and insert from the Creator Store
 - Control play-testing
 - **Remember your project across sessions** persistent project memory saved inside your place
+
+## Third-party
+
+- [three.js](https://threejs.org) r149 (MIT) - the 3D preview in the model generator. Bundled as `vendor/three.min.js` in the app and the extension.
