@@ -2,6 +2,11 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [6.0.1] - 2026-10-02
+
+### Fixed
+- **The extension wouldn't load in Chrome** ("Invalid value for 'web_accessible_resources[0]'. Invalid match pattern"). One site entry had a path Chrome doesn't allow there. Reload the extension at chrome://extensions after updating.
+
 ## [6.0.0] - 2026-10-02
 
 ### Fixed: connecting to Roblox Studio (start.bat and VoidScript.exe)
