@@ -91,7 +91,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "6.0.1"
+BRIDGE_VERSION = "6.1.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -1496,6 +1496,10 @@ class MCPManager:
         for sid, client in self.clients.items():
             for t in (client.tools_cache or []):
                 name = t.get("name")
+                # Studio picking is the bridge's job now (see MCPClient._studio_args),
+                # and this tool's description tells the AI to pass studio_id itself.
+                if sid == PRIMARY_SERVER_ID and name == STUDIO_PROBE_TOOL:
+                    continue
                 advertised = name
                 with self.index_lock:
                     # find the advertised key that maps to this (client, name)

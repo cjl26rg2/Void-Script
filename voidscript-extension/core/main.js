@@ -157,6 +157,7 @@
   // console (filter "[vs-diag]") or window.__vsDiag (also mirrored onto a hidden
   // DOM node for a main-world inspector). Each entry carries a turn snapshot.
   const VS_DIAG_MAX = 300;
+  const VS_END = "⟦/VS⟧"; // closes every message we inject (see hideByMarker)
   const _diag = [];
   // Touch nothing until the site's own app has finished starting. Server-rendered
   // apps (ChatGPT's newer layout) hydrate the HTML after load, and a node or class
@@ -166,12 +167,19 @@
   let pageSettled = false;
   const whenSettled = new Promise((resolve) => {
     const t0 = Date.now();
-    let last = t0;
+    let last = t0, loadedAt = 0;
     const watch = new MutationObserver(() => { last = Date.now(); });
     watch.observe(document.documentElement, { childList: true, subtree: true });
+    // Signed-in ChatGPT never goes fully quiet (sidebar/history keep streaming in),
+    // so the quiet check alone always hit the cap - 8s before you could talk. Once
+    // the composer itself is on the page, hydration is done; a short grace is enough.
+    const hasEditor = () => { try { return !!(P.getEditor && P.getEditor()); } catch { return false; } };
     const check = () => {
       const now = Date.now();
-      if ((document.readyState === "complete" && now - last > 600) || now - t0 > 8000) {
+      const loaded = document.readyState === "complete";
+      if (loaded && !loadedAt) loadedAt = now;
+      if ((loaded && now - last > 400) || (loaded && now - loadedAt > 700 && hasEditor()) ||
+          now - t0 > 4000) {
         watch.disconnect();
         pageSettled = true;
         resolve();
@@ -546,6 +554,8 @@
       diag("cowork.steerInject", { count: steers.split("\n").length });
       timeline("event", { name: "steer" });
     }
+    // End tag: lets hideByMarker find the whole turn on sites whose selectors miss.
+    if (!String(text).includes(VS_END)) text = String(text || "") + "\n" + VS_END;
     captureSendToken();
     diag("send", { text: String(text).slice(0, 60), busy: P.isBusyNow() });
     A.injecting = true;
@@ -1625,6 +1635,10 @@
       if (!scoped.length) {
         return `Output of '${name}':\nERROR: no server named "${requested}" is connected. Connected servers: ${[...known].join(", ") || "roblox"}. Call list_mcp_servers to check.`;
       }
+      // The startup prompt carries this whole list; Roblox's full descriptions
+      // made it ~50KB, and pasting that stalls the site's editor. Brief mode
+      // clips them - the model can still call list_commands for the full text.
+      const clip = (str, n) => (args._brief && str && str.length > n ? str.slice(0, n - 1).trimEnd() + "…" : str || "");
       const lines = scoped.map((t) => {
         const props = (t.inputSchema && t.inputSchema.properties) || {};
         const req = new Set((t.inputSchema && t.inputSchema.required) || []);
@@ -1645,9 +1659,9 @@
               const en = Array.isArray(iv.enum) && iv.enum.length <= 12 ? `(${iv.enum.join("|")})` : (iv.type || "any");
               return `${ik}${itemReq.has(ik) ? "" : "?"}:${en}`;
             });
-            detailed.push(`    ${k}${mark}: array [each item: {${fields.join(", ")}}]${v.description ? " - " + v.description : ""}`);
+            detailed.push(`    ${k}${mark}: array [each item: {${fields.join(", ")}}]${v.description ? " - " + clip(v.description, 140) : ""}`);
           } else if (v.description && v.description.length > 45) {
-            detailed.push(`    ${k}${mark}: ${v.type || "any"} - ${v.description}`);
+            detailed.push(`    ${k}${mark}: ${v.type || "any"} - ${clip(v.description, 140)}`);
           } else {
             const ty = Array.isArray(v.enum) && v.enum.length <= 8 ? `(${v.enum.join("|")})` : (v.type || "any");
             compact.push(`${k}${mark}:${ty}${v.description ? ` "${v.description}"` : ""}`);
@@ -1658,7 +1672,7 @@
         // (these are validated fixes for real bugs, not filler).
         const note = VS.TOOL_NOTES[bareToolName(t.name)];
         const noteStr = note ? `\n    ⚠ ${note}` : "";
-        return `${t.name}: ${(t.description || "").split("\n")[0]}${paramLines ? "\n" + paramLines : ""}${noteStr}`;
+        return `${t.name}: ${clip((t.description || "").split("\n")[0], 220)}${paramLines ? "\n" + paramLines : ""}${noteStr}`;
       });
       return `Output of '${name}':\n${requested} commands (${scoped.length}):\n\n${lines.join("\n\n")}`;
     }
@@ -2716,7 +2730,7 @@
       // Only while Roblox is actually up, and only if the combined paste stays a
       // sensible size (big pastes are slow on some editors - see Gemini's cap).
       let prompt = VS.buildSystemPrompt(promptOpts) + resumeNote();
-      const ref = await runTool({ tool: "list_commands", arguments: {} });
+      const ref = await runTool({ tool: "list_commands", arguments: { _brief: true } });
       if (!alive()) return;
       if (!/OFFLINE|No commands available|^Output of '[^']*':\nERROR/.test(ref)) {
         const withRef = VS.buildSystemPrompt({ ...promptOpts, commandRef: stripOutputPrefix(ref) }) + resumeNote();
@@ -5871,11 +5885,12 @@
         if (has) { q(".vs-mg-stats").textContent = G.stats(st.spec); q(".vs-mg-script").textContent = G.kit().toLuau(st.spec); }
       };
       const show = (spec, badge) => { st.spec = spec; st.badge = badge; render(); post({ type: "show", spec }); };
-      const run = async (text, label, badge, after) => {
+      const run = async (text, label, badge, after, read) => {
         st.busy = true;
         render(`${label}… ${P.displayName} is working on it`);
         try {
-          const spec = G.kit().parse(await askSite(text));
+          const reply = await askSite(text);
+          const spec = read ? read(reply) : G.kit().parse(reply);
           after();
           show(spec, badge);
           sfx("done");
@@ -5891,7 +5906,9 @@
       const revise = () => {
         const change = q(".vs-mg-change").value.trim();
         if (!change || !st.spec) return;
-        run(G.kit().revisePrompt(st.spec, change), "Revising", "Revised", () => { st.revs++; q(".vs-mg-change").value = ""; });
+        // Models revise as remove/add (big models are too long to resend whole).
+        const read = kind === "model" ? (r) => VSModel.ground(VSModel.applyDelta(st.spec, VSModel.parseDelta(r))) : null;
+        run(G.kit().revisePrompt(st.spec, change), "Revising", "Revised", () => { st.revs++; q(".vs-mg-change").value = ""; }, read);
       };
       q(".vs-mg-x").onclick = () => { el.hidden = true; };
       q(".vs-mg-go").onclick = generate;
@@ -6728,7 +6745,40 @@
     });
   });
   mo.observe(document.documentElement, { childList: true, subtree: true });
-  whenSettled.then(() => { preHideWholeItems(); scheduleSweep(); });
+  whenSettled.then(() => { preHideWholeItems(); scheduleSweep(); hideByMarker(); });
+  // Selector-free safety net. Every message we inject ends with VS_END and starts
+  // with a known head, so on any site - including ones whose turn selectors are
+  // stale - we can find the block holding the whole message and hide its turn.
+  const VS_HEAD = /^\s*(⟦VS-SYS⟧|⟦VOID:STEER⟧|Output of '|ERROR\b|\(System note:)/;
+  const LABEL_MAX = 60; // "You said:", "Edit", "Copy" - chrome around a turn
+  function hideByMarker() {
+    if (document.hidden || !document.body) return;
+    const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+      acceptNode: (n) => n.nodeValue.includes(VS_END) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT,
+    });
+    let n;
+    while ((n = w.nextNode())) {
+      let el = n.parentElement;
+      if (!el || el.closest(".vs-hidden, #vs-root, .vs-chip, [contenteditable], textarea, form")) continue;
+      // Lowest ancestor holding the whole message: starts with our head (a short
+      // label like "You said:" may come first).
+      const starts = (e) => { const t = e.textContent; const i = t.search(VS_HEAD); return i >= 0 && i <= LABEL_MAX && VS_HEAD.test(t.slice(i)); };
+      for (let i = 0; el && el !== document.body && i < 12 && !starts(el); i++) el = el.parentElement;
+      if (!el || el === document.body || !starts(el)) continue; // a reply quoting our tag
+      // Then widen to the turn: keep climbing while the parent only adds labels.
+      // A recognised turn wins, so the normal chip path keeps working where it can.
+      while (el.parentElement && el.parentElement !== document.body &&
+             !P.isUserItem(el) && !P.isAssistantItem(el) &&
+             el.parentElement.textContent.length - el.textContent.length <= LABEL_MAX) el = el.parentElement;
+      if (P.isAssistantItem(el)) continue;
+      if (!el.classList.contains("vs-hidden")) { el.classList.add("vs-hidden"); diag("hide.marker", { tag: el.tagName }); }
+    }
+  }
+  let markerTimer = 0;
+  new MutationObserver((recs) => {
+    if (markerTimer || !pageSettled || onlyOurs(recs)) return;
+    markerTimer = setTimeout(() => { markerTimer = 0; hideByMarker(); }, 400);
+  }).observe(document.documentElement, { childList: true, subtree: true });
   // Belt-and-braces: a low-frequency sweep regardless of tab visibility or
   // mutation timing, so camouflage always converges.
   setInterval(scheduleSweep, 1500);

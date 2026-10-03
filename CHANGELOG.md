@@ -2,6 +2,33 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [6.1.0] - 2026-10-03
+
+### Model generator: much better, and it learns from you
+- **High detail works now (app).** No AI can write 200 parts in one reply, so big models were getting cut off and failing without a word. Models are now built in passes: the full shape first, then detail passes that add trim, panels, lights and the small stuff on top. Medium gets a detail pass too.
+- **It learns from you.** Every change you ask for is remembered and used on later models, and the new 👍 / 👎 buttons teach it what you like: a liked model becomes the bar for detail next time, 👎 asks what's wrong, fixes it and remembers. "Learning from N likes · M notes" shows what it knows, with a Forget link.
+- **Better builds:** it plans the real size and proportions first, builds biggest parts first, keeps trim from flickering against the surface under it, and finished models always sit on the ground, centred.
+- **The preview matches Studio:** balls and cylinders are drawn the way Studio draws them.
+- **Revisions are fast and reliable on big models:** the AI only sends the parts that change instead of rewriting the whole model.
+
+### Model generator + UI builder (app)
+- **Watch it build:** the 3D model / GUI appears in the preview while the AI is still writing it.
+- **Progress bar and ETA:** "Detailing 1/2 · 84 parts · ~40s left", and "Thinking · 12s" while a reasoning model thinks.
+- **Never stuck, never silent:** if the AI stalls for over a minute it's stopped for you, and a stopped, stalled or cut-off run keeps everything it finished (marked Partial) instead of throwing it away. Every failure now says why.
+- Replies with broken JSON (raw line breaks in the UI script, trailing commas) are repaired instead of failing.
+- Models that cap their output below 16k tokens no longer fail - the request retries with a smaller limit.
+- UI builder: sharper design rules (one focal point, phone-readable text sizes, coin and item icons built from shapes instead of emoji, depth on cards, even spacing), and it learns from your likes and changes too.
+
+### Extension
+- **Signed-in ChatGPT shows the setup prompt in the chat again - fixed.** ChatGPT's signed-in page is laid out differently; VoidScript now recognises it.
+- **Our messages stay hidden on every site,** even when a site changes its layout: every message VoidScript sends ends with a small end tag, and the setup prompt and tool results are hidden by that, not by site-specific selectors.
+- **The "Starting Up" chip was blank** (just a gear) - its label shows again.
+- **ChatGPT took 8+ seconds before you could type.** VoidScript waited for the page to go quiet, which signed-in ChatGPT never does. It now starts as soon as the chat box is ready.
+- The startup prompt is about half the size (shorter command descriptions), so pasting it no longer freezes the page for a moment.
+
+### Bridge
+- The AI no longer sees Roblox's `list_roblox_studios` tool - the bridge picks your Studio itself, so it only confused the model.
+
 ## [6.0.1] - 2026-10-02
 
 ### Fixed

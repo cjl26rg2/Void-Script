@@ -722,7 +722,9 @@ div[contenteditable='true'].vs-typing {
    fully redundant — blanking it guarantees the ⟦VS-SYS⟧ marker and tool JSON
    never flash during the camouflage race. */
 .vs-hidden { color: transparent !important; }
-.vs-hidden .vs-chip { color: inherit !important; }
+/* (No colour override for the chip here: .vs-chip sets its own colour, which
+   beats the inherited transparent. "inherit" would pull the transparent back in
+   and blank the "Starting Up" label.) */
 /* hide the code block / paragraph(s) containing the raw tool call */
 .vs-tool-hide { display: none !important; }
 /* Gemini: Angular recreates the <code-block> elements inside a reply (once at

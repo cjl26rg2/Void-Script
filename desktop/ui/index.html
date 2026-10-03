@@ -228,6 +228,7 @@
             <div class="mg-ideas" id="mg-ideas">
               <button>Bullet train</button><button>Phoenix</button><button>Medieval tower</button><button>Food truck</button><button>Robot dog</button><button>Pirate ship</button>
             </div>
+            <p class="mg-learn" id="mg-learn"></p>
           </div>
           <div class="card">
             <div class="card-t">Saved <span class="tag" id="mg-count">0</span></div>
@@ -246,6 +247,7 @@
             <button class="btn sm primary" id="btn-mg-insert" disabled>Insert into Studio</button>
             <button class="btn sm" id="btn-mg-save" disabled>Save</button>
             <span class="grow"></span>
+            <button class="btn sm rate" id="btn-mg-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="btn sm rate" id="btn-mg-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
             <button class="btn sm" id="btn-mg-reset" disabled>Reset view</button>
           </div>
           <div class="mg-stage">
@@ -255,7 +257,7 @@
               <svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
               <p>Your model shows up here.</p>
             </div>
-            <div class="mg-busy" id="mg-busy" hidden><span class="spin"></span><span id="mg-busy-t">Designing…</span></div>
+            <div class="mg-busy" id="mg-busy" hidden><span class="spin"></span><span class="gb-t" id="mg-busy-t">Designing…</span><span class="gb-bar"><i></i></span></div>
             <div class="mg-stats" id="mg-stats" hidden></div>
           </div>
           <div class="mg-revise">
@@ -290,6 +292,7 @@
             <div class="mg-ideas" id="ub-ideas">
               <button>Shop menu</button><button>Main menu</button><button>Health + coins HUD</button><button>Settings panel</button><button>Daily reward popup</button><button>Inventory grid</button>
             </div>
+            <p class="mg-learn" id="ub-learn"></p>
           </div>
         </div>
         <div class="mg-card">
@@ -301,12 +304,14 @@
             <button class="btn sm" id="btn-ub-txt" disabled>Save .txt</button>
             <button class="btn sm" id="btn-ub-copy" disabled>Copy script</button>
             <button class="btn sm primary" id="btn-ub-insert" disabled>Insert into Studio</button>
+            <span class="grow"></span>
+            <button class="btn sm rate" id="btn-ub-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="btn sm rate" id="btn-ub-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
           </div>
           <div class="mg-stage ub-stage">
             <div class="ub-view" id="ub-view"></div>
             <pre class="mg-script" id="ub-script" hidden></pre>
             <div class="mg-empty" id="ub-empty"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg><p>Your UI shows up here, on a 16:9 game screen.</p></div>
-            <div class="mg-busy" id="ub-busy" hidden><span class="spin"></span><span id="ub-busy-t">Designing…</span></div>
+            <div class="mg-busy" id="ub-busy" hidden><span class="spin"></span><span class="gb-t" id="ub-busy-t">Designing…</span><span class="gb-bar"><i></i></span></div>
             <div class="mg-stats" id="ub-stats" hidden></div>
           </div>
           <div class="mg-revise">

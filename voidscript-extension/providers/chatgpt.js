@@ -25,8 +25,13 @@ const VSProvider = VSGeneric({
   selectors: {
     // Classic layout | the newer "octane" layout (verified 2026-10: <li> turns in
     // ol[data-conversation-transcript], code in pre[data-assistant-stream-block]).
-    userItem: '[data-message-author-role="user"], li[data-message-role="user"]',
-    assistantItem: '[data-message-author-role="assistant"], li[data-message-role="assistant"]',
+    // Signed-in layout (verified 2026-10) has neither attribute; turns are
+    // div[data-chatgpt-search-unit-key="...:user"]. The :not() guards stop a turn
+    // being counted twice if a build ever carries both markers.
+    userItem: '[data-message-author-role="user"], li[data-message-role="user"], ' +
+      '[data-chatgpt-search-unit-key$=":user"]:not(:has([data-message-author-role],[data-message-role])):not([data-message-role] *)',
+    assistantItem: '[data-message-author-role="assistant"], li[data-message-role="assistant"], ' +
+      '[data-chatgpt-search-unit-key$=":assistant"]:not(:has([data-message-author-role],[data-message-role])):not([data-message-role] *)',
     thinking: '[data-thinking],[class*="thinking" i],[class*="reasoning" i]',
     editor: '#prompt-textarea, textarea[name="prompt"], div[contenteditable="true"]',
     composer: "form",

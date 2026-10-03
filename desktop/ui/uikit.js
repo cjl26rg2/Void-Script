@@ -24,7 +24,16 @@ const VSUI = (() => {
   Find elements with gui:FindFirstChild("Name", true). Keep game logic that must be secure on the server - only call RemoteEvents from here.
 - It must look like a real, popular Roblox game made by a human UI artist - NOT like an AI or a web dashboard. Never use: purple/pink/teal
   "AI" gradients, emoji as icons, glassy see-through panels, thin 1px borders, tiny grey text, identical cards with soft shadows, or filler
-  copy like "Welcome!" or "Lorem ipsum". Write short, real game text (BUY, 250, EQUIP, LEVEL 12).`;
+  copy like "Welcome!" or "Lorem ipsum". Write short, real game text (BUY, 250, EQUIP, LEVEL 12).
+- List parents before their children (the preview builds in that order).
+- Craft it like a pro Roblox UI artist:
+  1. One clear focal point per screen: the main panel or the main button is the biggest, brightest thing. Everything else supports it.
+  2. Sizes that read on a phone: titles 40-60, buttons 28-40, labels 22-28, nothing under 18. Buttons at least 56px tall.
+  3. Build icons from shapes instead of emoji: a gold circle Frame (r = half its size) with a darker stroke for a coin, a rounded square with a big letter or number for an item, a thick X TextButton for close.
+  4. Give cards depth: an outer frame, an inner frame 8-12px smaller in a slightly different shade, and a shadow (sh) under it.
+  5. Keep spacing even: a 16px or 24px rhythm, pad (pad) every panel, use list layouts for rows of repeated items.
+  6. Contrast: a dark text outline (o) on light text over bright fills, never light text on light fills.
+  7. Pin the close button to the panel's top-right corner, half outside it (a: [0.5,0.5] at pos [1,0,0,0]).`;
 
   // Looks real Roblox games actually use. "chunky" is the front-page simulator style.
   const STYLES = {
@@ -33,30 +42,45 @@ const VSUI = (() => {
     dark: "Style: dark and sleek like a shooter or horror game. Near-black panels, one sharp accent color, GothamBold/Oswald text, squarer corners (r 4-8), thin bright accent lines, high contrast.",
     cartoon: "Style: playful cartoon. Warm pastel-but-saturated colors, very round corners, wobbly-feeling chunky fonts (Cartoon, FredokaOne, Bangers), thick outlines on everything, solid shadows.",
   };
-  function buildPrompt(description, style) {
-    return `Design a Roblox ScreenGui: ${String(description).trim()}\n${STYLES[style] || STYLES.chunky}\n\n${RULES}`;
+  // What the user has taught it: notes from their revisions and thumbs-downs,
+  // and a GUI they liked as the bar for craft.
+  function learned(extra) {
+    const e = extra || {};
+    let out = "";
+    if (e.lessons && e.lessons.length) out += "\n\nThis user's feedback on earlier GUIs (follow it where it applies):\n" + e.lessons.map((l) => "- " + l).join("\n");
+    if (e.example) out += "\n\nA GUI this user liked - match its level of polish, not its content:\n" +
+      JSON.stringify({ name: e.example.name, elements: e.example.elements.slice(0, 40) });
+    return out;
   }
-  function revisePrompt(spec, change) {
+  function buildPrompt(description, style, extra) {
+    return `Design a Roblox ScreenGui: ${String(description).trim()}\n${STYLES[style] || STYLES.chunky}` + learned(extra) + `\n\n${RULES}`;
+  }
+  function revisePrompt(spec, change, extra) {
     return `Here is a Roblox ScreenGui:\n${JSON.stringify(spec)}\n\nChange it: ${String(change).trim()}\n` +
-      `Keep everything else the same unless the change needs it. Return the WHOLE updated GUI.\n\n${RULES}`;
+      `Keep everything else the same unless the change needs it. Return the WHOLE updated GUI.` + learned(extra) + `\n\n${RULES}`;
   }
 
-  function parse(text) {
-    const s = String(text || "");
+  // Same tolerance as VSModel.parse (shares its JSON helpers): a cut-off or broken
+  // reply keeps every element it finished (spec.cut = true). live: still
+  // streaming - never throws, null until there is something to show.
+  function parse(text, live) {
+    const J = VSModel.json, s = String(text || "");
     const start = s.indexOf("{");
-    if (start === -1) throw new Error("The AI didn't send a UI. Try again.");
-    let depth = 0, inStr = false, esc = false, end = -1;
-    for (let i = start; i < s.length; i++) {
-      const ch = s[i];
-      if (inStr) { if (esc) esc = false; else if (ch === "\\") esc = true; else if (ch === '"') inStr = false; continue; }
-      if (ch === '"') inStr = true;
-      else if (ch === "{") depth++;
-      else if (ch === "}" && --depth === 0) { end = i; break; }
+    const end = start === -1 ? -1 : J.objEnd(s, start);
+    if (end !== -1 && !live) {
+      try { return normalize(J.loose(s.slice(start, end + 1))); } catch {}
     }
-    if (end === -1) throw new Error("The UI was cut off before it finished. Try again.");
-    let raw;
-    try { raw = JSON.parse(s.slice(start, end + 1)); } catch { throw new Error("The AI's UI wasn't valid JSON. Try again."); }
-    return normalize(raw);
+    const elements = J.salvage(s, "elements");
+    if (elements.length >= (live ? 1 : 2)) {
+      try {
+        const spec = normalize({ name: J.field(s, "name"), elements, script: J.field(s, "script") });
+        if (!live) spec.cut = true;
+        return spec;
+      } catch { if (live) return null; }
+    }
+    if (live) return null;
+    if (start === -1) throw new Error("The AI didn't send a UI. Try again.");
+    throw new Error(end === -1 ? "The UI was cut off before it finished. Try again." : "The AI's UI wasn't valid JSON. Try again.");
   }
 
   const n = (v, d) => (Number.isFinite(Number(v)) ? Number(v) : d);
@@ -157,7 +181,9 @@ const VSUI = (() => {
       parent.appendChild(d);
     }
     fit();
-    if (typeof ResizeObserver !== "undefined") new ResizeObserver(fit).observe(host);
+    // One observer per host: re-rendering (live preview, revisions) must not stack them.
+    if (host.__vsFit) host.__vsFit.disconnect();
+    if (typeof ResizeObserver !== "undefined") (host.__vsFit = new ResizeObserver(fit)).observe(host);
   }
   function hexA(h, a) {
     const v = parseInt(h.slice(1), 16);

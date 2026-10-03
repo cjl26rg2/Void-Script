@@ -434,13 +434,130 @@ listen("update-log", (e) => {
   if (line) $("updating-line").textContent = line;
 });
 
-// ── models: AI-designed part models with a 3D preview ───────────────────────
+// ── generators: one live run shared by models and the UI builder ────────────
 // While a generator is working, streamed text goes to it instead of the chat.
 const gen = { busy: false, onDelta() {} };
-const mg = { spec: null, prompt: "", detail: "medium", badge: "", revs: 0, busy: false, text: "", view: null };
+const GEN_STALL_MS = 75000; // no new text for this long = the provider stalled
+const fmtLeft = (s) => (s < 60 ? `${Math.ceil(s)}s` : `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, "0")}s`);
+
+// What each generator has learned from this user: notes from every revision and
+// thumbs-down, and the results they liked. Both go into later prompts.
+let learn = { model: { lessons: [], liked: [] }, ui: { lessons: [], liked: [] } };
+try { Object.assign(learn, JSON.parse(localStorage.getItem("vs-learn") || "{}")); } catch {}
+function saveLearn() { try { localStorage.setItem("vs-learn", JSON.stringify(learn)); } catch {} renderLearn(); }
+function addLesson(kind, desc, note) {
+  const line = desc ? `${note} (said about "${desc.slice(0, 60)}")` : note;
+  const L = learn[kind].lessons;
+  learn[kind].lessons = [line].concat(L.filter((x) => x !== line)).slice(0, 12);
+  saveLearn();
+}
+// The liked result closest to this request (shared words), else the newest.
+function learnFor(kind, desc) {
+  const L = learn[kind], words = new Set(String(desc).toLowerCase().match(/[a-z]{3,}/g) || []);
+  let best = L.liked[0], score = 0;
+  for (const x of L.liked) {
+    const s = (String(x.prompt).toLowerCase().match(/[a-z]{3,}/g) || []).filter((w) => words.has(w)).length;
+    if (s > score) { score = s; best = x; }
+  }
+  return { lessons: L.lessons, example: best && best.spec };
+}
+function renderLearn() {
+  for (const [kind, id] of [["model", "mg-learn"], ["ui", "ub-learn"]]) {
+    const L = learn[kind], n = L.liked.length, m = L.lessons.length;
+    $(id).innerHTML = n || m ? `Learning from ${n} like${n === 1 ? "" : "s"} · ${m} note${m === 1 ? "" : "s"} · <button class="link" data-forget="${kind}">Forget</button>` : "";
+  }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-forget]");
+  if (!b) return;
+  learn[b.dataset.forget] = { lessons: [], liked: [] };
+  saveLearn();
+  toast("Forgot what it learned.");
+});
+function rate(kind, spec, prompt, good) {
+  const L = learn[kind];
+  L.liked = L.liked.filter((x) => x.spec.name !== spec.name);
+  if (good) L.liked = [{ spec, prompt, t: Date.now() }].concat(L.liked).slice(0, 5);
+  saveLearn();
+}
+
+function genStart(job) {
+  if (chat.busy || gen.busy) { toast("Something else is generating - wait for it or press Stop first."); return false; }
+  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return false; }
+  gen.busy = true; chat.stop = false;
+  Object.assign(job, { done: 0, passesLeft: 0, lag: null, stalled: false, note: "" });
+  job.setBusy(true);
+  return true;
+}
+function genEnd(job) { gen.busy = false; gen.onDelta = () => {}; job.setBusy(false); }
+
+// One AI call for a generator. The reply streams into the live preview, the
+// pill shows a progress bar and an ETA, and a reply that is stopped, stalls or
+// breaks off still hands back everything it finished (marked .cut).
+async function genCall(job, o) {
+  const pill = $(job.pill), tEl = pill.querySelector(".gb-t"), bar = pill.querySelector(".gb-bar i");
+  const t0 = Date.now();
+  let text = "", thinking = false, firstAt = 0, last = t0, drawn = 0, drawAt = 0;
+  const count = () => (text.match(/"n"\s*:/g) || []).length;
+  gen.onDelta = (c, r) => { last = Date.now(); if (r) thinking = true; text += c; };
+  const tick = () => {
+    const now = Date.now(), n = count(), done = job.done + n;
+    if (n && !firstAt) firstAt = now;
+    if (!job.stalled && now - last > GEN_STALL_MS) { job.stalled = true; invoke("ai_cancel").catch(() => {}); }
+    const total = Math.max(job.total, Math.ceil(done * 1.08));
+    let line;
+    const units = (k) => `${k} ${k === 1 ? job.unit.slice(0, -1) : job.unit}`;
+    if (!n) line = `${thinking ? "Thinking" : o.label} · ${Math.round((now - t0) / 1000)}s` + (job.done ? ` · ${units(job.done)}` : "");
+    else {
+      line = `${o.label} · ${units(done)}`;
+      if (n > 2) {
+        // Parts still to write at this call's pace, plus the wait before each later
+        // pass starts writing (measured on the first one).
+        const lag = job.lag != null ? job.lag : (firstAt - t0) / 1000;
+        const left = (total - done) / (n / (now - firstAt)) / 1000 + job.passesLeft * lag;
+        line += left > 3 ? ` · ~${fmtLeft(left)} left` : " · finishing";
+      }
+    }
+    tEl.textContent = line;
+    bar.style.width = (Math.min(done / total, 0.97) * 100).toFixed(1) + "%";
+    if (n > drawn && now - drawAt > 900) {
+      let sp = null;
+      try { sp = o.live(text); } catch {}
+      if (sp) { drawn = n; drawAt = now; job.preview(sp); }
+    }
+  };
+  const timer = setInterval(tick, 400);
+  tick();
+  try {
+    const { res } = await callModel({ messages: [{ role: "system", content: o.sys }, { role: "user", content: o.prompt }], temperature: o.temp, max_tokens: 16000 });
+    const m = res && res.choices && res.choices[0] && res.choices[0].message;
+    return o.final(splitThinking(m || {}).content || text);
+  } catch (e) {
+    // Keep a stopped/broken run only if it got far enough to be worth more than
+    // what was on screen before.
+    let kept = null;
+    try { kept = o.live(text); } catch {}
+    if (kept && (kept.parts || kept.elements).length >= job.minKeep) {
+      kept.cut = true;
+      job.note = job.stalled ? "The AI stalled" : chat.stop ? "Stopped" : "The reply broke off";
+      return kept;
+    }
+    if (chat.stop && !job.stalled) toast("Stopped.");
+    else if (job.stalled) toast(`The AI stopped responding (nothing for ${GEN_STALL_MS / 1000}s). Try again, or pick a faster model in the header.`, 7000);
+    else if (!chat.stop) toast(errText(e), 7000);
+    if (!chat.stop) sfx("error");
+    return null;
+  } finally {
+    clearInterval(timer);
+    if (firstAt && job.lag == null) job.lag = (firstAt - t0) / 1000;
+  }
+}
+
+// ── models: AI-designed part models with a 3D preview ───────────────────────
+const mg = { spec: null, prompt: "", detail: "medium", badge: "", revs: 0, busy: false, view: null, rated: 0 };
 let mgSaved = [];
 try { mgSaved = JSON.parse(localStorage.getItem("vs-models") || "[]"); } catch {}
-const MG_SYSTEM = "You are a Roblox builder who designs 3D models out of simple parts. You reply with JSON only.";
+const MG_SYSTEM = "You are a top Roblox builder who designs detailed 3D models out of simple parts. You reply with JSON only.";
 
 function mgView() {
   if (!mg.view && window.VSModelView && window.THREE) mg.view = VSModelView.create($("mg-view"));
@@ -452,7 +569,9 @@ function mgRender() {
   $("mg-badge").hidden = !mg.badge;
   $("mg-badge").textContent = mg.badge;
   $("mg-empty").hidden = has || mg.busy;
-  for (const id of ["btn-mg-txt", "btn-mg-copy", "btn-mg-insert", "btn-mg-save", "btn-mg-reset", "mg-change", "btn-mg-revise"]) $(id).disabled = !has || mg.busy;
+  for (const id of ["btn-mg-txt", "btn-mg-copy", "btn-mg-insert", "btn-mg-save", "btn-mg-reset", "mg-change", "btn-mg-revise", "btn-mg-good", "btn-mg-bad"]) $(id).disabled = !has || mg.busy;
+  $("btn-mg-good").classList.toggle("on", mg.rated > 0);
+  $("btn-mg-bad").classList.toggle("on", mg.rated < 0);
   $("btn-mg-go").disabled = mg.busy;
   $("btn-mg-stop").hidden = !mg.busy;
   $("mg-busy").hidden = !mg.busy;
@@ -471,35 +590,24 @@ function mgRender() {
 function mgShow(spec, badge) {
   mg.spec = spec;
   mg.badge = badge;
+  mg.rated = 0;
   mgRender();
   const v = mgView();
   if (v) v.show(spec);
 }
-async function mgAsk(userText, label) {
-  if (chat.busy || gen.busy) { toast("The chat is busy - wait for it or press Stop first."); return null; }
-  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return null; }
-  mg.busy = gen.busy = true; mg.text = ""; chat.stop = false;
-  $("mg-busy-t").textContent = label;
-  gen.onDelta = (t) => {
-    mg.text += t;
-    const n = (mg.text.match(/"n"\s*:/g) || []).length;
-    if (n) $("mg-busy-t").textContent = `${label} · ${n} parts so far`;
-  };
-  mgRender();
-  try {
-    const { res } = await callModel({
-      messages: [{ role: "system", content: MG_SYSTEM }, { role: "user", content: userText }],
-      temperature: 0.4, max_tokens: 16000,
-    });
-    const m = res && res.choices && res.choices[0] && res.choices[0].message;
-    return VSModel.parse(splitThinking(m || {}).content || mg.text);
-  } catch (e) {
-    if (!chat.stop) { toast(errText(e), 6000); sfx("error"); }
-    return null;
-  } finally {
-    mg.busy = gen.busy = false;
-    mgRender();
-  }
+const mgJob = (total) => ({
+  pill: "mg-busy", unit: "parts", minKeep: 8, total,
+  setBusy(b) { mg.busy = b; $("mg-busy").classList.remove("live"); mgRender(); },
+  preview(sp) { const v = mgView(); if (v) { v.show(sp, true); $("mg-busy").classList.add("live"); } },
+});
+// After a run: show the result, or put the previous model back in the preview.
+function mgFinish(job, spec, badge) {
+  if (!spec) { if (mg.spec) { const v = mgView(); if (v) v.show(mg.spec); } return false; }
+  VSModel.ground(spec);
+  mgShow(spec, job.note ? "Partial" : badge);
+  if (job.note) toast(`${job.note} - kept the ${spec.parts.length} parts it finished. Revise to keep going.`, 6000);
+  sfx("done");
+  return true;
 }
 $("mg-detail").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-v]");
@@ -508,28 +616,70 @@ $("mg-detail").addEventListener("click", (e) => {
   $("mg-detail").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
 });
 $("mg-ideas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("mg-desc").value = b.textContent; $("mg-desc").focus(); } });
+// Big models are built in passes - no AI can write 200 parts in one reply, which
+// is what made High fail. The shape comes first, then detail passes add to it.
 $("btn-mg-go").onclick = async () => {
   const desc = $("mg-desc").value.trim();
   if (!desc) { toast("Describe the model first."); $("mg-desc").focus(); return; }
-  const spec = await mgAsk(VSModel.buildPrompt(desc, mg.detail), "Designing");
-  if (!spec) return;
-  mg.prompt = desc; mg.revs = 0;
-  mgShow(spec, "Generated");
-  sfx("done");
+  const passes = VSModel.PASSES[mg.detail] || VSModel.PASSES.medium;
+  const job = mgJob(passes.reduce((a, [lo, hi]) => a + Math.round((lo + hi) / 2), 0));
+  if (!genStart(job)) return;
+  const extra = learnFor("model", desc);
+  let spec = null;
+  try {
+    for (let i = 0; i < passes.length; i++) {
+      job.passesLeft = passes.length - 1 - i;
+      let next;
+      if (i === 0) {
+        next = await genCall(job, { label: passes.length > 1 ? "Shaping" : "Designing", sys: MG_SYSTEM, temp: 0.4,
+          prompt: VSModel.buildPrompt(desc, mg.detail, Object.assign({ budget: passes[0], firstPass: passes.length > 1 }, extra)),
+          live: (t) => VSModel.parse(t, true), final: (t) => VSModel.parse(t) });
+      } else {
+        const before = VSModel.ground(spec);
+        next = await genCall(job, { label: `Detailing ${i}/${passes.length - 1}`, sys: MG_SYSTEM, temp: 0.5,
+          prompt: VSModel.detailPrompt(before, desc, passes[i], extra),
+          live: (t) => { const d = VSModel.parseDelta(t, true); return d.add.length ? VSModel.applyDelta(before, { add: d.add, remove: [] }) : null; },
+          final: (t) => VSModel.applyDelta(before, VSModel.parseDelta(t)) });
+        // A detail pass that fails still leaves a finished model.
+        if (!next) { if (!chat.stop && !job.stalled) toast("A detail pass failed - kept the model from the pass before.", 5000); break; }
+      }
+      if (!next) break;
+      spec = next;
+      job.done = spec.parts.length;
+      job.preview(spec);
+      if (chat.stop || job.stalled) break;
+    }
+  } finally { genEnd(job); }
+  if (mgFinish(job, spec, "Generated")) { mg.prompt = desc; mg.revs = 0; }
 };
 $("btn-mg-stop").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
 async function mgRevise() {
   const change = $("mg-change").value.trim();
-  if (!change || !mg.spec) return;
-  const spec = await mgAsk(VSModel.revisePrompt(mg.spec, change), "Revising");
-  if (!spec) return;
-  mg.revs++;
-  $("mg-change").value = "";
-  mgShow(spec, "Revised");
-  sfx("done");
+  if (!change || !mg.spec || mg.busy) return;
+  const before = mg.spec, job = mgJob(before.parts.length + 15);
+  if (!genStart(job)) return;
+  job.done = before.parts.length;
+  let spec = null;
+  try {
+    spec = await genCall(job, { label: "Revising", sys: MG_SYSTEM, temp: 0.4,
+      prompt: VSModel.revisePrompt(before, change, learnFor("model", mg.prompt)),
+      live: (t) => { const d = VSModel.parseDelta(t, true); return d.add.length ? VSModel.applyDelta(before, d) : null; },
+      final: (t) => VSModel.applyDelta(before, VSModel.parseDelta(t)) });
+  } finally { genEnd(job); }
+  addLesson("model", mg.prompt, change); // every change asked for teaches it
+  if (mgFinish(job, spec, "Revised")) { mg.revs++; $("mg-change").value = ""; }
 }
 $("btn-mg-revise").onclick = mgRevise;
 $("mg-change").addEventListener("keydown", (e) => { if (e.key === "Enter") mgRevise(); });
+$("btn-mg-good").onclick = () => {
+  mg.rated = 1; rate("model", mg.spec, mg.prompt, true); mgRender();
+  toast("Liked - new models will aim for this level of detail.");
+};
+$("btn-mg-bad").onclick = () => {
+  mg.rated = -1; rate("model", mg.spec, mg.prompt, false); mgRender();
+  $("mg-change").placeholder = "What's wrong with it? It fixes it and remembers for next time";
+  $("mg-change").focus();
+};
 document.querySelectorAll(".mg-tabs button").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll(".mg-tabs button").forEach((x) => x.classList.toggle("on", x === b));
   const script = b.dataset.t === "script";
@@ -580,14 +730,14 @@ $("mg-list").addEventListener("click", (e) => {
 mgRender();
 
 // ── UI builder ──────────────────────────────────────────────────────────────
-const ub = { spec: null, badge: "", revs: 0, busy: false, text: "", style: "chunky" };
+const ub = { spec: null, prompt: "", badge: "", revs: 0, busy: false, style: "chunky", rated: 0 };
 $("ub-style").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-v]");
   if (!b) return;
   ub.style = b.dataset.v;
   $("ub-style").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
 });
-const UB_SYSTEM = "You are a Roblox UI designer who builds polished game GUIs. You reply with JSON only.";
+const UB_SYSTEM = "You are a top Roblox UI artist who builds polished game GUIs. You reply with JSON only.";
 function ubRender() {
   const has = !!ub.spec;
   $("ub-name").textContent = has ? ub.spec.name : "No UI yet";
@@ -595,7 +745,9 @@ function ubRender() {
   $("ub-badge").textContent = ub.badge;
   $("ub-empty").hidden = has || ub.busy;
   $("ub-busy").hidden = !ub.busy;
-  for (const id of ["btn-ub-txt", "btn-ub-copy", "btn-ub-insert", "ub-change", "btn-ub-revise"]) $(id).disabled = !has || ub.busy;
+  for (const id of ["btn-ub-txt", "btn-ub-copy", "btn-ub-insert", "ub-change", "btn-ub-revise", "btn-ub-good", "btn-ub-bad"]) $(id).disabled = !has || ub.busy;
+  $("btn-ub-good").classList.toggle("on", ub.rated > 0);
+  $("btn-ub-bad").classList.toggle("on", ub.rated < 0);
   $("btn-ub-go").disabled = ub.busy;
   $("btn-ub-stop").hidden = !ub.busy;
   $("btn-ub-revise").textContent = ub.revs ? `Revise · ${ub.revs}` : "Revise";
@@ -605,50 +757,63 @@ function ubRender() {
     $("ub-script").textContent = VSUI.toLuau(ub.spec);
   }
 }
-async function ubAsk(userText, label) {
-  if (chat.busy || gen.busy) { toast("Something else is generating - wait for it or press Stop first."); return null; }
-  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return null; }
-  ub.busy = gen.busy = true; ub.text = ""; chat.stop = false;
-  $("ub-busy-t").textContent = label;
-  gen.onDelta = (t) => {
-    ub.text += t;
-    const n = (ub.text.match(/"n"\s*:/g) || []).length;
-    if (n) $("ub-busy-t").textContent = `${label} · ${n} elements so far`;
-  };
-  ubRender();
-  try {
-    const { res } = await callModel({ messages: [{ role: "system", content: UB_SYSTEM }, { role: "user", content: userText }], temperature: 0.5, max_tokens: 16000 });
-    const m = res && res.choices && res.choices[0] && res.choices[0].message;
-    return VSUI.parse(splitThinking(m || {}).content || ub.text);
-  } catch (e) {
-    if (!chat.stop) { toast(errText(e), 6000); sfx("error"); }
-    return null;
-  } finally {
-    ub.busy = gen.busy = false;
-    ubRender();
-  }
-}
 function ubShow(spec, badge) {
-  ub.spec = spec; ub.badge = badge;
+  ub.spec = spec; ub.badge = badge; ub.rated = 0;
   ubRender();
   VSUI.render($("ub-view"), spec);
+}
+const ubJob = (total) => ({
+  pill: "ub-busy", unit: "elements", minKeep: 3, total,
+  setBusy(b) { ub.busy = b; $("ub-busy").classList.remove("live"); ubRender(); },
+  preview(sp) { VSUI.render($("ub-view"), sp); $("ub-busy").classList.add("live"); },
+});
+function ubFinish(job, spec, badge) {
+  if (!spec) { if (ub.spec) VSUI.render($("ub-view"), ub.spec); else $("ub-view").innerHTML = ""; return false; }
+  ubShow(spec, job.note ? "Partial" : badge);
+  if (job.note) toast(`${job.note} - kept the ${spec.elements.length} elements it finished. Revise to keep going.`, 6000);
+  sfx("done");
+  return true;
 }
 $("ub-ideas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("ub-desc").value = b.textContent; $("ub-desc").focus(); } });
 $("btn-ub-go").onclick = async () => {
   const desc = $("ub-desc").value.trim();
   if (!desc) { toast("Describe the UI first."); $("ub-desc").focus(); return; }
-  const spec = await ubAsk(VSUI.buildPrompt(desc, ub.style), "Designing");
-  if (spec) { ub.revs = 0; ubShow(spec, "Generated"); sfx("done"); }
+  const job = ubJob(35);
+  if (!genStart(job)) return;
+  let spec = null;
+  try {
+    spec = await genCall(job, { label: "Designing", sys: UB_SYSTEM, temp: 0.5,
+      prompt: VSUI.buildPrompt(desc, ub.style, learnFor("ui", desc)),
+      live: (t) => VSUI.parse(t, true), final: (t) => VSUI.parse(t) });
+  } finally { genEnd(job); }
+  if (ubFinish(job, spec, "Generated")) { ub.prompt = desc; ub.revs = 0; }
 };
 $("btn-ub-stop").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
 async function ubRevise() {
   const change = $("ub-change").value.trim();
-  if (!change || !ub.spec) return;
-  const spec = await ubAsk(VSUI.revisePrompt(ub.spec, change), "Revising");
-  if (spec) { ub.revs++; $("ub-change").value = ""; ubShow(spec, "Revised"); sfx("done"); }
+  if (!change || !ub.spec || ub.busy) return;
+  const job = ubJob(ub.spec.elements.length);
+  if (!genStart(job)) return;
+  let spec = null;
+  try {
+    spec = await genCall(job, { label: "Revising", sys: UB_SYSTEM, temp: 0.5,
+      prompt: VSUI.revisePrompt(ub.spec, change, learnFor("ui", ub.prompt)),
+      live: (t) => VSUI.parse(t, true), final: (t) => VSUI.parse(t) });
+  } finally { genEnd(job); }
+  addLesson("ui", ub.prompt, change);
+  if (ubFinish(job, spec, "Revised")) { ub.revs++; $("ub-change").value = ""; }
 }
 $("btn-ub-revise").onclick = ubRevise;
 $("ub-change").addEventListener("keydown", (e) => { if (e.key === "Enter") ubRevise(); });
+$("btn-ub-good").onclick = () => {
+  ub.rated = 1; rate("ui", ub.spec, ub.prompt, true); ubRender();
+  toast("Liked - new UIs will aim for this level of polish.");
+};
+$("btn-ub-bad").onclick = () => {
+  ub.rated = -1; rate("ui", ub.spec, ub.prompt, false); ubRender();
+  $("ub-change").placeholder = "What's wrong with it? It fixes it and remembers for next time";
+  $("ub-change").focus();
+};
 document.querySelectorAll("#ub-tabs button").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll("#ub-tabs button").forEach((x) => x.classList.toggle("on", x === b));
   $("ub-script").hidden = b.dataset.t !== "script";
@@ -661,6 +826,7 @@ $("btn-ub-txt").onclick = async () => {
 };
 $("btn-ub-insert").onclick = () => runLuau(VSUI.toLuau(ub.spec), `${ub.spec.name} is in StarterGui. Press Play to try it.`, $("btn-ub-insert"));
 ubRender();
+renderLearn();
 
 // Run Luau in Studio (Edit) from a button, with feedback on the button itself.
 async function runLuau(code, okMsg, btn) {
@@ -1295,7 +1461,7 @@ async function runCall(call, map) {
 let live = null;
 function liveStart(label) { live = { el: typing(label), text: "", thought: "" }; return live.el; }
 listen("ai-delta", (e) => {
-  if (gen.busy) { gen.onDelta((e.payload || {}).content || ""); return; }
+  if (gen.busy) { gen.onDelta((e.payload || {}).content || "", (e.payload || {}).reasoning || ""); return; }
   if (!live) return;
   const d = e.payload || {};
   live.text += d.content || "";
@@ -1379,7 +1545,7 @@ async function callModel(req, opts = {}) {
   const p = prov();
   let model = curModel(p);
   let useTools = !!req.tools, useThink = !!opts.think;
-  for (let attempt = 0; attempt < 4; attempt++) {
+  for (let attempt = 0; attempt < 6; attempt++) {
     const body = Object.assign({}, req, { model }, useThink ? thinkParams(p) : {});
     if (!useTools) { delete body.tools; delete body.tool_choice; }
     try {
@@ -1390,6 +1556,11 @@ async function callModel(req, opts = {}) {
       const msg = errText(e);
       if (chat.stop || msg === "cancelled") throw e;
       if (useThink && /chat_template_kwargs|reasoning|thinking|extra (fields|inputs)|not permitted|unrecognized/i.test(msg)) { useThink = false; continue; }
+      // Many models cap their output below what the generators ask for.
+      if (req.max_tokens > 4096 && /max_tokens|max_completion_tokens|maximum (output|completion|context)|too many tokens|context length/i.test(msg)) {
+        req = Object.assign({}, req, { max_tokens: Math.max(4096, Math.floor(req.max_tokens / 2)) });
+        continue;
+      }
       if (useTools && /API 4(00|22)/.test(msg) && /tool|function/i.test(msg)) { useTools = false; continue; }
       if (/API 404|not found|does not exist|no such model|unknown model|is not available/i.test(msg)) {
         const next = await pickAvailable(p, model);

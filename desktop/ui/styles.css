@@ -434,6 +434,16 @@ html[data-theme="or"] .mg-stage { background: radial-gradient(120% 90% at 50% 20
 .mg-empty svg { width: 46px; height: 46px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; opacity: .6; }
 .mg-empty p { margin: 0; font-size: 13px; }
 .mg-busy { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 999px; background: rgba(0,0,0,.55); border: 1px solid var(--line2); font-size: 13px; color: var(--fg); }
+.mg-busy.live { top: 14px; transform: translateX(-50%); }
+.mg-busy .gb-bar { width: 90px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.14); overflow: hidden; }
+.mg-busy .gb-bar i { display: block; height: 100%; width: 0; background: var(--acc); transition: width .4s ease; }
+.mg-busy .gb-t { font-variant-numeric: tabular-nums; }
+.btn.rate { padding: 0 8px; }
+.btn.rate svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.btn.rate.on { color: var(--acc); border-color: currentColor; }
+.mg-learn { margin: 10px 0 0; font-size: 12px; color: var(--dim); }
+.mg-learn:empty { display: none; }
+.mg-learn .link { font-size: 12px; }
 .mg-stats { position: absolute; left: 16px; bottom: 14px; padding: 6px 12px; border-radius: 8px; background: rgba(255,255,255,.92); color: #333; font: 12px var(--mono); letter-spacing: .3px; }
 .mg-revise { display: flex; gap: 10px; padding: 14px 18px; border-top: 1px solid var(--line); }
 .mg-revise .input { min-width: 0; }

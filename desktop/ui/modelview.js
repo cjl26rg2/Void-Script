@@ -97,9 +97,11 @@ const VSModelView = (() => {
       renderer.render(scene, camera);
     })();
 
-    function show(spec) {
+    // keep: a live update while the model streams in - widen the framing as it
+    // grows but don't snap the camera back on every new part.
+    function show(spec, keep) {
       if (group) scene.remove(group);
-      if (grid) scene.remove(grid);
+      if (grid) { scene.remove(grid); grid.geometry.dispose(); grid.material.dispose(); } // live updates replace it often
       group = new THREE.Group();
       for (const p of spec.parts) {
         const mesh = new THREE.Mesh(geo[p.s] || geo.Block, matFor(p.c, p.m));
@@ -119,8 +121,10 @@ const VSModelView = (() => {
       grid.position.set(center.x, box.min.y, center.z);
       scene.add(grid);
       // Far enough that the whole model fits, whatever direction we look from.
+      const had = keep && view.home;
       view.home = { target: center.clone(), dist: Math.max(size.length() * 1.25, 6) };
-      reset();
+      if (had) { view.target.copy(view.home.target); view.dist = Math.max(view.dist, view.home.dist); }
+      else reset();
       view.spin = true;
     }
     function reset() {
