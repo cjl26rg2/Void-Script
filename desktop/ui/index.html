@@ -16,6 +16,7 @@
     <span class="tb-ver" id="tb-ver" data-tauri-drag-region></span>
   </div>
   <div class="tb-spacer" data-tauri-drag-region></div>
+  <button class="tb-btn" id="btn-music" title="Spooky music" aria-label="Spooky music" hidden><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6"/></svg></button>
   <div class="bell-wrap">
     <button class="tb-btn bell" id="btn-bell" title="Notifications" aria-label="Notifications">
       <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
@@ -144,11 +145,7 @@
               <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
             </button>
             <div class="model-pop" id="model-pop" hidden>
-              <div class="seg" id="pop-seg">
-                <button data-prov="nvidia">NVIDIA</button>
-                <button data-prov="openrouter">OpenRouter</button>
-                <button data-prov="google">Gemini</button>
-              </div>
+              <select class="input sm prov-select" id="pop-prov" title="Provider"></select>
               <input class="input" id="pop-search" placeholder="Search models, or type any model ID…" autocomplete="off" spellcheck="false" />
               <div class="pop-list" id="pop-list"></div>
               <div class="pop-foot" id="pop-foot">Models with <span class="tl">tools</span> can build in Studio.</div>
@@ -200,6 +197,7 @@
           <svg viewBox="0 0 24 24"><path d="M21 11.5 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>
         </button>
         <textarea id="chat-input" rows="1" placeholder="Ask VoidScript to build something…"></textarea>
+        <button class="btn icon enh" id="btn-enhance-chat" title="Prompt Enhancer: make what you typed clearer for the AI (same request, just better). Ctrl+Z undoes it." aria-label="Enhance prompt"><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg></button>
         <button class="btn primary" id="btn-send">Send</button>
         <button class="btn danger" id="btn-stop-chat" hidden>Stop</button>
       </div>
@@ -215,10 +213,25 @@
           <div class="card">
             <div class="card-t">New model</div>
             <textarea class="input mg-desc" id="mg-desc" rows="4" placeholder="A red phoenix with golden wing tips…"></textarea>
+            <button class="btn sm enh-sm" id="btn-enhance-mg" title="Prompt Enhancer: spell out shape, proportions and materials of what you described. Ctrl+Z undoes it."><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg> Enhance</button>
             <div class="field">
               <label>Detail</label>
               <div class="seg" id="mg-detail">
                 <button data-v="low">Low</button><button data-v="medium" class="on">Medium</button><button data-v="high">High</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Style</label>
+              <div class="seg" id="mg-style">
+                <button data-v="realistic" class="on">Realistic</button><button data-v="lowpoly">Low poly</button><button data-v="cartoon">Cartoon</button><button data-v="blocky">Blocky</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Reference image <span class="muted">(optional)</span></label>
+              <div class="refpick" id="mg-ref">
+                <button class="btn sm" id="btn-mg-ref">Choose picture…</button>
+                <img id="mg-ref-img" alt="" hidden /><button class="link" id="btn-mg-ref-x" hidden>Remove</button>
+                <input type="file" id="mg-ref-file" accept="image/*" hidden />
               </div>
             </div>
             <div class="row">
@@ -228,6 +241,7 @@
             <div class="mg-ideas" id="mg-ideas">
               <button>Bullet train</button><button>Phoenix</button><button>Medieval tower</button><button>Food truck</button><button>Robot dog</button><button>Pirate ship</button>
             </div>
+            <label class="chk gen-chat" title="Off: on NVIDIA the generators use a fast model, so they start in seconds. On: they use the model you picked for chat (bigger ones can queue for minutes)."><input type="checkbox" id="mg-chatmodel" /> Use my chat model (slower)</label>
             <p class="mg-learn" id="mg-learn"></p>
           </div>
           <div class="card">
@@ -246,6 +260,10 @@
             <button class="btn sm" id="btn-mg-copy" disabled>Copy script</button>
             <button class="btn sm primary" id="btn-mg-insert" disabled>Insert into Studio</button>
             <button class="btn sm" id="btn-mg-save" disabled>Save</button>
+            <button class="btn sm" id="btn-mg-rbxmx" disabled title="A Roblox model file - drag it into Studio, no bridge needed">Export .rbxmx</button>
+            <button class="btn sm" id="btn-mg-png" disabled title="Save the preview as a picture">Picture</button>
+            <button class="btn sm" id="btn-mg-undo" disabled>Undo</button>
+            <label class="chk small" title="One rigid, unanchored model - for vehicles, tools and props that move"><input type="checkbox" id="mg-welded" /> Welded</label>
             <span class="grow"></span>
             <button class="btn sm rate" id="btn-mg-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="btn sm rate" id="btn-mg-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
             <button class="btn sm" id="btn-mg-reset" disabled>Reset view</button>
@@ -259,6 +277,19 @@
             </div>
             <div class="mg-busy" id="mg-busy" hidden><span class="spin"></span><span class="gb-t" id="mg-busy-t">Designing…</span><span class="gb-bar"><i></i></span></div>
             <div class="mg-stats" id="mg-stats" hidden></div>
+          </div>
+          <div class="mg-insp" id="mg-insp" hidden>
+            <b id="mg-insp-name"></b>
+            <input type="color" id="mg-insp-color" title="Colour" />
+            <select class="input sm" id="mg-insp-mat" title="Material"></select>
+            <button class="btn sm" id="btn-mg-insp-del">Delete part</button>
+            <span class="grow"></span>
+            <button class="link" id="btn-mg-insp-x">Done</button>
+          </div>
+          <div class="mg-quick" id="mg-quick">
+            <span class="muted">Recolour</span><span class="pals" id="mg-pals"></span>
+            <span class="grow"></span>
+            <span class="muted">Size</span><button class="btn sm" data-scale="0.5">½×</button><button class="btn sm" data-scale="0.8">−</button><button class="btn sm" data-scale="1.25">+</button><button class="btn sm" data-scale="2">2×</button>
           </div>
           <div class="mg-revise">
             <input class="input grow" id="mg-change" placeholder='Ask for a change — "make the wings bigger"' disabled />
@@ -279,10 +310,19 @@
           <div class="card">
             <div class="card-t">New UI</div>
             <textarea class="input mg-desc" id="ub-desc" rows="4" placeholder="A shop with 3 items, prices in coins and a close button…"></textarea>
+            <button class="btn sm enh-sm" id="btn-enhance-ub" title="Prompt Enhancer: spell out layout, elements, text and style of what you described. Ctrl+Z undoes it."><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg> Enhance</button>
             <div class="field">
               <label>Style</label>
               <div class="seg" id="ub-style">
                 <button data-v="chunky" class="on">Chunky</button><button data-v="clean">Clean</button><button data-v="dark">Dark</button><button data-v="cartoon">Cartoon</button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Reference image <span class="muted">(optional)</span></label>
+              <div class="refpick" id="ub-ref">
+                <button class="btn sm" id="btn-ub-ref">Choose picture…</button>
+                <img id="ub-ref-img" alt="" hidden /><button class="link" id="btn-ub-ref-x" hidden>Remove</button>
+                <input type="file" id="ub-ref-file" accept="image/*" hidden />
               </div>
             </div>
             <div class="row">
@@ -292,18 +332,26 @@
             <div class="mg-ideas" id="ub-ideas">
               <button>Shop menu</button><button>Main menu</button><button>Health + coins HUD</button><button>Settings panel</button><button>Daily reward popup</button><button>Inventory grid</button>
             </div>
+            <label class="chk gen-chat" title="Off: on NVIDIA the generators use a fast model, so they start in seconds. On: they use the model you picked for chat (bigger ones can queue for minutes)."><input type="checkbox" id="ub-chatmodel" /> Use my chat model (slower)</label>
             <p class="mg-learn" id="ub-learn"></p>
+          </div>
+          <div class="card">
+            <div class="card-t">Saved <span class="tag" id="ub-count">0</span></div>
+            <div class="mg-list" id="ub-list"></div>
           </div>
         </div>
         <div class="mg-card">
           <div class="mg-head">
             <b id="ub-name">No UI yet</b><span class="mg-badge" id="ub-badge" hidden></span>
+            <div class="seg sm" id="ub-device" title="Preview on"><button data-v="phone">Phone</button><button data-v="tablet">Tablet</button><button data-v="pc" class="on">PC</button></div>
             <div class="mg-tabs" id="ub-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
           </div>
           <div class="mg-tools">
             <button class="btn sm" id="btn-ub-txt" disabled>Save .txt</button>
             <button class="btn sm" id="btn-ub-copy" disabled>Copy script</button>
             <button class="btn sm primary" id="btn-ub-insert" disabled>Insert into Studio</button>
+            <button class="btn sm" id="btn-ub-save" disabled>Save</button>
+            <label class="chk small" title="Buttons grow on hover and squish on click, panels pop in"><input type="checkbox" id="ub-anim" checked /> Animations</label>
             <span class="grow"></span>
             <button class="btn sm rate" id="btn-ub-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="btn sm rate" id="btn-ub-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
           </div>
@@ -313,6 +361,9 @@
             <div class="mg-empty" id="ub-empty"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg><p>Your UI shows up here, on a 16:9 game screen.</p></div>
             <div class="mg-busy" id="ub-busy" hidden><span class="spin"></span><span class="gb-t" id="ub-busy-t">Designing…</span><span class="gb-bar"><i></i></span></div>
             <div class="mg-stats" id="ub-stats" hidden></div>
+          </div>
+          <div class="mg-quick" id="ub-quick">
+            <span class="muted">Recolour</span><span class="pals" id="ub-hues"></span>
           </div>
           <div class="mg-revise">
             <input class="input grow" id="ub-change" placeholder='Ask for a change — "make the buy buttons green"' disabled />
@@ -468,12 +519,13 @@
       <div class="card">
         <div class="card-t">AI provider</div>
         <p class="muted">Powers the built-in Chat. Keys are stored in VoidScript's settings on this PC and are only ever sent to the provider they belong to.</p>
-        <div class="seg" id="prov-seg">
-          <button data-prov="nvidia">NVIDIA</button>
-          <button data-prov="openrouter">OpenRouter</button>
-                <button data-prov="google">Gemini</button>
-        </div>
+        <select class="input prov-select" id="prov-select"></select>
         <p class="hint" id="prov-hint"></p>
+        <div class="field" id="base-field" hidden>
+          <label>Base URL</label>
+          <input class="input mono" id="set-base" placeholder="https://api.example.com/v1" autocomplete="off" spellcheck="false" />
+          <div class="hint">The address before <code>/chat/completions</code> - any OpenAI-compatible API works.</div>
+        </div>
         <div class="field">
           <label id="key-label">API key</label>
           <div class="row">
@@ -529,6 +581,8 @@
         </div>
         <label class="switch-row"><span>Start the bridge when VoidScript opens</span><span class="switch"><input type="checkbox" id="set-autostart" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Closing the window keeps VoidScript running in the tray</span><span class="switch"><input type="checkbox" id="set-tray" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>🎃 SpookyScript every October - Halloween look, logos and music</span><span class="switch"><input type="checkbox" id="set-halloween" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Show what I'm doing on Discord ("In Roblox Studio", "Prompting the AI"…)</span><span class="switch"><input type="checkbox" id="set-discord" /><span class="track"></span></span></label>
       </div>
 
       <div class="card">
@@ -598,6 +652,7 @@
 <script src="modelview.js"></script>
 <script src="uikit.js"></script>
 <script src="toolkit.js"></script>
+<script src="spooky.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

@@ -211,7 +211,41 @@ document.querySelectorAll("[data-open]").forEach((el) => {
 // engine live-syncs them via its storage.onChanged listener (no reload needed).
 const CFG_DEFAULTS = {
   vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsSounds: false, vsTheme: "system", vsLang: "en",
+  vsHalloween: true, vsSpookyMusic: true,
 };
+// SpookyScript (all October): the popup wears the pumpkin and the name too.
+// Every "VoidScript" in the popup (button labels are written in after load,
+// so a watcher keeps them renamed too).
+let spookyOn = false;
+function renamePopup() {
+  const [from, to] = spookyOn ? [/VoidScript/g, "SpookyScript"] : [/SpookyScript/g, "VoidScript"];
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.nodeValue.search(from) >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) });
+  const hits = [];
+  let n;
+  while ((n = w.nextNode())) hits.push(n);
+  for (const t of hits) t.nodeValue = t.nodeValue.replace(from, to);
+}
+let renameQueued = false;
+new MutationObserver(() => {
+  if (!spookyOn || renameQueued) return;
+  renameQueued = true;
+  setTimeout(() => { renameQueued = false; renamePopup(); }, 60);
+}).observe(document.body, { childList: true, subtree: true, characterData: true });
+function applySpooky(on) {
+  spookyOn = on;
+  document.documentElement.classList.toggle("spooky", on);
+  renamePopup();
+  let deco = document.getElementById("spooky-deco");
+  if (on && !deco) { deco = document.createElement("div"); deco.id = "spooky-deco"; deco.innerHTML = "<i class='web'></i><i class='bat'></i><i class='ghost'></i>"; document.body.appendChild(deco); }
+  if (!on && deco) deco.remove();
+  const title = document.querySelector(".title");
+  if (title) title.innerHTML = on ? 'Spooky<span class="s">Script</span>' : 'Void<span class="s">Script</span>';
+  const mark = document.querySelector("header svg");
+  let pk = document.getElementById("spooky-mark");
+  if (on && !pk && mark) { pk = document.createElement("img"); pk.id = "spooky-mark"; pk.src = "spooky/icon-48.png"; pk.alt = ""; mark.after(pk); }
+  if (mark) mark.style.display = on ? "none" : "";
+  if (!on && pk) pk.remove();
+}
 chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   const cfg = { ...CFG_DEFAULTS, ...(r || {}) };
   // Language picker: native names, English default. Changing it re-translates the
@@ -231,11 +265,13 @@ chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   // helpers below (esc, tlList…) are consts, and a storage callback that fires early
   // would hit them before initialisation and abort the rest of the popup.
   setTimeout(() => { applyI18n(); poll(); renderStats(); renderLeaderboard(); renderTimeline(); }, 0);
+  applySpooky(cfg.vsHalloween !== false && typeof VSSpooky !== "undefined" && VSSpooky.inSeason());
   document.querySelectorAll("input[data-cfg]").forEach((box) => {
     const k = box.dataset.cfg;
     box.checked = cfg[k] !== false;
     box.addEventListener("change", () => {
       try { chrome.storage.local.set({ [k]: box.checked }); } catch {}
+      if (k === "vsHalloween") applySpooky(box.checked && typeof VSSpooky !== "undefined" && VSSpooky.inSeason());
     });
   });
   const seg = $("theme-seg");

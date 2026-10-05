@@ -26,6 +26,7 @@ import plistlib
 import queue
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import threading
@@ -91,7 +92,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "6.1.0"
+BRIDGE_VERSION = "6.3.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -381,6 +382,12 @@ def _port_owner(port):
 def _roblox_studio_app_running():
     """True/False whether a real Roblox Studio window process exists, or None
     if this can't be determined (non-Windows, or the check itself failed)."""
+    if sys.platform.startswith("linux"):
+        # Studio under Wine/Vinegar shows up as a process running RobloxStudioBeta.exe.
+        try:
+            return subprocess.run(["pgrep", "-f", "RobloxStudioBeta.exe"], capture_output=True, timeout=8).returncode == 0
+        except Exception:
+            return None
     if sys.platform != "win32":
         return None
     try:
@@ -1723,6 +1730,175 @@ def place_name():
     return None
 
 
+# ── Discord Rich Presence ────────────────────────────────────────────────────
+# Shows "VOIDSCRIPT - Coding next level on Roblox" on the user's Discord profile
+# while the bridge runs (start.bat and VoidScript.exe both run this bridge).
+# Talks to the Discord app's local IPC pipe directly, so there is nothing to
+# install, and it simply does nothing when Discord isn't open.
+# The bold title on a profile is the Discord APPLICATION's name, so the normal
+# build and test copies each use their own application.
+# Application IDs from discord.com/developers/applications (General Information).
+DISCORD_APP_ID = "1555948768900288663"        # application named "VOIDSCRIPT"
+DISCORD_DEV_APP_ID = "1555949065210962000"    # application named "VOIDSCRIPT (DEVELOPMENT)"
+_GH = "https://raw.githubusercontent.com/cjl26rg2/Void-Script/master/assets/"
+DISCORD_ICON = _GH + "icon.png"
+
+
+def _spooky_season():
+    """SpookyScript (Halloween mode): all October, plus Halloween night into 1 November."""
+    d = datetime.date.today()
+    return d.month == 10 or (d.month == 11 and d.day == 1)
+# The dev logo is an Art Asset named "logo" on the VOIDSCRIPT (DEVELOPMENT) app
+# (Developer Portal > Rich Presence > Art Assets) - it isn't on GitHub until a release.
+DISCORD_DEV_ICON = "logo"
+# A duplicated or dev folder ("voidscript - Copy", "Void-Script (2)", "voidscript-dev",
+# "testing") is a development install; the folder the release unzips to is not.
+_TEST_FOLDER = re.compile(r"test|dev|copy|backup|staging|\(\d+\)", re.I)
+
+
+class DiscordPresence:
+    MIN_GAP = 15     # Discord allows ~5 updates per 20s; stay well under it
+    STUDIO_TTL = 45  # re-probe Studio for the status line at most this often
+
+    def __init__(self):
+        raw = _read_config().get("discord_rpc", True) if os.path.isfile(CONFIG_PATH) else True
+        opts = raw if isinstance(raw, dict) else {"enabled": raw}
+        folder = os.path.basename(HERE)
+        self.enabled = opts.get("enabled", True) is not False and os.environ.get("VS_NO_RPC") != "1"
+        self.dev = bool(opts["dev"]) if "dev" in opts else bool(
+            _TEST_FOLDER.search(folder) or os.path.exists(os.path.join(HERE, ".dev")))
+        self.app_id = str(opts.get("dev_app_id" if self.dev else "app_id")
+                          or (DISCORD_DEV_APP_ID if self.dev else DISCORD_APP_ID))
+        self.started = int(time.time())
+        self.tools = 0
+        self.last_tool = 0.0
+        self._pipe = None
+        self._sent = None
+        self._last_send = 0.0
+        self._studio = (None, 0.0)
+        self._wake = threading.Event()
+
+    def start(self):
+        if not self.enabled or not self.app_id:
+            return
+        label = "VOIDSCRIPT (DEVELOPMENT)" if self.dev else "VOIDSCRIPT"
+        log(f"discord: showing '{label}' on your profile while Discord is open "
+            f"(turn off with \"discord_rpc\": false in config.json)", "dim", terminal=False)
+        threading.Thread(target=self._run, name="discord-rpc", daemon=True).start()
+
+    def note_tool(self, name):
+        self.tools += 1
+        self.last_tool = time.time()
+        self._wake.set()
+
+    # The line under "Coding next level on Roblox".
+    def _status(self):
+        if time.time() - self.last_tool < 120:
+            n = self.tools
+            return f"Building in Studio · {n} command{'' if n == 1 else 's'}"
+        place, at = self._studio
+        if time.time() - at > self.STUDIO_TTL:
+            try:
+                place = probe_studio().get("place")
+            except Exception:
+                place = None
+            self._studio = (place, time.time())
+        if place:
+            return "Roblox Studio connected"
+        return "Waiting for Roblox Studio"
+
+    def _activity(self):
+        act = {
+            "details": ("🎃 SpookyScript - coding spooky on Roblox" if _spooky_season() else "Coding next level on Roblox"),
+            "state": self._status(),
+            "timestamps": {"start": self.started},
+            "assets": {"large_image": (_GH + ("spooky-dev.png" if self.dev else "spooky.png")) if _spooky_season()
+                       else (DISCORD_DEV_ICON if self.dev else DISCORD_ICON),
+                       "large_text": ("SpookyScript" if _spooky_season() else "VoidScript") + f" v{BRIDGE_VERSION}" + (" (development)" if self.dev else "")},
+        }
+        if not self.dev:
+            act["buttons"] = [{"label": "Get VoidScript", "url": "https://voidstudioai.netlify.app/"}]
+        return act
+
+    def _run(self):
+        while True:
+            try:
+                if self._pipe is None:
+                    self._connect()
+                act = self._activity()
+                if act != self._sent:
+                    wait = self.MIN_GAP - (time.time() - self._last_send)
+                    if wait > 0:
+                        time.sleep(wait)
+                        act = self._activity()
+                    self._frame(1, {"cmd": "SET_ACTIVITY", "nonce": str(time.time()),
+                                    "args": {"pid": os.getpid(), "activity": act}})
+                    self._read()
+                    self._sent, self._last_send = act, time.time()
+            except Exception:
+                self._close()  # Discord closed or not running - try again later
+            self._wake.wait(20 if self._pipe else 60)
+            self._wake.clear()
+
+    def _connect(self):
+        for i in range(10):
+            try:
+                if sys.platform == "win32":
+                    self._pipe = open(rf"\\.\pipe\discord-ipc-{i}", "r+b", buffering=0)
+                else:
+                    import socket
+                    base = (os.environ.get("XDG_RUNTIME_DIR") or os.environ.get("TMPDIR")
+                            or os.environ.get("TMP") or "/tmp")
+                    # Native, Flatpak and Snap Discord each put the socket somewhere else.
+                    for sub in ("", "app/com.discordapp.Discord", "snap.discord", ".flatpak/com.discordapp.Discord/xdg-run"):
+                        path = os.path.join(base, sub, f"discord-ipc-{i}")
+                        if not os.path.exists(path):
+                            continue
+                        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                        s.connect(path)
+                        self._pipe = s.makefile("rwb", buffering=0)
+                        break
+                    if self._pipe is None:
+                        continue
+                break
+            except OSError:
+                continue
+        if self._pipe is None:
+            raise OSError("Discord is not running")
+        self._frame(0, {"v": 1, "client_id": self.app_id})
+        op, data = self._read()
+        if op != 1 or data.get("evt") != "READY":
+            raise OSError(f"Discord refused the handshake: {data.get('message') or data}")
+        self._sent = None
+        log("discord: presence connected", "dim", terminal=False)
+
+    def _frame(self, op, payload):
+        body = json.dumps(payload).encode("utf-8")
+        self._pipe.write(struct.pack("<II", op, len(body)) + body)
+        self._pipe.flush()
+
+    def _read(self):
+        head = self._pipe.read(8)
+        if not head or len(head) < 8:
+            raise OSError("Discord closed the connection")
+        op, n = struct.unpack("<II", head)
+        body = self._pipe.read(n) if n else b""
+        if op == 2:
+            raise OSError("Discord closed the connection")
+        return op, (json.loads(body) if body else {})
+
+    def _close(self):
+        if self._pipe is not None:
+            try:
+                self._pipe.close()
+            except Exception:
+                pass
+        self._pipe = None
+
+
+RPC = None  # created in main() once config.json has been read
+
+
 def _log_tail(n=40):
     """Last n lines of bridge_debug.log (for the diagnostics payload)."""
     try:
@@ -2006,6 +2182,8 @@ async def handler(ws):
                 args = msg.get("arguments") or {}
                 timeout = float(msg.get("timeout", 120000)) / 1000.0
                 log(f"-> tool  {name}({', '.join(args.keys())})", "cy", terminal=False)
+                if RPC:
+                    RPC.note_tool(name)
                 # Run the tool as a BACKGROUND task instead of awaiting it here.
                 # Awaiting inline parks this read loop for the WHOLE tool call, so
                 # a long tool (e.g. wait_job_finished > 25s) means the client's
@@ -2213,6 +2391,11 @@ async def studio_watch(initial_app, initial_place=None):
     prev_place = initial_place
     disconnected_since = None
     last_auto_restart = 0.0
+    # Restarts since Studio was last connected. Studio simply being CLOSED looks
+    # exactly like the stuck-proxy bug, and restarting every 90s forever just
+    # spammed "proxy looks stuck" - so give up after a few and wait quietly.
+    auto_restarts = 0
+    MAX_AUTO_RESTARTS = 3
     empty_since = None       # when the roblox catalogue was first seen empty
     last_reclaim = 0.0       # cooldown for the zombie-StudioMCP port reclaim
     place_transitions = []
@@ -2298,6 +2481,7 @@ async def studio_watch(initial_app, initial_place=None):
                 log(f"Roblox Studio connected - {roblox_now} tools ready.", "gr")
                 ever_connected = True
                 disconnected_since = None
+                auto_restarts = 0
                 update_suspected = False
             else:
                 cur_exe = await asyncio.to_thread(_current_studio_exe)
@@ -2364,14 +2548,19 @@ async def studio_watch(initial_app, initial_place=None):
                         "OPEN Assistant Settings > MCP Servers - opening that panel makes the "
                         "plugin re-register (validated twice live). If that's not enough, toggle "
                         "'Enable Studio as MCP server' OFF then ON there.", "yl")
-                else:
-                    log("Roblox Studio proxy looks stuck (known StudioMCP disconnect bug) - "
-                        "restarting it to recover.", "yl")
+                elif auto_restarts < MAX_AUTO_RESTARTS:
+                    auto_restarts += 1
+                    log(f"Roblox Studio's connection dropped - restarting the Studio link to recover "
+                        f"(try {auto_restarts} of {MAX_AUTO_RESTARTS}).", "yl")
                     try:
                         await asyncio.to_thread(mgr.restart, "roblox")
                         await broadcast_status()
                     except Exception as e:
                         log(f"auto-restart of roblox proxy failed: {e}", "rd")
+                elif auto_restarts == MAX_AUTO_RESTARTS:
+                    auto_restarts += 1  # say it once, then stay quiet
+                    log("Roblox Studio isn't connected. Open Roblox Studio (with a place) - VoidScript "
+                        "reconnects by itself as soon as it's back. No need to restart anything.", "yl")
         # PLACE-level churn: `app` can stay stuck reporting True the whole time
         # (seen live 2026-07-11 - Studio fully closed, list_roblox_studios kept
         # answering with a leftover studio entry for 4+ minutes, so the app-drop
@@ -2381,12 +2570,13 @@ async def studio_watch(initial_app, initial_place=None):
         # place layer instead of the app layer. A fresh StudioMCP.exe process
         # cannot carry over stale cached state, so the same restart applies.
         place_transitions[:] = [t for t in place_transitions if now - t < 90]
-        if len(place_transitions) >= 4 and now - last_auto_restart > 90:
+        if len(place_transitions) >= 4 and now - last_auto_restart > 90 and auto_restarts < MAX_AUTO_RESTARTS:
             # Same running-Studio guard as the app-drop recovery above: with a
             # real Studio window up, a proxy restart can only collide with the
             # plugin's one-shot registration; the churn is Studio-side state.
             if await asyncio.to_thread(_roblox_studio_app_running) is not True:
                 last_auto_restart = now
+                auto_restarts += 1
                 log(f"Roblox Studio's place status flipped {len(place_transitions)} times in the last "
                     "90s (known StudioMCP stuck-proxy bug) - restarting the proxy to recover.", "yl")
                 try:
@@ -2536,6 +2726,16 @@ async def main():
     await asyncio.to_thread(_kill_orphan_studio_mcp)
     killed_squatter = await asyncio.to_thread(check_studio_port)
     mgr.load_config()
+    global RPC
+    try:
+        # Under VoidScript.exe the app shows the Discord status itself (and knows
+        # more - chatting, building a model...), so only start.bat runs this one.
+        if os.environ.get("VS_GUI") == "1":
+            raise RuntimeError("the app shows it")
+        RPC = DiscordPresence()
+        RPC.start()
+    except Exception as e:
+        log(f"discord: presence off ({e})", "dim", terminal=False)
 
     # Shared "we already told the user the corrective step" flag. Two producers
     # can print the 'toggle Studio's MCP server' action banner: the early
@@ -2762,7 +2962,7 @@ async def main():
                 pass
             if other and other.get("type") in ("pong", "connected", "status"):
                 log("VoidScript (or ZeroScript) is already running on this PC - that's what is using the port.", "yl")
-                log("    If VoidScript.exe is open, you don't need start.bat: the app runs the bridge for you.", "yl")
+                log("    If the VoidScript app (SpookyScript.exe / VoidScript.exe) is open, you don't need start.bat: the app runs the bridge for you.", "yl")
                 log("    If ZeroScript is running, close its window first - both use the same port.", "yl")
                 return
             log(f"could not start: port {PORT} is already in use{who}.", "rd")

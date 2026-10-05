@@ -2,6 +2,89 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [6.3.0] - 2026-10-05 - SpookyScript
+
+### 🎃 SpookyScript - Halloween mode (all October)
+- **This release IS SpookyScript:** the app is `SpookyScript.exe`, the zip is `SpookyScript-6.3.0.zip`, and the extension is called SpookyScript in Chrome.
+- **Your shortcuts follow it:** the first time you open SpookyScript.exe, your Desktop, Start menu and pinned-taskbar shortcuts to VoidScript are pointed at SpookyScript.exe (and renamed). Updates find the app under either name from now on.
+- **Updating from inside the app?** This one time, the app closes after the update instead of reopening (your current version is looking for VoidScript.exe). Just open **SpookyScript.exe** from your VoidScript folder - everything else, shortcuts included, sorts itself out.
+- **VoidScript becomes SpookyScript by itself** from 1 October to Halloween night, then turns back. Off switch in Settings (app) and the popup (extension).
+- **Its own look, everywhere:** a moonlit, starry night sky with drifting fog, cobwebbed stone cards, candle-flicker on the active page, scrawled spooky headings, pumpkin buttons that drip, ghostly chat bubbles, a haunted 3D stage, purple scrollbars, a dangling spider, a haunted vignette, the odd flash of lightning, bats and ghosts drifting past, and a little graveyard in the sidebar.
+- **Pumpkin logos** - the VoidScript `</>` carved into a jack-o'-lantern - in the app, the extension bar, the popup and the Chrome toolbar icon.
+- **AI sites get a spooky frame** while the extension is on them: a glowing edge, cobwebs in every corner, a spider and pumpkins. Clicks go straight through it.
+- **Spooky Scary Skeletons music** plays while SpookyScript is on (mute button in the app's title bar and on the extension bar). Browsers start sound on your first click.
+- **New fonts:** scrawled spooky headings and menu, a condensed body font - SpookyScript reads differently, not just looks different.
+- **The taskbar icon turns into the pumpkin** while the app is open, and back after Halloween.
+- **SpookyScript DEV:** the dev build gets its own logo - the pumpkin with the glowing dev hammer - and a DEV tag.
+- **AI websites are haunted:** a moon in the corner, bats flying across the top, ghosts peeking in from the sides, two dangling spiders, cobwebs in every corner and pumpkins at the bottom - and the popup gets bats, a ghost and cobwebs too.
+- **Halloween templates (Toolkit):** Haunted house, Zombie survival, Trick-or-treat simulator and Ghost hunt - one click and the agent builds it.
+- **Halloween night lighting:** a purple moonlit sky with low fog and orange haze, in one click.
+- **Spooky ideas:** chat suggestions, model ideas (haunted mansion, jack-o'-lantern, witch's cauldron, coffin, scarecrow, ghost ship) and UI ideas (trick-or-treat shop, candy counter, haunted menu…) all go Halloween.
+- **Generators speak spooky:** "Summoning…", "Conjuring…", "Cursing…" and "Brewing…" instead of designing and thinking.
+- Discord status gets a 🎃 too.
+
+### Prompt Enhancer
+- **The wand button makes your prompt clearer** - in Chat, the Model builder and the UI builder (app), and on the extension bar and its generator panels. It keeps exactly what you asked for (same feature, names and numbers) and only spells out what you meant: where things go, how they behave, shape and materials for models, layout and text for UIs. Nothing new gets added.
+- In the app the rewrite lands in the box for you to check - Ctrl+Z puts yours back. In the extension the site's own AI does the rewrite (the exchange is hidden from the chat).
+
+### Also new
+- **Discord status wears the pumpkin** in SpookyScript season (the dev build: the pumpkin with the hammer).
+- **Godot MCP** in the MCP catalog (app and extension) - open the Godot editor, run Godot projects and read their output next to Studio.
+- **No more "proxy looks stuck" spam:** when Roblox Studio is closed the bridge used to restart its Studio link every 90 seconds forever. It now tries 3 times, then says once to open Studio and reconnects by itself when Studio is back.
+- The extension popup and every button in the bar are renamed too ("Start SpookyScript").
+- Fixed: on Claude and other rich-text sites, the extension could paste a prompt twice.
+
+### Model generator back to the 6.0 recipe
+- Models are generated exactly like 6.0 again - same prompt, same part budgets, one reply - with the 6.2 extras kept (textures, styles, reference image, click-to-edit, undo, recolour/resize, welded insert, .rbxmx export, picture).
+
+### Model generator
+- **Textures:** builds use Roblox's real materials properly - Brick and Cobblestone walls, WoodPlanks floors, ClayRoofTiles and RoofShingles roofs, DiamondPlate, Grass and 40+ more - so a house looks like bricks and tiles, not plain plastic. The 3D preview now draws each material's texture too.
+- **Styles:** Realistic, Low poly, Cartoon or Blocky (app and extension).
+- **Self-check:** exact duplicate parts that would flicker in Studio are removed, and every model is set on the ground, centred.
+- **Reference image:** pick a picture and the AI copies it (needs a vision model such as Gemini - otherwise it builds from your description and tells you).
+- **Instant edits, no AI:** one-click Recolour palettes and Size (½×, −, +, 2×).
+- **Insert welded:** one rigid, unanchored model for vehicles, tools and moving props.
+- **Click to edit:** click any part in the 3D preview to change its colour or material, or delete it.
+- **Undo** every change - recolours, resizes, part edits, revisions.
+- **Export .rbxmx:** save the model as a Roblox model file and drag it straight into Studio - no bridge needed.
+- **Picture:** save the 3D preview as a PNG to show it off.
+
+### UI builder
+- **Much better looking UIs:** a real design guide (focal point, ribbon titles, inner panels, icons built from shapes, colour roles, phone-sized text) plus a finished pro-quality GUI as the standard to match, and exact palettes for every style.
+- **Layout recipes** for shops, HUDs, main menus, inventories, settings and reward popups.
+- **Auto-fix:** text too small for phones, buttons too short to tap, and text that blends into its background are fixed before you see them.
+- **Reference image:** pick a screenshot of a GUI you like and it recreates it.
+- **Phone / Tablet / PC preview** - see where a GUI breaks on small screens.
+- **Saved UIs** library, like Models.
+- **Animations built in:** every GUI comes with buttons that grow on hover and squish on click, and panels that pop in (its own LocalScript - untick Animations to leave it out).
+- **Instant recolour:** one click moves the whole theme to a new colour, keeping strokes and shadows as darker shades, while gold, green buy and red close buttons keep their roles.
+
+### 35 AI providers (app)
+- On top of NVIDIA, Gemini and OpenRouter: **Groq, Cerebras, Mistral, SambaNova, GitHub Models, Hugging Face, OpenCode Zen, Cohere, Together AI, Chutes, Z.ai (GLM), SiliconFlow, LLM7, Pollinations** (free tiers), **Alibaba Qwen, Fireworks, Nebius, Novita, Hyperbolic, Scaleway, kluster.ai, Upstage, AI/ML API, Inference.net, Venice, DeepInfra, Moonshot (Kimi), xAI (Grok)** (free credits to start), **DeepSeek**, **Ollama and LM Studio** (models on your own PC, no key) and **Custom** - any OpenAI-compatible API by its base URL.
+- A new provider picker in Settings and the Chat model menu: searchable, grouped into Free / Free credits / On this PC / Other, with a green dot on every provider you've saved a key for. Each provider keeps its own key and model.
+
+### Faster generators (app)
+- On NVIDIA, Models and UI builder use a fast model (DeepSeek V4.1 Flash) even when Chat is on a big slow one like Kimi K3 - tick "Use my chat model" to use yours instead.
+- Generators ask the AI to skip its slow "thinking" step, and only ask for as much output as the job needs.
+
+### Extension generators fixed
+- **The model and UI generators could spin on "Designing…" forever** on most sites (everything but DeepSeek), especially in a brand-new chat - the reply was there, but VoidScript never picked it up. They now read the reply their own way, find it even when a site's layout isn't recognised, and show the model/UI building live while the AI writes it.
+
+### Linux (testers)
+- **VoidScript runs on Linux with Roblox Studio under Vinegar or Wine.** Run `./start.sh`: the bridge finds Studio's StudioMCP.exe inside Vinegar (Flatpak or native), Grapejuice or a plain Wine prefix, and runs it through the right Wine. Unusual setup: `VS_STUDIO_MCP_PATH`, `VS_STUDIO_MCP_CMD` or `VS_WINE`. The browser extension works on Linux Chrome/Chromium as-is. (The desktop app is Windows-only for now.)
+
+### Site check (extension)
+- **Toolkit → Site check:** if VoidScript doesn't work on an AI site, one click sends a tiny test message, checks every step (typing box, send, your message, the reply, knowing when it's done) and fixes what it can by itself - saved for that site. Copy report sends the details to us if something still fails.
+- Typing now works on sites with Lexical/Slate editors (Perplexity and others), and Perplexity's new layout is recognised.
+
+### Discord
+- **Discord status:** your profile shows **VOIDSCRIPT** (or **VOIDSCRIPT (DEVELOPMENT)** for dev builds) with what you're doing: *In the VoidScript app*, *In Roblox Studio*, *Prompting the AI*, *Building in Roblox Studio*, *Building a model* or *Designing a UI*, plus a Get VoidScript button (Discord only shows buttons to other people, not on your own profile).
+- It comes from the app now, so it works whenever VoidScript.exe is open - no start.bat or MCP needed. start.bat on its own still shows it too (Windows, macOS and Linux - native, Flatpak and Snap Discord). Turn it off in Settings.
+
+### Fixed
+- In Chat, the VoidScript logo was drawn over the model menu.
+- **"The AI stopped responding (nothing for 75s)"** - free providers can queue a request for minutes before answering. It now waits up to 4 minutes for the first word (showing "Waiting for NVIDIA · 40s"), and a stall is retried once automatically.
+
 ## [6.1.0] - 2026-10-03
 
 ### Model generator: much better, and it learns from you

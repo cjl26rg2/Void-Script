@@ -23,4 +23,7 @@ __pycache__/
 
 # Built app and release leftovers (the exe ships in the release zip, see make-release.bat)
 VoidScript.exe
+SpookyScript.exe
+VoidScriptDev.exe
+SpookyScriptDev.exe
 *.old

@@ -120,6 +120,80 @@ def _find_studio_mcp_mac() -> Optional[Path]:
     return None
 
 
+# ── Linux: Roblox Studio runs under Wine, usually through Vinegar ────────────
+# StudioMCP.exe is a Windows program, so it runs through Wine too. It reaches
+# Studio over localhost, so any Wine works - but Vinegar's own (Flatpak) Wine is
+# preferred when Studio was installed by the Vinegar Flatpak.
+VINEGAR_FLATPAK = "org.vinegarhq.Vinegar"
+ENV_CMD = "VS_STUDIO_MCP_CMD"   # full command for unusual setups, e.g. "wine /path/StudioMCP.exe"
+ENV_WINE = "VS_WINE"            # which wine binary to use (default: wine on PATH)
+
+
+def _linux_version_dirs() -> list[Path]:
+    home = Path.home()
+    flat = home / ".var" / "app" / VINEGAR_FLATPAK / "data" / "vinegar"
+    native = home / ".local" / "share" / "vinegar"
+    pats = [
+        (flat, "versions/*"), (native, "versions/*"),                                   # Vinegar
+        (flat, "prefixes/*/drive_c/users/*/AppData/Local/Roblox/Versions/*"),
+        (native, "prefixes/*/drive_c/users/*/AppData/Local/Roblox/Versions/*"),
+        (home / ".local" / "share" / "grapejuice", "prefixes/*/drive_c/users/*/AppData/Local/Roblox/Versions/*"),
+        (home / ".wine", "drive_c/users/*/AppData/Local/Roblox/Versions/*"),             # plain Wine
+        (home / ".wine", "drive_c/Program Files*/Roblox/Versions/*"),
+    ]
+    out: list[Path] = []
+    for base, pat in pats:
+        if base.is_dir():
+            out.extend(p for p in base.glob(pat) if p.is_dir())
+    prefix = os.environ.get("WINEPREFIX")
+    if prefix:
+        out.extend(p for p in Path(prefix).glob("drive_c/users/*/AppData/Local/Roblox/Versions/*") if p.is_dir())
+    return out
+
+
+def _find_studio_mcp_linux() -> Optional[Path]:
+    paired: list[Path] = []
+    orphans: list[Path] = []
+    for version_dir in _linux_version_dirs():
+        studio_mcp = version_dir / "StudioMCP.exe"
+        if not studio_mcp.is_file():
+            continue
+        if any((version_dir / exe_name).is_file() for exe_name in WINDOWS_STUDIO_EXECUTABLES):
+            paired.append(studio_mcp)
+        else:
+            orphans.append(studio_mcp)
+    return _newest_path(paired) or _newest_path(orphans)
+
+
+def _wine_prefix_for(exe: Path) -> Optional[Path]:
+    """The Wine prefix (the folder holding drive_c) this exe lives in, or - for
+    Vinegar's versions folder, which sits outside the prefix - Vinegar's studio prefix."""
+    for parent in exe.parents:
+        if (parent / "drive_c").is_dir():
+            return parent
+        if parent.name == "versions" and (parent.parent / "prefixes").is_dir():
+            studio = parent.parent / "prefixes" / "studio"
+            return studio if studio.is_dir() else next((p for p in (parent.parent / "prefixes").iterdir() if p.is_dir()), None)
+    return None
+
+
+def _linux_command(exe: Path) -> list[str]:
+    import shutil
+    prefix = _wine_prefix_for(exe)
+    in_flatpak = f"/.var/app/{VINEGAR_FLATPAK}/" in exe.as_posix()
+    if in_flatpak and shutil.which("flatpak") and not os.environ.get(ENV_WINE):
+        cmd = ["flatpak", "run", "--command=wine"]
+        if prefix:
+            cmd.append(f"--env=WINEPREFIX={prefix}")
+        return cmd + [VINEGAR_FLATPAK, str(exe)]
+    wine = os.environ.get(ENV_WINE) or shutil.which("wine") or shutil.which("wine64")
+    if not wine:
+        raise FileNotFoundError("Wine isn't installed (or set VS_WINE to your wine binary).")
+    if prefix:
+        os.environ["WINEPREFIX"] = str(prefix)
+    return [wine, str(exe)]
+
+
 def find_studio_mcp() -> Optional[Path]:
     override_value = os.environ.get(ENV_OVERRIDE)
     if override_value:
@@ -131,21 +205,39 @@ def find_studio_mcp() -> Optional[Path]:
         )
     if sys.platform == "darwin":
         return _find_studio_mcp_mac()
+    if sys.platform.startswith("linux"):
+        return _find_studio_mcp_linux()
     return _find_studio_mcp_windows()
 
 
 def main() -> int:
-    exe = find_studio_mcp()
-    binary_name = "StudioMCP" if sys.platform == "darwin" else "StudioMCP.exe"
-    if not exe:
-        sys.stderr.write(
-            f"launch_studio_mcp: no {binary_name} found. Open Roblox Studio and "
-            "enable 'Studio as MCP server' (Assistant Settings > MCP Servers).\n"
-        )
-        return 1
-    sys.stderr.write(f"launch_studio_mcp: using {exe}\n")
+    linux = sys.platform.startswith("linux")
+    custom = os.environ.get(ENV_CMD)
+    if custom:
+        import shlex
+        cmd = shlex.split(custom)
+        sys.stderr.write(f"launch_studio_mcp: using {ENV_CMD}: {custom}\n")
+    else:
+        exe = find_studio_mcp()
+        binary_name = "StudioMCP" if sys.platform == "darwin" else "StudioMCP.exe"
+        if not exe:
+            hint = (" On Linux, install Studio with Vinegar (flathub: org.vinegarhq.Vinegar), open it once,"
+                    f" or point {ENV_OVERRIDE} at StudioMCP.exe.") if linux else ""
+            sys.stderr.write(
+                f"launch_studio_mcp: no {binary_name} found. Open Roblox Studio and "
+                f"enable 'Studio as MCP server' (Assistant Settings > MCP Servers).{hint}\n"
+            )
+            return 1
+        try:
+            cmd = _linux_command(exe) if linux else [str(exe)]
+        except FileNotFoundError as e:
+            sys.stderr.write(f"launch_studio_mcp: {e}\n")
+            return 1
+        sys.stderr.write(f"launch_studio_mcp: using {exe}" + (f" via {cmd[0]}" if linux else "") + "\n")
     sys.stderr.flush()
-    proc = subprocess.Popen([str(exe)] + sys.argv[1:])
+    # Wine's own chatter goes to stderr; quiet the usual noise so the bridge log stays readable.
+    os.environ.setdefault("WINEDEBUG", "-all")
+    proc = subprocess.Popen(cmd + sys.argv[1:])
     try:
         return proc.wait()
     except KeyboardInterrupt:

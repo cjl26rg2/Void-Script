@@ -4529,7 +4529,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "voidscript"
-version = "6.1.0"
+version = "6.3.0"
 dependencies = [
  "futures-util",
  "reqwest 0.12.28",
@@ -4542,6 +4542,7 @@ dependencies = [
  "tauri-plugin-single-instance",
  "tokio",
  "tokio-tungstenite",
+ "windows 0.61.3",
 ]
 
 [[package]]

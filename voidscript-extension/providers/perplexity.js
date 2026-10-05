@@ -15,7 +15,8 @@ const VSProvider = VSGeneric({
   displayName: "Perplexity",
   supportsVision: false,
   selectors: {
-    userItem: '[data-testid="query-text"], [class*="query"]',
+    // 2026-10: your question sits in a div with the Tailwind group "group/user-bubble".
+    userItem: '[class*="group/user-bubble"], [data-testid="query-text"]',
     assistantItem: '[data-testid="answer-text"], [class*="answer"][class*="prose" i], .prose',
     thinking: '[class*="reasoning" i],[class*="thinking" i]',
     editor: 'textarea, div[contenteditable="true"]',

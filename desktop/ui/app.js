@@ -18,6 +18,52 @@ const NV_FALLBACK = ["deepseek-ai/deepseek-v4.1-flash", "z-ai/glm-5.3-flash", "n
   "moonshotai/kimi-k2.6", "z-ai/glm-5.3", "nvidia/nemotron-3-super-120b-a12b", "openai/gpt-oss-20b"];
 const PROV_NAME = { nvidia: "NVIDIA", openrouter: "OpenRouter", google: "Gemini" };
 const PROV_KEY_URL = { nvidia: "https://build.nvidia.com/", openrouter: "https://openrouter.ai/keys", google: "https://aistudio.google.com/apikey" };
+// Every other provider (the backend has the same list with each one's URL).
+// [id, name, kind, where to get a key, default model ("" = pick one), note]
+// kind: free = a free tier, credits = free credits to start, local = on this PC, other.
+const MORE_PROVIDERS = [
+  ["groq", "Groq", "free", "https://console.groq.com/keys", "llama-3.3-70b-versatile", "A very fast free tier: Llama, Qwen, GPT-OSS, Kimi and more."],
+  ["cerebras", "Cerebras", "free", "https://cloud.cerebras.ai/", "llama-3.3-70b", "One of the fastest free tiers there is."],
+  ["mistral", "Mistral", "free", "https://console.mistral.ai/", "mistral-small-latest", "Free Experiment plan with every Mistral model."],
+  ["sambanova", "SambaNova", "free", "https://cloud.sambanova.ai/", "Meta-Llama-3.3-70B-Instruct", "Fast free tier for big open models."],
+  ["github", "GitHub Models", "free", "https://github.com/settings/tokens", "openai/gpt-4.1-mini", "Free with a GitHub token: GPT-4.1, Llama, DeepSeek and more. Type the model ID (e.g. openai/gpt-4.1)."],
+  ["huggingface", "Hugging Face", "free", "https://huggingface.co/settings/tokens", "meta-llama/Llama-3.3-70B-Instruct", "Free monthly credits across many providers."],
+  ["opencode", "OpenCode Zen", "free", "https://opencode.ai/", "", "Has free models - open the model menu and pick one."],
+  ["cohere", "Cohere", "free", "https://dashboard.cohere.com/", "", "Free trial key for Command models."],
+  ["together", "Together AI", "free", "https://api.together.ai/", "meta-llama/Llama-3.3-70B-Instruct-Turbo-Free", "Models ending in -Free cost nothing."],
+  ["chutes", "Chutes", "free", "https://chutes.ai/", "", "Lots of free open models."],
+  ["zai", "Z.ai (GLM)", "free", "https://z.ai/", "glm-4.5-flash", "GLM Flash models are free."],
+  ["siliconflow", "SiliconFlow", "free", "https://cloud.siliconflow.com/", "", "Several free open models."],
+  ["llm7", "LLM7", "free", "https://llm7.io/", "", "Works without a key."],
+  ["pollinations", "Pollinations", "free", "https://pollinations.ai/", "openai", "Works without a key."],
+  ["qwen", "Alibaba Qwen", "credits", "https://www.alibabacloud.com/en/product/modelstudio", "qwen-plus", "Free quota for new accounts."],
+  ["fireworks", "Fireworks", "credits", "https://fireworks.ai/", "accounts/fireworks/models/llama-v3p3-70b-instruct", "Free credits to start."],
+  ["nebius", "Nebius AI Studio", "credits", "https://studio.nebius.com/", "meta-llama/Llama-3.3-70B-Instruct", "Free credits to start."],
+  ["novita", "Novita", "credits", "https://novita.ai/", "meta-llama/llama-3.3-70b-instruct", "Free credits to start."],
+  ["hyperbolic", "Hyperbolic", "credits", "https://app.hyperbolic.xyz/", "meta-llama/Llama-3.3-70B-Instruct", "Free credits to start."],
+  ["scaleway", "Scaleway", "credits", "https://console.scaleway.com/", "llama-3.3-70b-instruct", "A free allowance every month."],
+  ["kluster", "kluster.ai", "credits", "https://platform.kluster.ai/", "", "Free credits to start."],
+  ["upstage", "Upstage", "credits", "https://console.upstage.ai/", "", "Free credits to start."],
+  ["aimlapi", "AI/ML API", "credits", "https://aimlapi.com/", "", "Free tier with limits."],
+  ["inference", "Inference.net", "credits", "https://inference.net/", "", "Free credits to start."],
+  ["venice", "Venice", "credits", "https://venice.ai/", "", "Limited free use."],
+  ["deepinfra", "DeepInfra", "credits", "https://deepinfra.com/", "meta-llama/Llama-3.3-70B-Instruct", "Free credits to start."],
+  ["moonshot", "Moonshot (Kimi)", "credits", "https://platform.moonshot.ai/", "", "Free credits to start."],
+  ["xai", "xAI (Grok)", "credits", "https://console.x.ai/", "", "Credits to start."],
+  ["deepseek", "DeepSeek", "other", "https://platform.deepseek.com/", "deepseek-chat", "Not free, but very cheap."],
+  ["ollama", "Ollama (on this PC)", "local", "https://ollama.com/download", "", "Runs models on your own PC - no key, no limits. Start Ollama first."],
+  ["lmstudio", "LM Studio (on this PC)", "local", "https://lmstudio.ai/", "", "Runs models on your own PC. Start LM Studio's local server first."],
+  ["custom", "Custom", "other", "", "", "Any OpenAI-compatible API - set its base URL below."],
+];
+// No key needed (custom may or may not want one).
+const KEYLESS = new Set(["llm7", "pollinations", "ollama", "lmstudio", "custom"]);
+for (const [id, name, , url] of MORE_PROVIDERS) { PROV_NAME[id] = name; PROV_KEY_URL[id] = url; }
+const PROV_KIND = { free: "Free", credits: "Free credits", local: "On this PC", other: "Other" };
+function provOptions() {
+  const groups = { free: ["nvidia", "google", "openrouter"], credits: [], local: [], other: [] };
+  for (const [id, , kind] of MORE_PROVIDERS) groups[kind].push(id);
+  return Object.entries(groups).map(([k, ids]) => `<optgroup label="${PROV_KIND[k]}">${ids.map((id) => `<option value="${id}">${esc(PROV_NAME[id])}</option>`).join("")}</optgroup>`).join("");
+}
 const TOOL_RESULT_CAP = 12000;
 const REF_TOTAL_CAP = 400 * 1024;
 
@@ -29,9 +75,10 @@ const LANGS = [
 ];
 
 let S = { state: {}, settings: {}, version: "" };
+for (const [id, , , , model] of MORE_PROVIDERS) DEFAULTS[id] = model;
 const prov = () => (PROV_NAME[S.settings.provider] ? S.settings.provider : "nvidia");
 const curModel = (p) => { p = p || prov(); return S.settings[p + "_model"] || DEFAULTS[p]; };
-const keySet = (p) => !!S.settings[(p || prov()) + "_key_set"];
+const keySet = (p) => { p = p || prov(); return KEYLESS.has(p) ? (p !== "custom" || !!S.settings.custom_base) : !!S.settings[p + "_key_set"]; };
 
 // ── small helpers ───────────────────────────────────────────────────────────
 let toastTimer = 0;
@@ -231,6 +278,9 @@ const MCP_PRESETS = [
     env: { key: "NOTION_TOKEN", label: "Notion integration token", placeholder: "ntn_…" } },
   { id: "blender", name: "Blender", desc: "Model, texture and render in Blender, then bring it into Studio.", command: "uvx", args: ["blender-mcp"],
     needs: "Needs uv and the Blender MCP add-on installed in Blender.", url: "https://github.com/ahujasid/blender-mcp" },
+  { id: "godot", name: "Godot", desc: "Open the Godot editor, run your Godot project and read its debug output - prototype in Godot next to Studio.", command: "npx", args: ["-y", "@coding-solo/godot-mcp"],
+    needs: "Needs Node.js and Godot 4 installed.", url: "https://github.com/Coding-Solo/godot-mcp",
+    env: { key: "GODOT_PATH", label: "Path to the Godot program (blank = find it)", placeholder: "Blank = find Godot by itself", optional: true, plain: true } },
   { id: "fetch", name: "Web fetch", desc: "Read web pages and docs (DevForum, create.roblox.com).", command: "uvx", args: ["mcp-server-fetch"],
     needs: "Needs uv.", url: "https://github.com/modelcontextprotocol/servers/tree/main/src/fetch" },
   { id: "context7", name: "Context7 docs", desc: "Up-to-date library and API docs for the AI.", command: "npx", args: ["-y", "@upstash/context7-mcp"],
@@ -262,7 +312,7 @@ function renderMcp() {
       <div class="td">${esc(p.desc)}</div>
       <div class="mcp-needs">${esc(p.needs)} <button class="link" data-url="${esc(p.url)}">Setup guide</button></div>
       ${mcpPending === p.id && p.env ? `<div class="mcp-env">
-        <input class="input mono" type="password" id="mcp-env-val" placeholder="${esc(p.env.placeholder)}" aria-label="${esc(p.env.label)}" autocomplete="off" spellcheck="false" />
+        <input class="input mono" type="${p.env.plain ? "text" : "password"}" id="mcp-env-val" placeholder="${esc(p.env.placeholder)}" aria-label="${esc(p.env.label)}" autocomplete="off" spellcheck="false" />
         <button class="btn sm primary" data-mcp="${esc(p.id)}" data-act="save">Save</button></div>` :
       `<button class="btn sm ${have.has(p.id) ? "" : "primary"}" data-mcp="${esc(p.id)}" data-act="${have.has(p.id) ? "remove" : "add"}">${have.has(p.id) ? "Remove" : "Add"}</button>`}
     </div>`).join("") + custom.map((s) => `
@@ -292,8 +342,8 @@ $("mcp-catalog").addEventListener("click", (e) => {
   let env;
   if (p.env) {
     const v = $("mcp-env-val").value.trim();
-    if (!v) { toast(`Paste your ${p.env.label} first.`); return; }
-    env = { [p.env.key]: v };
+    if (!v && !p.env.optional) { toast(`Paste your ${p.env.label} first.`); return; }
+    if (v) env = { [p.env.key]: v };
   }
   mcpPending = null;
   applyMcp(() => invoke("mcp_add", { id: p.id, command: p.command, args: p.args, env }), `Added ${p.name}.`);
@@ -437,7 +487,32 @@ listen("update-log", (e) => {
 // ── generators: one live run shared by models and the UI builder ────────────
 // While a generator is working, streamed text goes to it instead of the chat.
 const gen = { busy: false, onDelta() {} };
-const GEN_STALL_MS = 75000; // no new text for this long = the provider stalled
+// On NVIDIA the big chat models (Kimi, full GLM, Nemotron Super) queue for minutes
+// on the free tier, so the generators borrow a fast model unless the user opts out.
+// They write plain JSON, which these do well.
+const FAST_NV = ["deepseek-ai/deepseek-v4.1-flash", "z-ai/glm-5.3-flash", "nvidia/nemotron-3.5-lightning-30b-a3b"];
+const genUseChat = () => { try { return localStorage.getItem("vs-gen-chatmodel") === "1"; } catch { return false; } };
+async function genModel() {
+  if (prov() !== "nvidia" || genUseChat()) return null;
+  const cur = curModel("nvidia");
+  if (FAST_NV.includes(cur) || /flash|lightning|mini|nano|small|-(7|8|9|12|20)b\b/i.test(cur)) return null;
+  try {
+    const ids = new Set((await loadModels("nvidia")).map((m) => m.id));
+    return FAST_NV.find((id) => ids.has(id)) || null;
+  } catch { return null; }
+}
+for (const id of ["mg-chatmodel", "ub-chatmodel"]) {
+  $(id).checked = genUseChat();
+  $(id).onchange = (e) => {
+    try { localStorage.setItem("vs-gen-chatmodel", e.target.checked ? "1" : "0"); } catch {}
+    for (const o of ["mg-chatmodel", "ub-chatmodel"]) $(o).checked = e.target.checked;
+  };
+}
+
+// Free tiers (NVIDIA especially) can queue a request for minutes before the first
+// word, so waiting to START gets far longer than a reply that stops mid-way.
+const GEN_FIRST_MS = 240000; // nothing at all yet
+const GEN_STALL_MS = 90000;  // it was writing, then went quiet
 const fmtLeft = (s) => (s < 60 ? `${Math.ceil(s)}s` : `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, "0")}s`);
 
 // What each generator has learned from this user: notes from every revision and
@@ -485,7 +560,7 @@ function genStart(job) {
   if (chat.busy || gen.busy) { toast("Something else is generating - wait for it or press Stop first."); return false; }
   if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return false; }
   gen.busy = true; chat.stop = false;
-  Object.assign(job, { done: 0, passesLeft: 0, lag: null, stalled: false, note: "" });
+  Object.assign(job, { done: 0, passesLeft: 0, lag: null, stalled: false, retried: false, note: "", model: undefined });
   job.setBusy(true);
   return true;
 }
@@ -496,20 +571,25 @@ function genEnd(job) { gen.busy = false; gen.onDelta = () => {}; job.setBusy(fal
 // breaks off still hands back everything it finished (marked .cut).
 async function genCall(job, o) {
   const pill = $(job.pill), tEl = pill.querySelector(".gb-t"), bar = pill.querySelector(".gb-bar i");
+  if (job.model === undefined) job.model = await genModel(); // once per job, not per pass
   const t0 = Date.now();
-  let text = "", thinking = false, firstAt = 0, last = t0, drawn = 0, drawAt = 0;
+  let text = "", thinking = false, firstAt = 0, last = t0, heard = false, drawn = 0, drawAt = 0;
   const count = () => (text.match(/"n"\s*:/g) || []).length;
-  gen.onDelta = (c, r) => { last = Date.now(); if (r) thinking = true; text += c; };
+  gen.onDelta = (c, r) => { last = Date.now(); heard = true; if (r) thinking = true; text += c; };
+  job.stalled = false;
   const tick = () => {
     const now = Date.now(), n = count(), done = job.done + n;
     if (n && !firstAt) firstAt = now;
-    if (!job.stalled && now - last > GEN_STALL_MS) { job.stalled = true; invoke("ai_cancel").catch(() => {}); }
+    if (!job.stalled && now - last > (heard ? GEN_STALL_MS : GEN_FIRST_MS)) { job.stalled = true; invoke("ai_cancel").catch(() => {}); }
     const total = Math.max(job.total, Math.ceil(done * 1.08));
     let line;
     const units = (k) => `${k} ${k === 1 ? job.unit.slice(0, -1) : job.unit}`;
-    if (!n) line = `${thinking ? "Thinking" : o.label} · ${Math.round((now - t0) / 1000)}s` + (job.done ? ` · ${units(job.done)}` : "");
+    const who = job.model ? job.model.split("/").pop() : PROV_NAME[prov()];
+    const spookLabel = (l) => (spooky.on ? l.replace("Designing", "Summoning").replace("Revising", "Cursing").replace("Shaping", "Conjuring").replace("Detailing", "Haunting") : l);
+    const what = thinking ? (spooky.on ? "Brewing" : "Thinking") : !heard && now - t0 > 8000 ? `Waiting for ${who}` : spookLabel(o.label);
+    if (!n) line = `${what} · ${Math.round((now - t0) / 1000)}s` + (job.done ? ` · ${units(job.done)}` : "");
     else {
-      line = `${o.label} · ${units(done)}`;
+      line = `${spookLabel(o.label)} · ${units(done)}`;
       if (n > 2) {
         // Parts still to write at this call's pace, plus the wait before each later
         // pass starts writing (measured on the first one).
@@ -529,7 +609,12 @@ async function genCall(job, o) {
   const timer = setInterval(tick, 400);
   tick();
   try {
-    const { res } = await callModel({ messages: [{ role: "system", content: o.sys }, { role: "user", content: o.prompt }], temperature: o.temp, max_tokens: 16000 });
+    // A reference image goes along as a vision attachment.
+    const user = o.image ? [{ type: "text", text: o.prompt }, { type: "image_url", image_url: { url: o.image } }] : o.prompt;
+    // Output sized to the job (a huge limit makes some providers queue it longer);
+    // a reply that still runs out keeps every finished part.
+    const { res } = await callModel({ messages: [{ role: "system", content: o.sys }, { role: "user", content: user }], temperature: o.temp, max_tokens: o.maxTokens || 10000 },
+      { model: job.model || undefined, noThink: true });
     const m = res && res.choices && res.choices[0] && res.choices[0].message;
     return o.final(splitThinking(m || {}).content || text);
   } catch (e) {
@@ -542,8 +627,21 @@ async function genCall(job, o) {
       job.note = job.stalled ? "The AI stalled" : chat.stop ? "Stopped" : "The reply broke off";
       return kept;
     }
+    // A stall is usually the provider's queue, not the request: try once more.
+    if (job.stalled && !chat.stop && !job.retried) {
+      job.retried = true;
+      clearInterval(timer);
+      toast("The AI stalled - trying once more…", 4000);
+      return genCall(job, o);
+    }
+    // The model can't see images: go again without the picture.
+    if (o.image && !chat.stop && /image|vision|multimodal|content.*(array|type)|image_url/i.test(errText(e))) {
+      clearInterval(timer);
+      toast("This model can't see images - generating from your description only. Pick a vision model (e.g. Gemini) to use pictures.", 7000);
+      return genCall(job, Object.assign({}, o, { image: null }));
+    }
     if (chat.stop && !job.stalled) toast("Stopped.");
-    else if (job.stalled) toast(`The AI stopped responding (nothing for ${GEN_STALL_MS / 1000}s). Try again, or pick a faster model in the header.`, 7000);
+    else if (job.stalled) toast(`${PROV_NAME[prov()]} stopped responding twice. Try again in a minute, or pick a faster model in the header.`, 8000);
     else if (!chat.stop) toast(errText(e), 7000);
     if (!chat.stop) sfx("error");
     return null;
@@ -554,13 +652,52 @@ async function genCall(job, o) {
 }
 
 // ── models: AI-designed part models with a 3D preview ───────────────────────
-const mg = { spec: null, prompt: "", detail: "medium", badge: "", revs: 0, busy: false, view: null, rated: 0 };
+const mg = { spec: null, prompt: "", detail: "medium", style: "realistic", image: null, badge: "", revs: 0, busy: false, view: null, rated: 0 };
+
+// Reference picture for a generator: read as a data URL (the app's CSP allows
+// data: images), shrunk to 1024px JPEG so it's quick to send.
+function refPicker(k, state) {
+  const file = $(`${k}-ref-file`), img = $(`${k}-ref-img`), x = $(`btn-${k}-ref-x`);
+  const show = () => { img.hidden = x.hidden = !state.image; if (state.image) img.src = state.image; };
+  $(`btn-${k}-ref`).onclick = () => file.click();
+  x.onclick = () => { state.image = null; show(); };
+  file.onchange = () => {
+    const f = file.files[0];
+    file.value = "";
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      const im = new Image();
+      im.onload = () => {
+        const k2 = Math.min(1, 1024 / Math.max(im.width, im.height));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(im.width * k2)); c.height = Math.max(1, Math.round(im.height * k2));
+        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
+        state.image = c.toDataURL("image/jpeg", 0.85);
+        show();
+        toast("Picture added - the AI will copy it. Works best with a vision model (Gemini, GPT-4o…).", 5000);
+      };
+      im.onerror = () => toast("That file isn't a picture I can read.");
+      im.src = rd.result;
+    };
+    rd.readAsDataURL(f);
+  };
+}
+// One-click palettes for Recolour (darkest to lightest is matched automatically).
+const PALETTES = [
+  ["#7A1F1F", "#C0392B", "#E8A33D", "#F5E6C8"], ["#14324A", "#2E86C1", "#7FB3D5", "#ECF3F9"],
+  ["#1E3B20", "#3E7B3A", "#9BC53D", "#F1EBC9"], ["#2B1B3D", "#6C3483", "#D35BA0", "#F9D8E8"],
+  ["#1A1A1A", "#4A4A4A", "#9A9A9A", "#F2F2F2"], ["#3B2A1A", "#7B5235", "#C49A6C", "#EFE2CF"],
+];
 let mgSaved = [];
 try { mgSaved = JSON.parse(localStorage.getItem("vs-models") || "[]"); } catch {}
 const MG_SYSTEM = "You are a top Roblox builder who designs detailed 3D models out of simple parts. You reply with JSON only.";
 
 function mgView() {
-  if (!mg.view && window.VSModelView && window.THREE) mg.view = VSModelView.create($("mg-view"));
+  if (!mg.view && window.VSModelView && window.THREE) {
+    mg.view = VSModelView.create($("mg-view"));
+    mg.view.onPick = (i) => { if (!mg.busy && mg.spec) mgPick(i); };
+  }
   return mg.view;
 }
 function mgRender() {
@@ -570,6 +707,9 @@ function mgRender() {
   $("mg-badge").textContent = mg.badge;
   $("mg-empty").hidden = has || mg.busy;
   for (const id of ["btn-mg-txt", "btn-mg-copy", "btn-mg-insert", "btn-mg-save", "btn-mg-reset", "mg-change", "btn-mg-revise", "btn-mg-good", "btn-mg-bad"]) $(id).disabled = !has || mg.busy;
+  $("mg-quick").querySelectorAll("button").forEach((b) => { b.disabled = !has || mg.busy; });
+  for (const id of ["btn-mg-rbxmx", "btn-mg-png"]) $(id).disabled = !has || mg.busy;
+  $("btn-mg-undo").disabled = mg.busy || !(mg.undo && mg.undo.length);
   $("btn-mg-good").classList.toggle("on", mg.rated > 0);
   $("btn-mg-bad").classList.toggle("on", mg.rated < 0);
   $("btn-mg-go").disabled = mg.busy;
@@ -580,21 +720,71 @@ function mgRender() {
     const st = VSModel.stats(mg.spec);
     $("mg-stats").hidden = false;
     $("mg-stats").textContent = `${st.parts} parts · ${st.size.join(" × ")} studs`;
-    $("mg-script").textContent = VSModel.toLuau(mg.spec);
+    $("mg-script").textContent = mgLuau();
   } else $("mg-stats").hidden = true;
   $("mg-count").textContent = String(mgSaved.length);
   $("mg-list").innerHTML = mgSaved.length ? mgSaved.map((m, i) => `
     <div class="mg-item" data-i="${i}"><b>${esc(m.spec.name)}</b><span>${m.spec.parts.length} parts · ${esc(ago(m.t))}</span><button class="link" data-del="${i}" title="Delete">×</button></div>`).join("")
     : '<p class="muted small-p">Models you save show up here.</p>';
 }
-function mgShow(spec, badge) {
+// edit: the same model changed in place (keep the camera where it is).
+function mgShow(spec, badge, edit) {
+  if (mg.spec && mg.spec !== spec) mg.undo = [mg.spec].concat(mg.undo || []).slice(0, 30);
   mg.spec = spec;
   mg.badge = badge;
   mg.rated = 0;
+  mgPick(-1);
   mgRender();
   const v = mgView();
-  if (v) v.show(spec);
+  if (v) v.show(spec, edit ? "edit" : undefined);
 }
+// Click a part in the preview to edit it.
+function mgPick(i) {
+  mg.pick = mg.spec && mg.spec.parts[i] ? i : -1;
+  const v = mg.view;
+  if (v) v.select(mg.pick);
+  $("mg-insp").hidden = mg.pick < 0;
+  if (mg.pick < 0) return;
+  const p = mg.spec.parts[mg.pick];
+  $("mg-insp-name").textContent = `${p.n} · ${p.s}`;
+  $("mg-insp-color").value = p.c.toLowerCase();
+  $("mg-insp-mat").value = p.m;
+}
+function mgEditPart(change) {
+  const i = mg.pick;
+  const parts = mg.spec.parts.map((p, k) => (k === i ? Object.assign({}, p, change) : p));
+  mgShow({ name: mg.spec.name, parts }, "Edited", true);
+  mgPick(i);
+}
+$("mg-insp-mat").innerHTML = VSModel.MATERIALS.map((m) => `<option>${m}</option>`).join("");
+$("mg-insp-color").oninput = (e) => mgEditPart({ c: e.target.value.toUpperCase() });
+$("mg-insp-mat").onchange = (e) => mgEditPart({ m: e.target.value });
+$("btn-mg-insp-del").onclick = () => {
+  if (mg.spec.parts.length < 2) { toast("That's the last part."); return; }
+  const i = mg.pick;
+  mgShow({ name: mg.spec.name, parts: mg.spec.parts.filter((_, k) => k !== i) }, "Edited", true);
+};
+$("btn-mg-insp-x").onclick = () => mgPick(-1);
+$("btn-mg-undo").onclick = () => {
+  if (!mg.undo || !mg.undo.length) return;
+  mg.spec = mg.undo.shift();
+  mg.badge = "Undone";
+  mgPick(-1);
+  mgRender();
+  if (mg.view) mg.view.show(mg.spec, "edit");
+};
+$("btn-mg-rbxmx").onclick = async () => {
+  const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".rbxmx";
+  try { if (await invoke("save_text", { name, content: VSModel.toRbxmx(mg.spec, { welded: $("mg-welded").checked }) })) toast("Saved - drag the file into Studio to add the model.", 4500); }
+  catch (e) { toast(errText(e)); }
+};
+$("btn-mg-png").onclick = async () => {
+  const v = mgView();
+  if (!v) return;
+  const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".png";
+  try { if (await invoke("save_text", { name, content: v.snapshot(), base64: true })) toast("Picture saved."); }
+  catch (e) { toast(errText(e)); }
+};
 const mgJob = (total) => ({
   pill: "mg-busy", unit: "parts", minKeep: 8, total,
   setBusy(b) { mg.busy = b; $("mg-busy").classList.remove("live"); mgRender(); },
@@ -609,6 +799,25 @@ function mgFinish(job, spec, badge) {
   sfx("done");
   return true;
 }
+const mgLuau = () => VSModel.toLuau(mg.spec, { welded: $("mg-welded").checked });
+$("mg-welded").onchange = () => mgRender();
+refPicker("mg", mg);
+$("mg-style").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  mg.style = b.dataset.v;
+  $("mg-style").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+});
+$("mg-pals").innerHTML = PALETTES.map((p, i) => `<button class="pal" data-pal="${i}" title="Recolour">${p.map((c) => `<i style="background:${c}"></i>`).join("")}</button>`).join("");
+$("mg-quick").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (!b || !mg.spec) return;
+  if (b.dataset.pal) mgShow(VSModel.recolor(mg.spec, PALETTES[Number(b.dataset.pal)]), "Recoloured", true);
+  else if (b.dataset.scale) {
+    const k = Number(b.dataset.scale);
+    mgShow(VSModel.ground(VSModel.scale(mg.spec, k)), `Resized ${k}×`);
+  }
+});
 $("mg-detail").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-v]");
   if (!b) return;
@@ -631,13 +840,16 @@ $("btn-mg-go").onclick = async () => {
       job.passesLeft = passes.length - 1 - i;
       let next;
       if (i === 0) {
-        next = await genCall(job, { label: passes.length > 1 ? "Shaping" : "Designing", sys: MG_SYSTEM, temp: 0.4,
-          prompt: VSModel.buildPrompt(desc, mg.detail, Object.assign({ budget: passes[0], firstPass: passes.length > 1 }, extra)),
+        next = await genCall(job, { label: passes.length > 1 ? "Shaping" : "Designing", sys: MG_SYSTEM, temp: 0.4, maxTokens: passes[0][1] * 75 + 1500,
+          prompt: VSModel.buildPrompt(desc, mg.detail, Object.assign({ budget: passes[0], firstPass: passes.length > 1, style: mg.style, image: !!mg.image }, extra)),
+          image: mg.image,
           live: (t) => VSModel.parse(t, true), final: (t) => VSModel.parse(t) });
       } else {
-        const before = VSModel.ground(spec);
-        next = await genCall(job, { label: `Detailing ${i}/${passes.length - 1}`, sys: MG_SYSTEM, temp: 0.5,
-          prompt: VSModel.detailPrompt(before, desc, passes[i], extra),
+        // Self-check first: duplicates go now, floating parts get fixed in this pass.
+        const check = VSModel.audit(VSModel.ground(spec));
+        const before = check.spec;
+        next = await genCall(job, { label: `Detailing ${i}/${passes.length - 1}`, sys: MG_SYSTEM, temp: 0.5, maxTokens: passes[i][1] * 75 + 1500,
+          prompt: VSModel.detailPrompt(before, desc, passes[i], Object.assign({ issues: check.issues }, extra)),
           live: (t) => { const d = VSModel.parseDelta(t, true); return d.add.length ? VSModel.applyDelta(before, { add: d.add, remove: [] }) : null; },
           final: (t) => VSModel.applyDelta(before, VSModel.parseDelta(t)) });
         // A detail pass that fails still leaves a finished model.
@@ -649,6 +861,8 @@ $("btn-mg-go").onclick = async () => {
       job.preview(spec);
       if (chat.stop || job.stalled) break;
     }
+    // Drop exact duplicate parts (they flicker in Studio) - no extra AI pass.
+    if (spec) spec = VSModel.audit(VSModel.ground(spec)).spec;
   } finally { genEnd(job); }
   if (mgFinish(job, spec, "Generated")) { mg.prompt = desc; mg.revs = 0; }
 };
@@ -688,11 +902,11 @@ document.querySelectorAll(".mg-tabs button").forEach((b) => b.addEventListener("
 }));
 $("btn-mg-reset").onclick = () => mg.view && mg.view.reset();
 $("btn-mg-copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(VSModel.toLuau(mg.spec)); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
+  try { await navigator.clipboard.writeText(mgLuau()); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
 };
 $("btn-mg-txt").onclick = async () => {
   const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".txt";
-  try { if (await invoke("save_text", { name, content: VSModel.toLuau(mg.spec) })) toast("Saved."); }
+  try { if (await invoke("save_text", { name, content: mgLuau() })) toast("Saved."); }
   catch (e) { toast(errText(e)); }
 };
 $("btn-mg-insert").onclick = async () => {
@@ -700,7 +914,7 @@ $("btn-mg-insert").onclick = async () => {
   const btn = $("btn-mg-insert");
   btn.disabled = true; btn.textContent = "Inserting…";
   try {
-    const r = await invoke("bridge_request", { payload: { type: "call_tool", name: "execute_luau", arguments: { code: VSModel.toLuau(mg.spec), datamodel_type: "Edit" } }, timeoutMs: 90000 });
+    const r = await invoke("bridge_request", { payload: { type: "call_tool", name: "execute_luau", arguments: { code: mgLuau(), datamodel_type: "Edit" } }, timeoutMs: 90000 });
     if (r && r.type === "tool_result" && r.ok) { toast(`${mg.spec.name} is in Studio. Ctrl+Z undoes it.`, 3500); sfx("done"); }
     else { toast("Studio couldn't build it: " + ((r && (r.error || r.text)) || "unknown error"), 6000); sfx("error"); }
   } catch (e) { toast(errText(e), 5000); }
@@ -730,7 +944,50 @@ $("mg-list").addEventListener("click", (e) => {
 mgRender();
 
 // ── UI builder ──────────────────────────────────────────────────────────────
-const ub = { spec: null, prompt: "", badge: "", revs: 0, busy: false, style: "chunky", rated: 0 };
+const ub = { spec: null, prompt: "", badge: "", revs: 0, busy: false, style: "chunky", device: "pc", image: null, rated: 0 };
+let ubSaved = [];
+try { ubSaved = JSON.parse(localStorage.getItem("vs-uis") || "[]"); } catch {}
+const ubDraw = (spec) => VSUI.render($("ub-view"), spec, ub.device);
+const ubLuau = () => VSUI.toLuau(ub.spec, { animate: $("ub-anim").checked });
+$("ub-anim").onchange = () => ubRender();
+// Theme hues for Recolour (the GUI's main colour family moves to this hue).
+const HUES = [[217, "#3A86FF"], [0, "#FF4D4D"], [140, "#2ECC71"], [270, "#9B59B6"], [28, "#FF9F43"], [330, "#FF6FB5"], [180, "#1ABC9C"], [220, "#3C4454", 0.18]];
+$("ub-hues").innerHTML = HUES.map(([h, c], i) => `<button class="hue" data-hue="${i}" style="background:${c}" title="Recolour"></button>`).join("");
+$("ub-quick").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-hue]");
+  if (!b || !ub.spec) return;
+  const [h, , sat] = HUES[Number(b.dataset.hue)];
+  ubShow(VSUI.recolor(ub.spec, h, sat), "Recoloured");
+});
+refPicker("ub", ub);
+$("ub-device").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-v]");
+  if (!b) return;
+  ub.device = b.dataset.v;
+  $("ub-device").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+  if (ub.spec) ubDraw(ub.spec);
+});
+$("btn-ub-save").onclick = () => {
+  ubSaved = [{ spec: ub.spec, prompt: ub.prompt, t: Date.now() }].concat(ubSaved.filter((m) => m.spec.name !== ub.spec.name)).slice(0, 30);
+  try { localStorage.setItem("vs-uis", JSON.stringify(ubSaved)); } catch { toast("Not enough room to save more UIs - delete some first."); return; }
+  ub.badge = "Saved";
+  ubRender();
+  toast("Saved.");
+};
+$("ub-list").addEventListener("click", (e) => {
+  const del = e.target.closest("[data-del]");
+  if (del) {
+    ubSaved.splice(Number(del.dataset.del), 1);
+    try { localStorage.setItem("vs-uis", JSON.stringify(ubSaved)); } catch {}
+    ubRender();
+    return;
+  }
+  const it = e.target.closest(".mg-item");
+  if (!it) return;
+  const m = ubSaved[Number(it.dataset.i)];
+  ub.prompt = m.prompt || ""; ub.revs = 0;
+  ubShow(m.spec, "Saved");
+});
 $("ub-style").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-v]");
   if (!b) return;
@@ -745,7 +1002,12 @@ function ubRender() {
   $("ub-badge").textContent = ub.badge;
   $("ub-empty").hidden = has || ub.busy;
   $("ub-busy").hidden = !ub.busy;
-  for (const id of ["btn-ub-txt", "btn-ub-copy", "btn-ub-insert", "ub-change", "btn-ub-revise", "btn-ub-good", "btn-ub-bad"]) $(id).disabled = !has || ub.busy;
+  for (const id of ["btn-ub-txt", "btn-ub-copy", "btn-ub-insert", "btn-ub-save", "ub-change", "btn-ub-revise", "btn-ub-good", "btn-ub-bad"]) $(id).disabled = !has || ub.busy;
+  $("ub-count").textContent = String(ubSaved.length);
+  $("ub-quick").querySelectorAll("button").forEach((b) => { b.disabled = !has || ub.busy; });
+  $("ub-list").innerHTML = ubSaved.length ? ubSaved.map((m, i) => `
+    <div class="mg-item" data-i="${i}"><b>${esc(m.spec.name)}</b><span>${m.spec.elements.length} elements · ${esc(ago(m.t))}</span><button class="link" data-del="${i}" title="Delete">×</button></div>`).join("")
+    : '<p class="muted small-p">UIs you save show up here.</p>';
   $("btn-ub-good").classList.toggle("on", ub.rated > 0);
   $("btn-ub-bad").classList.toggle("on", ub.rated < 0);
   $("btn-ub-go").disabled = ub.busy;
@@ -754,21 +1016,21 @@ function ubRender() {
   $("ub-stats").hidden = !has;
   if (has) {
     $("ub-stats").textContent = `${ub.spec.elements.length} elements${ub.spec.script.trim() ? " · with LocalScript" : ""}`;
-    $("ub-script").textContent = VSUI.toLuau(ub.spec);
+    $("ub-script").textContent = ubLuau();
   }
 }
 function ubShow(spec, badge) {
   ub.spec = spec; ub.badge = badge; ub.rated = 0;
   ubRender();
-  VSUI.render($("ub-view"), spec);
+  ubDraw(spec);
 }
 const ubJob = (total) => ({
   pill: "ub-busy", unit: "elements", minKeep: 3, total,
   setBusy(b) { ub.busy = b; $("ub-busy").classList.remove("live"); ubRender(); },
-  preview(sp) { VSUI.render($("ub-view"), sp); $("ub-busy").classList.add("live"); },
+  preview(sp) { ubDraw(sp); $("ub-busy").classList.add("live"); },
 });
 function ubFinish(job, spec, badge) {
-  if (!spec) { if (ub.spec) VSUI.render($("ub-view"), ub.spec); else $("ub-view").innerHTML = ""; return false; }
+  if (!spec) { if (ub.spec) ubDraw(ub.spec); else $("ub-view").innerHTML = ""; return false; }
   ubShow(spec, job.note ? "Partial" : badge);
   if (job.note) toast(`${job.note} - kept the ${spec.elements.length} elements it finished. Revise to keep going.`, 6000);
   sfx("done");
@@ -783,7 +1045,8 @@ $("btn-ub-go").onclick = async () => {
   let spec = null;
   try {
     spec = await genCall(job, { label: "Designing", sys: UB_SYSTEM, temp: 0.5,
-      prompt: VSUI.buildPrompt(desc, ub.style, learnFor("ui", desc)),
+      prompt: VSUI.buildPrompt(desc, ub.style, Object.assign({ image: !!ub.image }, learnFor("ui", desc))),
+      image: ub.image,
       live: (t) => VSUI.parse(t, true), final: (t) => VSUI.parse(t) });
   } finally { genEnd(job); }
   if (ubFinish(job, spec, "Generated")) { ub.prompt = desc; ub.revs = 0; }
@@ -819,12 +1082,12 @@ document.querySelectorAll("#ub-tabs button").forEach((b) => b.addEventListener("
   $("ub-script").hidden = b.dataset.t !== "script";
 }));
 $("btn-ub-copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(VSUI.toLuau(ub.spec)); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
+  try { await navigator.clipboard.writeText(ubLuau()); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
 };
 $("btn-ub-txt").onclick = async () => {
-  try { if (await invoke("save_text", { name: ub.spec.name + ".txt", content: VSUI.toLuau(ub.spec) })) toast("Saved."); } catch (e) { toast(errText(e)); }
+  try { if (await invoke("save_text", { name: ub.spec.name + ".txt", content: ubLuau() })) toast("Saved."); } catch (e) { toast(errText(e)); }
 };
-$("btn-ub-insert").onclick = () => runLuau(VSUI.toLuau(ub.spec), `${ub.spec.name} is in StarterGui. Press Play to try it.`, $("btn-ub-insert"));
+$("btn-ub-insert").onclick = () => runLuau(ubLuau(), `${ub.spec.name} is in StarterGui. Press Play to try it.`, $("btn-ub-insert"));
 ubRender();
 renderLearn();
 
@@ -991,17 +1254,22 @@ $("set-lang").innerHTML = LANGS.map(([v, n]) => `<option value="${esc(v)}">${esc
 function renderSettings() {
   const s = S.settings || {};
   const p = prov();
-  document.querySelectorAll("#prov-seg button").forEach((b) => b.classList.toggle("on", b.dataset.prov === p));
-  $("key-label").textContent = `${PROV_NAME[p]} API key`;
-  $("set-key").placeholder = { openrouter: "sk-or-…", google: "AIza…" }[p] || "nvapi-…";
-  $("prov-hint").innerHTML = {
+  $("prov-select").value = p;
+  if ($("prov-select").__sync) $("prov-select").__sync();
+  $("key-label").textContent = `${PROV_NAME[p]} API key${KEYLESS.has(p) ? " (optional)" : ""}`;
+  $("set-key").placeholder = { openrouter: "sk-or-…", google: "AIza…", nvidia: "nvapi-…" }[p] || "Paste your key";
+  $("base-field").hidden = p !== "custom";
+  if (p === "custom") $("set-base").value = s.custom_base || "";
+  const more = MORE_PROVIDERS.find((x) => x[0] === p);
+  $("prov-hint").innerHTML = more ? `<b>${PROV_KIND[more[2]]}.</b> ${esc(more[5])}` +
+    (more[3] ? ` ${KEYLESS.has(p) ? "More at" : "Get a key at"} <button class="link" data-url="${more[3]}">${esc(more[3].replace(/^https?:\/\//, "").replace(/\/$/, ""))}</button>.` : "") : {
     openrouter: `Hundreds of models (GPT, Claude, Gemini, Llama, Qwen…) with one key. Get one at <button class="link" data-url="${PROV_KEY_URL.openrouter}">openrouter.ai/keys</button> — models ending in <code>:free</code> cost nothing.`,
     google: `Google's Gemini models with a <b>free</b> key - no card needed. Get one in a minute at <button class="link" data-url="${PROV_KEY_URL.google}">aistudio.google.com/apikey</button>.`,
   }[p] || `Free API access to Kimi, GLM, DeepSeek, Nemotron and more. Get a key at <button class="link" data-url="${PROV_KEY_URL.nvidia}">build.nvidia.com</button>.`;
   $("key-status").textContent = s[p + "_key_set"] ? `Key saved (${s[p + "_key_hint"] || "hidden"}).` : "No key saved yet.";
   $("set-model").value = s[p + "_model"] || "";
   $("set-model").placeholder = DEFAULTS[p];
-  $("model-hint").textContent = p === "google"
+  $("model-hint").textContent = more ? "Load models (or open the model menu in Chat) to pick one. Models that support tool calling can build in Studio." : p === "google"
     ? "Flash models are fast and free-tier friendly; Pro models think harder. Press Test to check your key."
     : p === "openrouter"
     ? "Load models to see which support tools (needed to build in Studio)."
@@ -1011,6 +1279,7 @@ function renderSettings() {
   $("set-lang").value = s.reply_language || "";
   $("set-autostart").checked = s.auto_start_bridge !== false;
   $("set-tray").checked = s.close_to_tray !== false;
+  $("set-discord").checked = s.discord_rpc !== false;
   applyTheme(s.theme);
   $("chat-empty-sub").textContent = keySet()
     ? "Describe a feature and VoidScript builds it in your open Studio place. Attach reference files with the paperclip."
@@ -1048,17 +1317,80 @@ $("btn-test-key").onclick = async () => {
 };
 $("btn-clear-key").onclick = () => { modelCache[prov()] = null; saveSettings({ ["clear_" + prov() + "_key"]: true }, "API key removed."); };
 $("set-model").addEventListener("change", () => saveSettings({ [prov() + "_model"]: $("set-model").value.trim() }, "Model saved."));
-document.querySelectorAll("#prov-seg button").forEach((b) => b.addEventListener("click", () => {
-  if (b.dataset.prov !== prov()) { $("model-list").innerHTML = ""; saveSettings({ provider: b.dataset.prov }, `Using ${PROV_NAME[b.dataset.prov]}.`); }
-}));
+$("prov-select").innerHTML = provOptions();
+$("prov-select").addEventListener("change", (e) => {
+  const v = e.target.value;
+  if (v !== prov()) { $("model-list").innerHTML = ""; saveSettings({ provider: v }, `Using ${PROV_NAME[v]}.`); }
+});
+$("set-base").addEventListener("change", () => { modelCache.custom = null; saveSettings({ custom_base: $("set-base").value.trim() }, "Base URL saved."); });
+// The provider picker: a searchable, grouped list drawn over the hidden <select>,
+// which keeps the value and fires "change" - so the handlers above don't change.
+const PROV_INFO = { nvidia: ["free", "Kimi, GLM, DeepSeek, Nemotron"], google: ["free", "Gemini - fast, sees pictures"], openrouter: ["free", "Hundreds of models, :free ones cost nothing"] };
+for (const [id, , kind, , , note] of MORE_PROVIDERS) PROV_INFO[id] = [kind, note];
+function provPicker(sel) {
+  sel.hidden = true;
+  const wrap = document.createElement("div");
+  wrap.className = "pp";
+  wrap.innerHTML = '<button type="button" class="pp-btn"></button><div class="pp-panel" hidden>' +
+    '<input class="input" placeholder="Search providers…" autocomplete="off" spellcheck="false" /><div class="pp-list"></div></div>';
+  sel.after(wrap);
+  const btn = wrap.querySelector(".pp-btn"), panel = wrap.querySelector(".pp-panel"), q = panel.querySelector("input"), list = panel.querySelector(".pp-list");
+  const tag = (id) => { const k = (PROV_INFO[id] || ["other"])[0]; return `<span class="pp-tag ${k}">${PROV_KIND[k]}</span>`; };
+  const dot = (id) => `<span class="pp-dot${keySet(id) && !KEYLESS.has(id) ? " key" : ""}" title="${keySet(id) && !KEYLESS.has(id) ? "Key saved" : ""}"></span>`;
+  const sync = () => {
+    const id = sel.value || "nvidia";
+    btn.innerHTML = `${dot(id)}<span class="pp-name">${esc(PROV_NAME[id])}</span>${tag(id)}<svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>`;
+  };
+  const draw = () => {
+    const f = q.value.trim().toLowerCase();
+    let html = "";
+    for (const g of sel.querySelectorAll("optgroup")) {
+      const items = [...g.children].filter((o) => !f || (PROV_NAME[o.value] + " " + (PROV_INFO[o.value] || [])[1] + " " + g.label + " " + o.value).toLowerCase().includes(f));
+      if (!items.length) continue;
+      html += `<div class="pp-group">${esc(g.label)}</div>` + items.map((o) => `<button type="button" class="pp-item${o.value === sel.value ? " on" : ""}" data-id="${o.value}">` +
+        `${dot(o.value)}<span class="pp-name">${esc(PROV_NAME[o.value])}</span><span class="pp-note">${esc((PROV_INFO[o.value] || [])[1] || "")}</span></button>`).join("");
+    }
+    list.innerHTML = html || '<div class="pp-empty">No provider matches.</div>';
+  };
+  const close = () => { panel.hidden = true; };
+  btn.onclick = (e) => {
+    e.stopPropagation();
+    if (!panel.hidden) return close();
+    q.value = "";
+    draw();
+    panel.hidden = false;
+    q.focus();
+    const on = list.querySelector(".pp-item.on");
+    if (on) on.scrollIntoView({ block: "nearest" });
+  };
+  panel.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const it = e.target.closest(".pp-item");
+    if (!it) return;
+    close();
+    if (it.dataset.id !== sel.value) { sel.value = it.dataset.id; sel.dispatchEvent(new Event("change")); }
+    sync();
+  });
+  q.addEventListener("input", draw);
+  q.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { const first = list.querySelector(".pp-item"); if (first) first.click(); }
+    if (e.key === "Escape") { e.stopPropagation(); close(); }
+  });
+  document.addEventListener("click", close);
+  sel.__sync = sync;
+  sync();
+}
+provPicker($("prov-select"));
+provPicker($("pop-prov"));
+
 
 // Models for a provider, cached per session. Tool-capable / well-known coding
 // models first, since the chat needs tool calling to build in Studio.
-const modelCache = { nvidia: null, openrouter: null, google: null };
+const modelCache = {};
 const GOOD_MODEL = /gemini-[\d.]+-(flash|pro)|kimi-k|glm-5|qwen3|deepseek-(v[34]|chat)|nemotron-3|nemotron-ultra|mistral-large|gpt-oss|gpt-4|gpt-5|claude|gemini|llama-3\.[13]-(70b|405b)/i;
 function rankModels(list) {
   const score = (m) => (m.tools === true ? 0 : m.tools === false ? 3 : 1) + (GOOD_MODEL.test(m.id) ? 0 : 1);
-  return list.slice().sort((a, b) => score(a) - score(b) || a.id.localeCompare(b.id));
+  return (list || []).slice().sort((a, b) => score(a) - score(b) || a.id.localeCompare(b.id));
 }
 async function loadModels(p) {
   p = p || prov();
@@ -1078,16 +1410,78 @@ $("btn-load-models").onclick = async () => {
   finally { btn.disabled = false; btn.textContent = "Load models"; }
 };
 
+// ── model health: which listed models actually answer ───────────────────────
+// Providers list plenty of models that fail for a given key (retired, not on
+// the free tier, no access). "Test models" asks each one for a one-word reply
+// (with a tool attached, to learn if it can build in Studio) and remembers the
+// result for a day. Broken ones are hidden; working ones sort first.
+const HEALTH_TTL = 24 * 3600 * 1000;
+let health = {};
+try { health = JSON.parse(localStorage.getItem("vs-model-health") || "{}"); } catch {}
+const saveHealth = () => { try { localStorage.setItem("vs-model-health", JSON.stringify(health)); } catch {} };
+function modelHealth(p, id) {
+  const h = health[p] && health[p][id];
+  return h && Date.now() - h.t < HEALTH_TTL ? h : null;
+}
+function setHealth(p, id, h) { (health[p] = health[p] || {})[id] = Object.assign({ t: Date.now() }, h); saveHealth(); }
+// One model: works? tools? "busy" (rate limited) isn't a verdict - try later.
+async function probeModel(p, id) {
+  const ask = (tools) => invoke("ai_probe", { provider: p, model: id, tools });
+  try { await ask(true); return { ok: true, tools: true }; } catch (e) {
+    const msg = errText(e);
+    if (/^429|rate.?limit|too many requests/i.test(msg)) return { busy: true, why: "rate limited - try again later" };
+    if (/^40[01]|^422/.test(msg) && /tool|function/i.test(msg)) {
+      try { await ask(false); return { ok: true, tools: false }; } catch (e2) { return { ok: false, why: errText(e2).slice(0, 140) }; }
+    }
+    // Some APIs reject the tool shape with a plain 400 - check plain chat before failing it.
+    if (/^4\d\d/.test(msg) && !/^40[34]/.test(msg)) {
+      try { await ask(false); return { ok: true, tools: false }; } catch {}
+    }
+    return { ok: false, why: msg.slice(0, 140) };
+  }
+}
+let testing = null; // { p, done, total }
+async function testModels(p) {
+  if (testing) return;
+  const list = modelCache[p] || [];
+  if (!list.length) return;
+  testing = { p, done: 0, total: list.length, ok: 0 };
+  renderPop();
+  const queue = list.map((m) => m.id);
+  const worker = async () => {
+    while (queue.length && testing) {
+      const id = queue.shift();
+      const r = await probeModel(p, id);
+      if (!r.busy) setHealth(p, id, r);
+      if (r.ok) testing.ok++;
+      testing.done++;
+      if (!$("model-pop").hidden) renderPop();
+    }
+  };
+  await Promise.all(Array.from({ length: 5 }, worker));
+  const t = testing;
+  testing = null;
+  if (t) toast(`${t.ok} of ${t.total} ${PROV_NAME[p]} models work with your key.`, 5000);
+  if (!$("model-pop").hidden) renderPop();
+}
+let showBroken = false;
+
 // ── model switcher (chat header) ────────────────────────────────────────────
 let popProv = "nvidia";
 function renderPop() {
-  document.querySelectorAll("#pop-seg button").forEach((b) => b.classList.toggle("on", b.dataset.prov === popProv));
+  $("pop-prov").value = popProv;
+  if ($("pop-prov").__sync) $("pop-prov").__sync();
   const q = $("pop-search").value.trim();
   const list = modelCache[popProv];
   const cur = popProv === prov() ? curModel() : "";
   const box = $("pop-list");
   const ql = q.toLowerCase();
-  const shown = (list || []).filter((m) => !ql || m.id.toLowerCase().includes(ql)).slice(0, 200);
+  const H = (m) => modelHealth(popProv, m.id);
+  const broken = (list || []).filter((m) => H(m) && !H(m).ok);
+  // Working first, then untested, then (only if asked) broken.
+  const rank = (m) => (H(m) ? (H(m).ok ? 0 : 2) : 1);
+  const shown = (list || []).filter((m) => (!ql || m.id.toLowerCase().includes(ql)) && (showBroken || ql || !(H(m) && !H(m).ok)))
+    .sort((a, b) => rank(a) - rank(b)).slice(0, 200);
   // Offer the typed text as a custom model ID only when it isn't already a listed
   // model - first when nothing matches (so Enter uses it), last otherwise (so Enter
   // picks the real match instead of a half-typed "claude").
@@ -1095,23 +1489,42 @@ function renderPop() {
     ? `<button class="pop-item" data-id="${esc(q)}"><span class="id custom">Use “${esc(q)}” as the model ID</span></button>` : "";
   let html = "";
   if (!keySet(popProv)) {
-    html = custom + `<div class="pop-note">Add your ${PROV_NAME[popProv]} key in Settings to list its models. You can still type a model ID above.</div>`;
+    html = custom + `<div class="pop-note">${popProv === "custom" ? "Set the custom base URL in Settings" : `Add your ${PROV_NAME[popProv]} key in Settings`} to list its models. You can still type a model ID above.</div>`;
   } else if (!list) {
     html = custom + '<div class="pop-note">Loading models…</div>';
   } else if (!shown.length) {
     html = custom + '<div class="pop-note">No listed models match.</div>';
   } else {
-    html = shown.map((m) => `<button class="pop-item${m.id === cur ? " cur" : ""}" data-id="${esc(m.id)}"><span class="id">${esc(m.id)}</span>${
-      m.reasoning ? '<span class="tl think">thinks</span>' : ""}${
-      m.tools === true ? '<span class="tl">tools</span>' : m.tools === false ? '<span class="tl no">no tools</span>' : ""}</button>`).join("") + (q.includes("/") ? custom : "");
+    html = shown.map((m) => {
+      const h = H(m), tools = h && h.ok ? h.tools : m.tools;
+      return `<button class="pop-item${m.id === cur ? " cur" : ""}${h && !h.ok ? " bad" : ""}" data-id="${esc(m.id)}"${h && !h.ok ? ` title="${esc(h.why || "")}"` : ""}><span class="id">${esc(m.id)}</span>${
+        h ? (h.ok ? '<span class="tl ok">works</span>' : '<span class="tl bad">broken</span>') : ""}${
+        m.reasoning ? '<span class="tl think">thinks</span>' : ""}${
+        tools === true ? '<span class="tl">tools</span>' : tools === false ? '<span class="tl no">no tools</span>' : ""}</button>`;
+    }).join("") + (q.includes("/") ? custom : "");
   }
   box.innerHTML = html;
-  $("pop-foot").innerHTML = popProv === "google"
+  const note = popProv === "google"
     ? "Every Gemini model here can build in Studio. Flash is fastest."
     : popProv === "openrouter"
     ? 'Models tagged <span class="tl">tools</span> can build in Studio. <code>:free</code> models cost nothing.'
     : "Pick a model that supports tool calling to build in Studio.";
+  const tested = (list || []).filter((m) => H(m)).length;
+  const t = testing && testing.p === popProv ? testing : null;
+  $("pop-foot").innerHTML = (list && list.length && keySet(popProv)
+    ? `<div class="pop-test">${t ? `<span class="spin"></span> Testing ${t.done}/${t.total} · ${t.ok} work` +
+        ` <button class="link" data-pop="stop">Stop</button>`
+      : `<button class="btn sm" data-pop="test">${tested ? "Test again" : "Test models"}</button> <span class="muted">${
+        tested ? `${tested - broken.length} work, ${broken.length} broken` : "Find out which ones work with your key"}</span>`}${
+      broken.length && !t ? ` <button class="link" data-pop="broken">${showBroken ? "Hide" : "Show"} broken</button>` : ""}</div>` : "") + note;
 }
+$("pop-foot").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pop]");
+  if (!b) return;
+  if (b.dataset.pop === "test") testModels(popProv);
+  else if (b.dataset.pop === "stop") { testing = null; renderPop(); }
+  else if (b.dataset.pop === "broken") { showBroken = !showBroken; renderPop(); }
+});
 async function openPop() {
   popProv = prov();
   $("pop-search").value = "";
@@ -1132,14 +1545,15 @@ $("pop-search").addEventListener("input", renderPop);
 $("pop-search").addEventListener("keydown", (e) => {
   if (e.key === "Enter") { const first = $("pop-list").querySelector(".pop-item"); if (first) first.click(); }
 });
-document.querySelectorAll("#pop-seg button").forEach((b) => b.addEventListener("click", async () => {
-  popProv = b.dataset.prov;
+$("pop-prov").innerHTML = provOptions();
+$("pop-prov").addEventListener("change", async (e) => {
+  popProv = e.target.value;
   renderPop();
   if (keySet(popProv) && !modelCache[popProv]) {
     try { await loadModels(popProv); } catch (e) { toast(errText(e), 4500); }
     renderPop();
   }
-}));
+});
 $("pop-list").addEventListener("click", async (e) => {
   const it = e.target.closest(".pop-item");
   if (!it) return;
@@ -1163,6 +1577,8 @@ $("btn-open-ws").onclick = () => invoke("open_folder", { which: "workspace" }).c
 $("set-lang").addEventListener("change", () => saveSettings({ reply_language: $("set-lang").value }, "Reply language saved."));
 $("set-autostart").addEventListener("change", () => saveSettings({ auto_start_bridge: $("set-autostart").checked }));
 $("set-tray").addEventListener("change", () => saveSettings({ close_to_tray: $("set-tray").checked }));
+$("set-discord").addEventListener("change", () => saveSettings({ discord_rpc: $("set-discord").checked },
+  $("set-discord").checked ? "Discord status on." : "Discord status off."));
 // ── sound effects (opt-in, kept on this PC) ────────────────────────────────
 // Synthesised with Web Audio, so there's nothing to download. [hz, start s, length s]
 const SFX = {
@@ -1522,6 +1938,7 @@ const isReadOnly = (name) => READ_ONLY.test(String(name));
 function thinkParams(p) {
   if (p === "openrouter") return { reasoning: { effort: effort().reason } };
   if (p === "google") return { reasoning_effort: effort().reason };
+  if (p !== "nvidia") return {}; // other APIs reject NVIDIA's switch; their models think on their own
   return { chat_template_kwargs: { thinking: true, enable_thinking: true } };
 }
 
@@ -1531,7 +1948,7 @@ async function pickAvailable(p, current) {
   const ids = new Set(list.map((m) => m.id));
   const prefs = p === "nvidia" ? NV_FALLBACK
     : p === "google" ? list.map((m) => m.id).filter((id) => /flash/.test(id) && !/lite|preview|exp/.test(id)).sort().reverse()
-    : [DEFAULTS.openrouter];
+    : p === "openrouter" ? [DEFAULTS.openrouter] : [DEFAULTS[p]].filter(Boolean);
   const hit = prefs.find((id) => id !== current && ids.has(id));
   if (hit) return hit;
   const tooled = list.find((m) => m.id !== current && m.tools !== false && GOOD_MODEL.test(m.id));
@@ -1541,12 +1958,23 @@ async function pickAvailable(p, current) {
 // One chat-completions call that recovers from the usual provider hiccups: a
 // retired model (switch to a listed one), a model without tool calling (retry as
 // plain chat), or an API that rejects the thinking switch (retry without it).
+// Each API spells "answer straight away" differently; models that don't reason ignore it.
+function noThinkParams(p) {
+  if (p === "openrouter") return { reasoning: { effort: "low" } };
+  if (p === "google") return { reasoning_effort: "low" };
+  if (p !== "nvidia") return {};
+  return { chat_template_kwargs: { thinking: false, enable_thinking: false } };
+}
+
+// opts.model: use this model instead of the chat's (the generators' fast model).
+// opts.noThink: ask reasoning models to skip their thinking pass.
 async function callModel(req, opts = {}) {
   const p = prov();
-  let model = curModel(p);
-  let useTools = !!req.tools, useThink = !!opts.think;
-  for (let attempt = 0; attempt < 6; attempt++) {
-    const body = Object.assign({}, req, { model }, useThink ? thinkParams(p) : {});
+  let model = opts.model || curModel(p), own = !opts.model;
+  if (!model) throw new Error(`Pick a ${PROV_NAME[p]} model first: open the model menu at the top of Chat.`);
+  let useTools = !!req.tools, useThink = !!opts.think, noThink = !!opts.noThink && !opts.think;
+  for (let attempt = 0; attempt < 7; attempt++) {
+    const body = Object.assign({}, req, { model }, useThink ? thinkParams(p) : noThink ? noThinkParams(p) : {});
     if (!useTools) { delete body.tools; delete body.tool_choice; }
     try {
       const res = await untilStopped(invoke("ai_chat", { body }));
@@ -1556,6 +1984,7 @@ async function callModel(req, opts = {}) {
       const msg = errText(e);
       if (chat.stop || msg === "cancelled") throw e;
       if (useThink && /chat_template_kwargs|reasoning|thinking|extra (fields|inputs)|not permitted|unrecognized/i.test(msg)) { useThink = false; continue; }
+      if (noThink && /chat_template_kwargs|reasoning|thinking|extra (fields|inputs)|not permitted|unrecognized/i.test(msg)) { noThink = false; continue; }
       // Many models cap their output below what the generators ask for.
       if (req.max_tokens > 4096 && /max_tokens|max_completion_tokens|maximum (output|completion|context)|too many tokens|context length/i.test(msg)) {
         req = Object.assign({}, req, { max_tokens: Math.max(4096, Math.floor(req.max_tokens / 2)) });
@@ -1563,6 +1992,9 @@ async function callModel(req, opts = {}) {
       }
       if (useTools && /API 4(00|22)/.test(msg) && /tool|function/i.test(msg)) { useTools = false; continue; }
       if (/API 404|not found|does not exist|no such model|unknown model|is not available/i.test(msg)) {
+        setHealth(p, model, { ok: false, why: msg.slice(0, 140) });
+        // A borrowed fast model that's gone: just use the chat's own model.
+        if (!own) { model = curModel(p); own = true; continue; }
         const next = await pickAvailable(p, model);
         if (next) {
           if (!opts.quiet) toast(`${model} isn't available on ${PROV_NAME[p]} anymore. Switched to ${next}.`, 5000);
@@ -1777,6 +2209,153 @@ $("btn-new-chat").onclick = () => {
   $("chat-empty").hidden = false;
 };
 document.querySelectorAll(".sugg").forEach((b) => b.addEventListener("click", () => { input.value = b.textContent; $("btn-send").click(); }));
+
+// ── SpookyScript: VoidScript's Halloween mode (spooky.js) ────────────────────
+// All October (and Halloween night into 1 November) the app becomes SpookyScript:
+// orange-and-purple look, pumpkin logos, spooky wording, bats, and music that
+// starts by itself (mute button in the title bar). Settings can switch it off.
+const spooky = { on: false, dev: false, icon: null };
+invoke("is_dev").then((v) => { spooky.dev = !!v; applySpooky(); }).catch(() => {});
+// Halloween versions of the suggestions and ideas, swapped in while it's on.
+const SPOOKY_IDEAS = {
+  ".sugg": ["Build a haunted house with flickering lights", "Make a zombie that chases the nearest player", "Add a graveyard with fog and glowing tombstones", "Make a pumpkin that gives candy when touched"],
+  "#mg-ideas button": ["Haunted mansion", "Jack-o'-lantern", "Witch's cauldron", "Coffin", "Scarecrow", "Ghost ship"],
+  "#ub-ideas button": ["Trick-or-treat shop", "Candy counter HUD", "Haunted main menu", "Costume picker", "Spooky reward chest", "Ghost radar"],
+};
+const plainIdeas = {};
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+// [selector, VoidScript text, SpookyScript text]
+const SPOOKY_TEXT = [
+  ["#chat-empty h2", "What are we building?", "What are we haunting tonight?"],
+];
+function applySpooky() {
+  const on = lsGet("vs-halloween") !== "off" && (VSSpooky.inSeason() || lsGet("vs-spooky-force") === "1");
+  spooky.on = on;
+  document.documentElement.classList.toggle("spooky", on);
+  document.title = on ? "SpookyScript" : "VoidScript";
+  document.querySelector(".tb-name").innerHTML = on ? 'Spooky<span class="grad">Script</span>' : 'Void<span class="grad">Script</span>';
+  const logo = on ? (spooky.dev ? "assets/logo-spooky-dev.png" : "assets/logo-spooky.png") : "assets/logo.png";
+  document.querySelectorAll('img[src$="logo.png"], img[src$="logo-spooky.png"], img[src$="logo-spooky-dev.png"]').forEach((i) => { i.src = logo; });
+  if (on && spooky.dev) document.querySelector(".tb-name").insertAdjacentHTML("beforeend", ' <span class="dev-tag">DEV</span>');
+  if (spooky.icon !== on) { spooky.icon = on; invoke("set_spooky_icon", { on }).catch(() => {}); }
+  for (const [sel, list] of Object.entries(SPOOKY_IDEAS)) {
+    const els = [...document.querySelectorAll(sel)];
+    if (!plainIdeas[sel]) plainIdeas[sel] = els.map((e) => e.textContent);
+    els.forEach((e, i) => { e.textContent = on ? (list[i] || plainIdeas[sel][i]) : plainIdeas[sel][i]; });
+  }
+  for (const [sel, plain, spook] of SPOOKY_TEXT) { const e = document.querySelector(sel); if (e && plain) e.textContent = on ? spook : plain; }
+  $("chat-input").placeholder = on ? "Ask SpookyScript to conjure something…" : "Ask VoidScript to build something…";
+  let bats = document.querySelector(".spooky-bats");
+  if (on && !bats) { bats = document.createElement("div"); bats.className = "spooky-bats"; bats.innerHTML = "<i></i><i></i><i></i><b></b><b></b>"; $("view").prepend(bats); }
+  if (!on && bats) bats.remove();
+  let deco = document.querySelector(".spooky-deco");
+  if (on && !deco) { deco = document.createElement("div"); deco.className = "spooky-deco"; deco.innerHTML = '<i class="web tl"></i><i class="web br"></i><i class="spider"></i><i class="flash"></i>'; $("view").appendChild(deco); }
+  if (!on && deco) deco.remove();
+  $("btn-music").hidden = !on;
+  const music = on && lsGet("vs-spooky-music") !== "off";
+  $("btn-music").classList.toggle("off", !music);
+  $("btn-music").title = music ? "Mute the spooky music" : "Play the spooky music";
+  if (music) VSSpooky.start(0.35, "assets/spooky.mp3"); else VSSpooky.stop();
+  $("set-halloween").checked = lsGet("vs-halloween") !== "off";
+  renameAll();
+}
+// Every "VoidScript" the app itself shows becomes "SpookyScript" (and back) -
+// including text written later - but never chat messages or code.
+function renameAll(root) {
+  const [from, to] = spooky.on ? [/VoidScript/g, "SpookyScript"] : [/SpookyScript/g, "VoidScript"];
+  const w = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.nodeValue.search(from) >= 0 && !n.parentElement.closest(".msg, pre, code, textarea, .mg-script, .term, #chat-body .bubble") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+  });
+  const hits = [];
+  let n;
+  while ((n = w.nextNode())) hits.push(n);
+  for (const t of hits) t.nodeValue = t.nodeValue.replace(from, to);
+}
+let renameQueued = false;
+new MutationObserver(() => {
+  if (!spooky.on || renameQueued) return;
+  renameQueued = true;
+  setTimeout(() => { renameQueued = false; renameAll(); }, 150);
+}).observe(document.body, { childList: true, subtree: true, characterData: true });
+$("btn-music").onclick = () => { lsSet("vs-spooky-music", lsGet("vs-spooky-music") === "off" ? "on" : "off"); applySpooky(); };
+$("set-halloween").addEventListener("change", (e) => {
+  lsSet("vs-halloween", e.target.checked ? "on" : "off");
+  applySpooky();
+  toast(e.target.checked ? (VSSpooky.inSeason() ? "🎃 SpookyScript is on." : "SpookyScript will appear in October.") : "Halloween mode off.");
+});
+applySpooky();
+setInterval(applySpooky, 60 * 60 * 1000); // switches over by itself on 1 October / 2 November
+
+// ── Prompt Enhancer ────────────────────────────────────────────────────────
+// The wand button rewrites what you typed so the AI gets it first time - the SAME request,
+// only clearer and more specific. It never adds features you didn't ask for.
+// The result replaces the box's text as an edit, so Ctrl+Z gets yours back.
+const ENHANCE = {
+  chat: "You improve a request that a Roblox developer is about to send to an AI agent that builds directly in Roblox Studio. " +
+    "Rewrite THEIR request so it is clear and specific. Keep exactly what they asked for - the same feature, names, numbers and details - " +
+    "and never add features, mechanics, content or extra polish they didn't ask for. Only make the implied parts explicit: what it should do, " +
+    "where its parts and scripts belong (Workspace, ServerScriptService, StarterGui, ReplicatedStorage), how it behaves, and how to check it works. " +
+    "Write it as the developer, in plain sentences or a few bullet points, at most 120 words. Reply with ONLY the improved request.",
+  model: "You improve a description for an AI that builds a 3D model out of Roblox parts. Rewrite THEIR description so it is clear and easy to build. " +
+    "It must stay the same object - never change what it is or add things that aren't part of it. Spell out its overall shape and real-world proportions, " +
+    "its main sections, the details that make it recognisable, and its colours and materials (only where they fit what they described). " +
+    "One short paragraph, at most 70 words. Reply with ONLY the improved description.",
+  ui: "You improve a description for an AI that designs a Roblox ScreenGui. Rewrite THEIR description so it is clear and easy to build. " +
+    "It must stay the same screen - never add screens, features or buttons they didn't ask for. Spell out the layout (what goes where), " +
+    "each element and its text, what each button does, and the look (colours, style) only where it fits what they described. " +
+    "One short paragraph, at most 80 words. Reply with ONLY the improved description.",
+};
+async function enhance(kind, box, btn) {
+  const text = box.value.trim();
+  if (!text) { toast("Type your request first, then press the wand to make it clearer."); box.focus(); return; }
+  if (chat.busy || gen.busy) { toast("Wait for the AI to finish first."); return; }
+  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return; }
+  gen.busy = true; gen.onDelta = () => {}; chat.stop = false;
+  btn.disabled = true; btn.classList.add("busy");
+  try {
+    const { res } = await callModel({ messages: [{ role: "system", content: ENHANCE[kind] }, { role: "user", content: text }], temperature: 0.3, max_tokens: 700 },
+      { model: (await genModel()) || undefined, noThink: true, quiet: true });
+    const m = res && res.choices && res.choices[0] && res.choices[0].message;
+    const out = splitThinking(m || {}).content.trim()
+      .replace(/^(here(?:'s| is)[^:\n]*:|improved (?:request|description)\s*:)\s*/i, "").replace(/^["“”']+|["“”']+$/g, "").trim();
+    if (!out) throw new Error("The AI sent nothing back - try again.");
+    // An edit, not a .value swap, so Ctrl+Z restores what you wrote.
+    box.focus();
+    box.select();
+    if (!document.execCommand("insertText", false, out)) box.value = out;
+    box.dispatchEvent(new Event("input", { bubbles: true }));
+    toast("Clearer now - check it, then send. Ctrl+Z puts yours back.", 4500);
+  } catch (e) {
+    if (!chat.stop) toast(errText(e), 5000);
+  } finally {
+    gen.busy = false;
+    btn.disabled = false; btn.classList.remove("busy");
+  }
+}
+$("btn-enhance-chat").onclick = () => enhance("chat", $("chat-input"), $("btn-enhance-chat"));
+$("btn-enhance-mg").onclick = () => enhance("model", $("mg-desc"), $("btn-enhance-mg"));
+$("btn-enhance-ub").onclick = () => enhance("ui", $("ub-desc"), $("btn-enhance-ub"));
+
+// ── Discord status ─────────────────────────────────────────────────────────
+// What you're doing, for your Discord profile. The backend sends it (only when it
+// changes, and never faster than Discord allows); this just describes the moment.
+let studioOpen = false;
+const checkStudio = () => invoke("studio_running").then((v) => { studioOpen = !!v; }).catch(() => {});
+checkStudio();
+setInterval(checkStudio, 10000);
+function discordStatus() {
+  const studio = !!(S.state && S.state.studio) || studioOpen;
+  if (mg.busy) return ["Building a model", "Model maker"];
+  if (ub.busy) return ["Designing a UI", "UI builder"];
+  if (chat.busy) return studio ? ["Building in Roblox Studio", "Prompting the AI"] : ["Prompting the AI", "In the VoidScript app"];
+  if (studio) return ["In Roblox Studio", "Coding next level on Roblox"];
+  return ["In the VoidScript app", "Coding next level on Roblox"];
+}
+setInterval(() => {
+  const [d, st] = discordStatus();
+  invoke("rpc_set", { details: spooky.on ? "🎃 " + d : d, state: spooky.on ? st.replace("Coding next level on Roblox", "SpookyScript - coding spooky on Roblox") : st, spooky: spooky.on }).catch(() => {});
+}, 3000);
 
 // ── boot ────────────────────────────────────────────────────────────────────
 (async () => {

@@ -54,6 +54,16 @@ function VSGeneric(cfg) {
   );
   S.anyItem = S.anyItem || `${S.userItem}, ${S.assistantItem}`;
 
+  // Site check (Toolkit, core/main.js) learns selectors live on a site whose
+  // built-in ones broke, and saves them per host. They win over the built-ins.
+  const FIX_KEY = "vsSiteFix:" + location.host;
+  function applyFixes(fix) {
+    if (!fix || typeof fix !== "object") return;
+    for (const k of ["userItem", "assistantItem", "editor", "sendBtn", "stopBtn"]) if (typeof fix[k] === "string") S[k] = fix[k];
+    S.anyItem = `${S.userItem}, ${S.assistantItem}`;
+  }
+  try { chrome.storage.local.get(FIX_KEY, (o) => applyFixes(o && o[FIX_KEY])); } catch {}
+
   const RE = {
     contextLimit: new RegExp(
       [
@@ -364,8 +374,25 @@ function VSGeneric(cfg) {
     range.selectNodeContents(el);
     sel.removeAllRanges();
     sel.addRange(range);
-    try { document.execCommand("insertText", false, v); }
-    catch { el.textContent = v; el.dispatchEvent(new Event("input", { bubbles: true })); }
+    try { document.execCommand("insertText", false, v); } catch {}
+    // Lexical/Slate editors (Perplexity and others, seen live 2026-10) ignore
+    // insertText and stay empty, so send never enables. They all accept a paste.
+    // Only when the box really is EMPTY: rich editors (Claude's ProseMirror) turn
+    // "- " lines into bullets, so their text never matches exactly - pasting again
+    // there would send the prompt twice.
+    const empty = () => !(el.textContent || "").replace(/[\s​﻿]+/g, "");
+    if (empty()) {
+      range.selectNodeContents(el);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      const dt = new DataTransfer();
+      dt.setData("text/plain", v);
+      el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+    }
+    if (empty()) {
+      el.dispatchEvent(new InputEvent("beforeinput", { inputType: "insertText", data: v, bubbles: true, cancelable: true }));
+    }
+    if (empty()) { el.textContent = v; el.dispatchEvent(new Event("input", { bubbles: true })); }
   }
   function setEditorValue(el, v) {
     if (isTextField(el)) setTextFieldValue(el, v);
@@ -595,6 +622,8 @@ function VSGeneric(cfg) {
           `changed - report it so a tuned provider can be written.`
         : undefined),
     init({ diag: d } = {}) { if (d) diag = d; },
+    // Site check: the live selectors, and a way to swap in learned ones.
+    selectors: S, applyFixes, fixKey: FIX_KEY,
     // turns
     allItems, isUserItem, isAssistantItem, itemText, classifyText,
     assistantCount, userCount, lastAssistant, readAssistant,

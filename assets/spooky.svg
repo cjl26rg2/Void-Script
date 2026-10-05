@@ -1,0 +1,55 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="SpookyScript">
+  <defs>
+    <radialGradient id="pk" cx=".42" cy=".38" r=".7">
+      <stop offset="0" stop-color="#ffb347"/>
+      <stop offset=".55" stop-color="#ff7a18"/>
+      <stop offset="1" stop-color="#b8420a"/>
+    </radialGradient>
+    <radialGradient id="glow" cx=".5" cy=".55" r=".5">
+      <stop offset="0" stop-color="#fff3b0"/>
+      <stop offset=".5" stop-color="#ffd23f"/>
+      <stop offset="1" stop-color="#ff9a1f"/>
+    </radialGradient>
+    <linearGradient id="stem" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6fbf4a"/>
+      <stop offset="1" stop-color="#2f6b2a"/>
+    </linearGradient>
+    <filter id="g" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="aura" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+  </defs>
+  <!-- stem + curly vine -->
+  <path d="M60 30 C58 22 60 15 66 11 L72 14 C67 18 66 24 68 31 Z" fill="url(#stem)" stroke="#1d3d19" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M68 20 C78 12 90 16 88 24 C87 29 80 27 82 23" stroke="#3f8a35" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <!-- pumpkin body: ribbed lobes -->
+  <g stroke="#7a2a05" stroke-width="2.2">
+    <ellipse cx="38" cy="72" rx="26" ry="38" fill="url(#pk)"/>
+    <ellipse cx="90" cy="72" rx="26" ry="38" fill="url(#pk)"/>
+    <ellipse cx="51" cy="72" rx="22" ry="40" fill="url(#pk)"/>
+    <ellipse cx="77" cy="72" rx="22" ry="40" fill="url(#pk)"/>
+    <ellipse cx="64" cy="72" rx="20" ry="41" fill="url(#pk)"/>
+  </g>
+  <!-- carved eyes -->
+  <g fill="#2a0f04">
+    <path d="M33 62 L48 44 L56 66 Z"/>
+    <path d="M95 62 L80 44 L72 66 Z"/>
+  </g>
+  <g fill="url(#glow)" opacity=".85">
+    <path d="M39 61 L47.5 51 L52 63 Z"/>
+    <path d="M89 61 L80.5 51 L76 63 Z"/>
+  </g>
+  <!-- the </> carved as the grin, lit from inside -->
+  <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <g stroke="#1e0902" stroke-width="12"><polyline points="49,76 37,88 49,100"/><polyline points="79,76 91,88 79,100"/><line x1="69" y1="74" x2="59" y2="102"/></g>
+    <g stroke="#c2410c" stroke-width="7.5"><polyline points="49,76 37,88 49,100"/><polyline points="79,76 91,88 79,100"/><line x1="69" y1="74" x2="59" y2="102"/></g>
+    <g stroke="#ffd23f" stroke-width="3.5" filter="url(#g)"><polyline points="49,76 37,88 49,100"/><polyline points="79,76 91,88 79,100"/><line x1="69" y1="74" x2="59" y2="102"/></g>
+  </g>
+  <!-- shine -->
+  <path d="M26 56 C24 66 25 80 30 90" stroke="#ffe0b0" stroke-width="3" stroke-linecap="round" opacity=".45" fill="none"/>
+  <!-- a little bat -->
+  <path d="M100 26 C103 22 107 22 109 25 C111 22 114 22 116 25 C113 26 112 29 112 31 C110 29 108 29 108 31 C108 29 106 29 104 31 C104 29 103 27 100 26 Z" fill="#1a1024" stroke="#8b5cf6" stroke-width="1"/>
+</svg>

@@ -323,7 +323,7 @@ html.vs-light #vs-steer-input::placeholder { color: rgba(20, 23, 32, 0.45); }
 
 /* bar controls: one neutral icon-button family (Discord, support, switch, voice,
    quick screenshot, quick list) */
-#vs-discord, #vs-support, #vs-voice, #vs-quick-shot, #vs-quick-list {
+#vs-discord, #vs-support, #vs-voice, #vs-quick-shot, #vs-quick-list, #vs-enhance {
   flex: none; width: 28px; height: 28px; padding: 0;
   display: flex; align-items: center; justify-content: center;
   background: rgba(255, 255, 255, 0.07); color: #c6cad6;
@@ -334,6 +334,11 @@ html.vs-light #vs-steer-input::placeholder { color: rgba(20, 23, 32, 0.45); }
 #vs-discord:hover, #vs-support:hover, #vs-voice:hover,
 #vs-quick-shot:hover, #vs-quick-list:hover { background: rgba(255, 255, 255, 0.13); color: #fff; border-color: rgba(255, 255, 255, 0.22); }
 #vs-voice svg, #vs-quick-shot svg, #vs-quick-list svg { width: 16px; height: 16px; }
+#vs-enhance { color: #ffb36b; }
+#vs-enhance:hover { background: rgba(255, 138, 61, .16); color: #ffd2a8; }
+#vs-enhance.vs-busy svg, .vs-mg-enh.vs-busy svg { animation: vs-enh-spin 1s linear infinite; }
+@keyframes vs-enh-spin { to { transform: rotate(360deg); } }
+.vs-gen .vs-mg-enh { display: inline-flex; align-items: center; justify-content: center; width: 34px; padding: 0; color: #ffb36b; }
 html.vs-light #vs-discord, html.vs-light #vs-support, html.vs-light #vs-voice,
 html.vs-light #vs-quick-shot, html.vs-light #vs-quick-list {
   background: rgba(0, 0, 0, 0.05); color: #4b5563; border-color: rgba(0, 0, 0, 0.12);
@@ -1226,6 +1231,81 @@ html[data-vs-theme="light"] #vs-quick-shot, html[data-vs-theme="light"] #vs-quic
 }
 html[data-vs-theme="light"] .vs-code-btn { background: rgba(255, 255, 255, 0.9); color: #1a1c26; border-color: rgba(20, 23, 32, 0.16); }
 .vs-code-btn:hover { opacity: 0.85; }
+
+/* ── SpookyScript (all October): pumpkin orange + haunted purple ─────────── */
+html[data-vs-spooky] #vs-mark { display: none !important; }
+#vs-mark-spooky { flex: 0 0 auto; filter: drop-shadow(0 0 5px rgba(168, 85, 247, .7)); }
+html[data-vs-spooky] #vs-brand { background: linear-gradient(90deg, #ffb347, #ff7a18 45%, #a855f7); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html[data-vs-spooky] #vs-action[data-kind="start"],
+html[data-vs-spooky] #vs-action[data-kind="start-degraded"],
+html[data-vs-spooky] #vs-action[data-kind="starting"] { background: linear-gradient(135deg, #ff7a18, #a855f7); box-shadow: 0 2px 12px rgba(168, 85, 247, .45); }
+html[data-vs-spooky] #vs-bar { box-shadow: 0 0 0 1px rgba(168, 85, 247, .25), 0 8px 26px rgba(168, 85, 247, .18); }
+#vs-spooky { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; flex: none; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .12); border-radius: 7px; background: rgba(255, 255, 255, .05); color: #ff9a3d; cursor: pointer; }
+#vs-spooky:hover { background: rgba(168, 85, 247, .18); }
+#vs-spooky .vs-sp-mute { display: none; }
+#vs-spooky.off { color: #8b8fa3; }
+#vs-spooky.off .vs-sp-wave { display: none; }
+#vs-spooky.off .vs-sp-mute { display: inline; }
+
+/* A frame around the whole AI site: glowing edge, cobwebs in the corners, a
+   dangling spider and pumpkins. Clicks go straight through it. */
+#vs-spooky-frame { position: fixed; inset: 0; pointer-events: none; z-index: 2147483600;
+  box-shadow: inset 0 0 0 2px rgba(168, 85, 247, .45), inset 0 0 40px rgba(168, 85, 247, .22), inset 0 0 90px rgba(255, 122, 24, .08); }
+#vs-spooky-frame i { position: absolute; display: block; pointer-events: none; }
+#vs-spooky-frame .web { width: 120px; height: 120px; opacity: .35; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none' stroke='%23e2d6ff' stroke-width='.9'%3E%3Cpath d='M0 0 L120 70 M0 0 L95 110 M0 0 L60 120 M0 0 L120 30 M0 0 L20 120'/%3E%3Cpath d='M22 13 C28 22 26 30 18 36 M40 24 C52 40 48 56 34 66 M62 36 C78 58 72 82 50 96 M84 49 C100 72 94 100 70 116'/%3E%3Cpath d='M38 22 C34 32 28 38 18 40 M70 40 C64 58 52 70 34 74 M104 60 C96 86 80 102 56 108'/%3E%3Cpath d='M12 7 C14 14 12 20 6 24 M28 16 C30 26 26 34 14 40'/%3E%3C/svg%3E"); }
+#vs-spooky-frame .web.tl { top: 0; left: 0; }
+#vs-spooky-frame .web.tr { top: 0; right: 0; transform: scaleX(-1); }
+#vs-spooky-frame .web.bl { bottom: 0; left: 0; transform: scaleY(-1); }
+#vs-spooky-frame .web.br { bottom: 0; right: 0; transform: rotate(180deg); }
+#vs-spooky-frame .pk { bottom: 6px; width: 34px; height: 29px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E%3Cpath d='M19 7c-1-4 1-6 4-7l1 2c-2 1-3 3-2 5z' fill='%233f8a35'/%3E%3Cg fill='%23ff7a18' stroke='%237a2a05' stroke-width='1'%3E%3Cellipse cx='12' cy='20' rx='10' ry='12'/%3E%3Cellipse cx='28' cy='20' rx='10' ry='12'/%3E%3Cellipse cx='20' cy='20' rx='9' ry='13'/%3E%3C/g%3E%3Cpath d='M13 17l3-4 2 5zM27 17l-3-4-2 5z' fill='%23ffd23f'/%3E%3Cpath d='M12 24c4 4 12 4 16 0l-3 1-2-2-2 2-2-2-2 2z' fill='%23ffd23f'/%3E%3C/svg%3E"); filter: drop-shadow(0 0 8px rgba(255, 122, 24, .55)); }
+#vs-spooky-frame .pk.l { left: 10px; }
+#vs-spooky-frame .pk.r { right: 10px; }
+#vs-spooky-frame .spider { top: 0; right: 120px; width: 1px; background: rgba(226, 214, 255, .5); animation: vs-spider-drop 11s ease-in-out infinite; }
+#vs-spooky-frame .spider::after { content: ""; position: absolute; left: -12px; bottom: -18px; width: 24px; height: 21px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E%3Cg stroke='%231a1024' stroke-width='2.2' stroke-linecap='round' fill='none'%3E%3Cpath d='M14 15 6 8 2 12M14 18 4 17 1 22M15 21 7 25 5 31M26 15 34 8 38 12M26 18 36 17 39 22M25 21 33 25 35 31'/%3E%3C/g%3E%3Cellipse cx='20' cy='19' rx='8' ry='9' fill='%231a1024' stroke='%23a855f7' stroke-width='1'/%3E%3Ccircle cx='20' cy='9' r='5' fill='%231a1024' stroke='%23a855f7' stroke-width='1'/%3E%3Ccircle cx='18' cy='8.5' r='1.3' fill='%23ff7a18'/%3E%3Ccircle cx='22' cy='8.5' r='1.3' fill='%23ff7a18'/%3E%3C/svg%3E"); animation: vs-spider-sway 3s ease-in-out infinite; }
+@keyframes vs-spider-drop { 0%, 100% { height: 30px; } 45% { height: 110px; } 60% { height: 100px; } 75% { height: 115px; } }
+@keyframes vs-spider-sway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+#vs-spooky-frame .moon { top: -60px; right: -60px; width: 220px; height: 220px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 240, 200, .22), rgba(255, 220, 150, .08) 45%, transparent 70%); }
+#vs-spooky-frame .spider.s2 { right: auto; left: 22%; animation-duration: 14s; animation-delay: -6s; }
+#vs-spooky-frame .bat { top: 18px; width: 30px; height: 14px; opacity: .8; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 24'%3E%3Cpath fill='%231a1024' stroke='%23a855f7' stroke-width='1.2' d='M0 6c6-6 14-6 18 2 2-4 6-4 8-1 2-3 6-3 8 1 4-8 12-8 18-2-6 1-8 6-8 10-4-3-8-3-10 1-2-3-4-4-6-2-2-2-4-1-6 2-2-4-6-4-10-1 0-4-2-9-12-10z'/%3E%3C/svg%3E"); animation: vs-bat 23s linear infinite; }
+#vs-spooky-frame .bat.b2 { top: 46px; width: 22px; height: 10px; animation-duration: 31s; animation-delay: -12s; }
+#vs-spooky-frame .bat.b3 { top: 30px; width: 18px; height: 8px; animation-duration: 37s; animation-delay: -25s; }
+@keyframes vs-bat { 0% { left: -50px; margin-top: 0; } 25% { margin-top: -10px; } 50% { margin-top: 8px; } 75% { margin-top: -6px; } 100% { left: calc(100% + 50px); margin-top: 0; } }
+#vs-spooky-frame .ghost { right: -40px; top: 42%; width: 38px; height: 45px; opacity: .6; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'%3E%3Cpath fill='%23efe8ff' fill-opacity='.9' d='M17 1C8 1 2 8 2 17v21l5-4 5 4 5-4 5 4 5-4 5 4V17C32 8 26 1 17 1z'/%3E%3Ccircle cx='12' cy='16' r='2.4' fill='%231a1024'/%3E%3Ccircle cx='22' cy='16' r='2.4' fill='%231a1024'/%3E%3Cellipse cx='17' cy='24' rx='2.6' ry='3.2' fill='%231a1024'/%3E%3C/svg%3E"); animation: vs-peek 19s ease-in-out infinite; }
+#vs-spooky-frame .ghost.g2 { right: auto; left: -40px; top: 64%; transform: scaleX(-1); animation-name: vs-peek-l; animation-duration: 27s; animation-delay: -9s; }
+@keyframes vs-peek { 0%, 70%, 100% { right: -40px; } 76%, 92% { right: -8px; } }
+@keyframes vs-peek-l { 0%, 70%, 100% { left: -40px; } 76%, 92% { left: -8px; } }
+@media (prefers-reduced-motion: reduce) { #vs-spooky-frame .spider, #vs-spooky-frame .spider::after, #vs-spooky-frame .bat, #vs-spooky-frame .ghost { animation: none !important; } #vs-spooky-frame .bat, #vs-spooky-frame .ghost { display: none; } }
+
+/* SpookyScript's own look for the bar, menus and panels (not just colours). */
+html[data-vs-spooky] #vs-bar, html[data-vs-spooky] #vs-bar.vs-bar-inline, html[data-vs-spooky] #vs-bar.vs-bar-anchored {
+  background: linear-gradient(180deg, rgba(30, 16, 46, .96), rgba(16, 9, 26, .97)) !important; color: #f3ecff;
+  border: 1px solid rgba(168, 85, 247, .35) !important; box-shadow: 0 0 0 1px rgba(0,0,0,.4), 0 10px 30px rgba(168, 85, 247, .22) !important;
+}
+html[data-vs-spooky] #vs-brand { font-family: "Ink Free", "Segoe Print", cursive; font-size: 13.5px; letter-spacing: .3px; }
+html[data-vs-spooky] #vs-state { color: #c9b8e8; }
+html[data-vs-spooky] #vs-state b { color: #ffd9b8; }
+html[data-vs-spooky] #vs-action[data-kind="start"], html[data-vs-spooky] #vs-action[data-kind="start-degraded"], html[data-vs-spooky] #vs-action[data-kind="starting"] {
+  background: linear-gradient(135deg, #ff8a1f, #e8590c 55%, #a855f7) !important; color: #fff; text-shadow: 0 1px 0 rgba(80, 20, 0, .5);
+  box-shadow: 0 2px 14px rgba(255, 122, 24, .4), inset 0 0 0 1px rgba(255, 180, 90, .25) !important;
+}
+html[data-vs-spooky] #vs-stop { background: linear-gradient(135deg, #7c3aed, #4c1d95) !important; color: #fff; }
+html[data-vs-spooky] #vs-switch, html[data-vs-spooky] #vs-discord, html[data-vs-spooky] #vs-support, html[data-vs-spooky] #vs-voice,
+html[data-vs-spooky] #vs-quick-shot, html[data-vs-spooky] #vs-quick-list, html[data-vs-spooky] #vs-pause, html[data-vs-spooky] #vs-cowork, html[data-vs-spooky] #vs-undo {
+  background: rgba(168, 85, 247, .12) !important; border-color: rgba(168, 85, 247, .3) !important; color: #e9dcff !important;
+}
+html[data-vs-spooky] #vs-menu, html[data-vs-spooky] .vs-gen {
+  background: linear-gradient(180deg, #1c1229, #110a1a) !important; color: #f3ecff; border: 1px solid rgba(168, 85, 247, .35) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .65), 0 0 30px rgba(168, 85, 247, .18) !important;
+}
+html[data-vs-spooky] .vs-gen::before, html[data-vs-spooky] #vs-menu::before { content: ""; position: absolute; top: 0; right: 0; width: 70px; height: 70px;
+  pointer-events: none; opacity: .3; background: no-repeat top right/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23d8c8ff' stroke-width='.8'%3E%3Cpath d='M64 0 18 46M64 0 40 58M64 0 6 22M64 0 30 4'/%3E%3Cpath d='M58 6c-3 4-8 6-14 4M52 14c-5 5-12 8-20 6M45 22c-6 6-15 10-26 8M38 30c-8 7-18 11-30 10'/%3E%3Cpath d='M60 12c-3 5-4 10-2 15M55 22c-4 7-5 14-2 21M50 32c-5 8-6 17-2 25'/%3E%3C/svg%3E"); }
+html[data-vs-spooky] .vs-gen .vs-mg-primary, html[data-vs-spooky] #vs-wiz-go { background: linear-gradient(135deg, #ff7a18, #a855f7) !important; }
+html[data-vs-spooky] .vs-gen input, html[data-vs-spooky] .vs-gen select, html[data-vs-spooky] .vs-gen textarea { background: #0d0716 !important; border-color: rgba(168, 85, 247, .3) !important; }
+html[data-vs-spooky] .vs-gen .vs-mg-stage { background: radial-gradient(120% 90% at 50% 15%, #2a1840 0%, #120a1c 60%, #07040c 100%) !important; }
+html[data-vs-spooky] .vs-chip { border-color: rgba(185, 246, 202, .22) !important; background: linear-gradient(180deg, rgba(185, 246, 202, .06), rgba(168, 85, 247, .08)) !important; }
+
 
 /* ── OR theme (partner): near-black panels, warm cream accent, spaced caps ── */
 html[data-vs-theme="or"] #vs-bar,

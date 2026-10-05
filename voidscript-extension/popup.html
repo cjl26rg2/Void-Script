@@ -31,6 +31,24 @@
     filter:drop-shadow(0 0 8px rgba(255,138,61,.55))}
   .hgroup{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px}
   .title{font-weight:800; font-size:17px; letter-spacing:-.3px; line-height:1}
+
+  /* SpookyScript look (all October) */
+  html.spooky{--bg:#0c0812; --bg2:#120c1b; --card:#170f22; --card2:#1d1329; --line:rgba(190,140,255,.12); --line2:rgba(190,140,255,.2);
+    --fg:#f3ecff; --muted:#b9a9d4; --dim:#7d6c98; --acc:#ff7a18; --acc2:#a855f7; --acc-txt:#ffd9b8; --grad:linear-gradient(135deg,#ff7a18,#a855f7)}
+  html.spooky body{background:radial-gradient(120px 120px at 92% 6%,rgba(255,240,200,.35),transparent 70%),radial-gradient(500px 260px at 90% -10%,rgba(168,85,247,.16),transparent 65%),var(--bg)}
+  html.spooky .title{font-family:"Ink Free","Segoe Print",cursive;letter-spacing:.3px}
+  html.spooky ::-webkit-scrollbar-thumb{background:rgba(168,85,247,.4)}
+  html.spooky .title{text-shadow:0 0 12px rgba(255,122,24,.45)}
+  html.spooky button, html.spooky .card, html.spooky .stat{border-color:rgba(168,85,247,.22)}
+  #spooky-deco{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
+  #spooky-deco i{position:absolute;display:block}
+  #spooky-deco .web{top:0;right:0;width:90px;height:90px;opacity:.28;transform:scaleX(-1);background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none' stroke='%23e2d6ff' stroke-width='.9'%3E%3Cpath d='M0 0 L120 70 M0 0 L95 110 M0 0 L60 120 M0 0 L120 30 M0 0 L20 120'/%3E%3Cpath d='M22 13 C28 22 26 30 18 36 M40 24 C52 40 48 56 34 66 M62 36 C78 58 72 82 50 96 M84 49 C100 72 94 100 70 116'/%3E%3Cpath d='M38 22 C34 32 28 38 18 40 M70 40 C64 58 52 70 34 74 M104 60 C96 86 80 102 56 108'/%3E%3C/svg%3E")}
+  #spooky-deco .bat{top:58px;width:24px;height:11px;opacity:.7;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 24'%3E%3Cpath fill='%231a1024' stroke='%23a855f7' stroke-width='1.2' d='M0 6c6-6 14-6 18 2 2-4 6-4 8-1 2-3 6-3 8 1 4-8 12-8 18-2-6 1-8 6-8 10-4-3-8-3-10 1-2-3-4-4-6-2-2-2-4-1-6 2-2-4-6-4-10-1 0-4-2-9-12-10z'/%3E%3C/svg%3E");animation:pp-bat 14s linear infinite}
+  #spooky-deco .ghost{right:-30px;bottom:30%;width:26px;height:31px;opacity:.55;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'%3E%3Cpath fill='%23efe8ff' fill-opacity='.9' d='M17 1C8 1 2 8 2 17v21l5-4 5 4 5-4 5 4 5-4 5 4V17C32 8 26 1 17 1z'/%3E%3Ccircle cx='12' cy='16' r='2.4' fill='%231a1024'/%3E%3Ccircle cx='22' cy='16' r='2.4' fill='%231a1024'/%3E%3Cellipse cx='17' cy='24' rx='2.6' ry='3.2' fill='%231a1024'/%3E%3C/svg%3E");animation:pp-peek 11s ease-in-out infinite}
+  @keyframes pp-bat{0%{left:-30px;margin-top:0}30%{margin-top:-10px}60%{margin-top:6px}100%{left:110%;margin-top:0}}
+  @keyframes pp-peek{0%,62%,100%{right:-30px}70%,88%{right:-6px}}
+  @media (prefers-reduced-motion:reduce){#spooky-deco .bat,#spooky-deco .ghost{animation:none;display:none}}
+  #spooky-mark{width:28px;height:28px;filter:drop-shadow(0 0 6px rgba(168,85,247,.6))}
   .title .s{background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent}
   .subrow{display:flex; align-items:center; gap:6px}
   #version{font-size:10px; color:var(--dim); font-weight:700; letter-spacing:.3px}
@@ -299,6 +317,10 @@
     <label class="sw"><input type="checkbox" data-cfg="vsBackground" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="setrow"><span class="lbl">Sound effects</span>
     <label class="sw"><input type="checkbox" data-cfg="vsSounds" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">🎃 SpookyScript every October</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsHalloween" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">SpookyScript music</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsSpookyMusic" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="seg" id="theme-seg">
     <button data-theme="system" data-i18n="sys">System</button>
     <button data-theme="dark" data-i18n="dark">Dark</button>
@@ -332,6 +354,7 @@
   </div>
 </div>
 <script src="core/i18n.js"></script>
+<script src="core/spooky.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

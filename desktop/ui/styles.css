@@ -131,7 +131,9 @@ select.input option { background: #171a24; }
 
 /* ── chat ──────────────────────────────────────────────────────────────── */
 #view-chat { padding: 0; gap: 0; }
-.chat-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--line); background: rgba(11,13,19,.6); backdrop-filter: blur(8px); }
+/* z-index: the blur makes this bar its own layer, and the empty chat's glowing
+   logo (also its own layer, later on the page) was painted over the model menu. */
+.chat-top { display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--line); background: rgba(11,13,19,.6); backdrop-filter: blur(8px); position: relative; z-index: 20; }
 .chat-title { font-weight: 800; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .chat-body { flex: 1; overflow-y: auto; padding: 22px 24px; display: flex; flex-direction: column; gap: 14px; user-select: text; }
 .empty { margin: auto; text-align: center; max-width: 560px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -441,6 +443,180 @@ html[data-theme="or"] .mg-stage { background: radial-gradient(120% 90% at 50% 20
 .btn.rate { padding: 0 8px; }
 .btn.rate svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .btn.rate.on { color: var(--acc); border-color: currentColor; }
+.seg.sm button { padding: 5px 10px; font-size: 11.5px; }
+.mg-head .seg.sm { margin-left: auto; margin-right: 8px; }
+.refpick { display: flex; align-items: center; gap: 10px; }
+.refpick img { width: 46px; height: 46px; object-fit: cover; border-radius: 8px; border: 1px solid var(--line2); }
+.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); cursor: pointer; }
+.mg-quick { display: flex; align-items: center; gap: 8px; padding: 10px 18px 0; font-size: 12px; flex-wrap: wrap; }
+.mg-quick .grow { flex: 1; }
+.pals { display: inline-flex; gap: 6px; }
+.pal { display: inline-flex; border: 1px solid var(--line2); border-radius: 7px; overflow: hidden; cursor: pointer; padding: 0; background: none; }
+.pal:disabled { opacity: .4; cursor: default; }
+.pal i { width: 9px; height: 20px; }
+.mg-insp { display: flex; align-items: center; gap: 10px; padding: 10px 18px 0; font-size: 12px; }
+.mg-insp b { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-insp input[type=color] { width: 34px; height: 28px; padding: 0; border: 1px solid var(--line2); border-radius: 7px; background: none; cursor: pointer; }
+.mg-insp select.sm { padding: 5px 8px; font-size: 12px; width: auto; }
+.mg-insp .grow { flex: 1; }
+.hue { width: 22px; height: 22px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); cursor: pointer; padding: 0; }
+.hue:disabled { opacity: .4; cursor: default; }
+.gen-chat { margin-top: 10px; }
+/* Provider picker (replaces the plain <select>, which stays hidden as the value holder) */
+.pp { position: relative; max-width: 360px; }
+.model-pop .pp { max-width: none; }
+.pp-btn { width: 100%; display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 11px; border: 1px solid var(--line2); background: rgba(255,255,255,.04); color: var(--fg); font: inherit; font-weight: 700; cursor: pointer; text-align: left; }
+.pp-btn:hover { border-color: rgba(var(--acc-rgb),.5); }
+.pp-btn .pp-name { flex: 1; }
+.pp-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .6; }
+.pp-panel { position: absolute; top: calc(100% + 6px); left: 0; right: 0; min-width: 300px; z-index: 45; background: linear-gradient(180deg, #1a1f2e, #131723); border: 1px solid var(--line2); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.55); padding: 8px; animation: fade .12s ease; }
+.pp-panel .input { width: 100%; margin-bottom: 6px; }
+.pp-list { max-height: 320px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.pp-group { font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); padding: 8px 8px 4px; }
+.pp-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 9px; border: 0; background: none; color: var(--fg); font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+.pp-item:hover, .pp-item.hl { background: rgba(255,255,255,.06); }
+.pp-item.on { background: rgba(var(--acc-rgb),.14); }
+.pp-item .pp-name { flex: 1; font-weight: 600; }
+.pp-item .pp-note { color: var(--dim); font-size: 11.5px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-dot { width: 7px; height: 7px; border-radius: 50%; background: transparent; flex: none; }
+.pp-dot.key { background: #36d47e; box-shadow: 0 0 6px rgba(54,212,126,.6); }
+.pp-tag { font-size: 10.5px; font-weight: 800; padding: 2px 7px; border-radius: 999px; flex: none; }
+.pp-tag.free { background: rgba(54,212,126,.15); color: #5fe39b; }
+.pp-tag.credits { background: rgba(80,150,255,.15); color: #8ab8ff; }
+.pp-tag.local { background: rgba(170,110,255,.16); color: #c5a2ff; }
+.pp-tag.other { background: rgba(255,255,255,.08); color: var(--muted); }
+.pp-empty { padding: 14px; color: var(--dim); text-align: center; font-size: 12.5px; }
+/* ── SpookyScript (Halloween, all October): its own look, not just new colours ── */
+html.spooky {
+  --acc: #ff7a18; --acc2: #a855f7; --grad: linear-gradient(135deg, #ff7a18, #a855f7);
+  --acc-rgb: 255,122,24; --acc2-rgb: 168,85,247; --acc-txt: #ffd9b8;
+  --bg: #0c0812; --bg2: #120c1b; --side: #0e0915;
+  --card: #150e1f; --card2: #1c1229; --line: rgba(190,140,255,.10); --line2: rgba(190,140,255,.18);
+  --fg: #f3ecff; --muted: #b9a9d4; --dim: #7d6c98; --r: 16px;
+  --ghost: #b9f6ca; --spook-font: "Ink Free", "Segoe Print", "Comic Sans MS", cursive;
+}
+/* Headings in a hand-scrawled font, lit like candlelight */
+html.spooky h1, html.spooky h2, html.spooky .card-t, html.spooky .tb-name, html.spooky #mg-name, html.spooky #ub-name {
+  font-family: var(--spook-font); letter-spacing: .3px;
+}
+html.spooky .view-h h2, html.spooky .hero h1, html.spooky .empty h2 {
+  color: #ffd9b8; text-shadow: 0 0 14px rgba(255,122,24,.45), 0 2px 0 #3b1a55;
+}
+/* The night sky: a moon, stars, and fog that drifts along the bottom */
+html.spooky #view { background:
+  radial-gradient(140px 140px at 88% 9%, rgba(255,240,200,.55), rgba(255,220,150,.18) 45%, transparent 70%),
+  radial-gradient(700px 360px at 85% -10%, rgba(168,85,247,.14), transparent 65%),
+  radial-gradient(600px 300px at 10% -15%, rgba(255,122,24,.08), transparent 60%),
+  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cg fill='%23e9d8ff'%3E%3Ccircle cx='12' cy='30' r='.9'/%3E%3Ccircle cx='70' cy='12' r='.6'/%3E%3Ccircle cx='140' cy='44' r='1'/%3E%3Ccircle cx='200' cy='20' r='.7'/%3E%3Ccircle cx='40' cy='120' r='.6'/%3E%3Ccircle cx='180' cy='110' r='.8'/%3E%3Ccircle cx='100' cy='160' r='.5'/%3E%3Ccircle cx='220' cy='190' r='.7'/%3E%3Ccircle cx='20' cy='210' r='.8'/%3E%3C/g%3E%3C/svg%3E") repeat,
+  linear-gradient(180deg, #0c0812, #120a1c 60%, #0c0812); }
+html.spooky #view::after { content: ""; position: absolute; inset: auto 0 0 0; height: 160px; pointer-events: none; z-index: 0; opacity: .7;
+  background: radial-gradient(40% 70% at 20% 100%, rgba(200,180,255,.12), transparent 70%), radial-gradient(45% 80% at 70% 100%, rgba(200,180,255,.10), transparent 70%);
+  animation: fog 18s ease-in-out infinite alternate; }
+@keyframes fog { from { transform: translateX(-4%); } to { transform: translateX(4%); } }
+/* Sidebar: a dark crypt wall; the active page glows like a lit candle */
+html.spooky #side { background: linear-gradient(180deg, #130c1d, #0c0813); border-right: 1px solid rgba(168,85,247,.18); }
+html.spooky #titlebar { background: #0d0815; border-bottom: 1px solid rgba(168,85,247,.2); }
+html.spooky .nav-item.active { color: #fff; background: linear-gradient(135deg, rgba(255,122,24,.24), rgba(168,85,247,.20));
+  box-shadow: inset 0 0 0 1px rgba(255,122,24,.38), 0 0 18px rgba(255,122,24,.18); animation: candle 3.2s ease-in-out infinite; }
+@keyframes candle { 0%, 100% { box-shadow: inset 0 0 0 1px rgba(255,122,24,.38), 0 0 18px rgba(255,122,24,.18); } 45% { box-shadow: inset 0 0 0 1px rgba(255,140,40,.5), 0 0 24px rgba(255,140,40,.28); } 60% { box-shadow: inset 0 0 0 1px rgba(255,110,20,.32), 0 0 14px rgba(255,110,20,.14); } }
+html.spooky .nav-item.active svg { stroke: #ff9a3d; filter: drop-shadow(0 0 4px rgba(255,122,24,.8)); }
+/* Cards: old stone with a cobweb in the corner */
+html.spooky .card, html.spooky .mg-card {
+  background: linear-gradient(180deg, rgba(34,20,50,.92), rgba(21,13,31,.94)); border: 1px solid rgba(168,85,247,.18);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 12px 30px rgba(0,0,0,.45), 0 0 0 1px rgba(0,0,0,.3); position: relative;
+}
+html.spooky .card::before, html.spooky .mg-card::before { content: ""; position: absolute; top: 0; right: 0; width: 64px; height: 64px; pointer-events: none; opacity: .35; z-index: 1;
+  background: no-repeat top right/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%23d8c8ff' stroke-width='.8'%3E%3Cpath d='M64 0 18 46M64 0 40 58M64 0 6 22M64 0 30 4'/%3E%3Cpath d='M58 6c-3 4-8 6-14 4M52 14c-5 5-12 8-20 6M45 22c-6 6-15 10-26 8M38 30c-8 7-18 11-30 10'/%3E%3Cpath d='M60 12c-3 5-4 10-2 15M55 22c-4 7-5 14-2 21M50 32c-5 8-6 17-2 25'/%3E%3C/svg%3E"); }
+/* Buttons: pumpkin glow, and the main buttons drip */
+html.spooky .btn { border-color: rgba(168,85,247,.25); background: rgba(168,85,247,.08); }
+html.spooky .btn:hover { background: rgba(168,85,247,.16); border-color: rgba(168,85,247,.45); }
+html.spooky .btn.primary { background: linear-gradient(135deg, #ff8a1f, #e8590c 55%, #a855f7); border-color: transparent; color: #fff;
+  box-shadow: 0 4px 18px rgba(255,122,24,.35), 0 0 0 1px rgba(255,180,90,.25) inset; position: relative; overflow: visible; text-shadow: 0 1px 0 rgba(80,20,0,.5); }
+html.spooky .btn.primary.grow::after, html.spooky #btn-send::after { content: ""; position: absolute; left: 12%; right: 12%; bottom: -7px; height: 9px; pointer-events: none;
+  background: no-repeat center/100% 100% url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 10' preserveAspectRatio='none'%3E%3Cpath fill='%23d9530d' d='M0 0h100v2c-4 0-5 7-8 7s-3-6-6-6-4 3-7 3-3-3-6-3-5 6-8 6-4-6-7-6-4 2-6 2-3-4-6-4-5 7-9 7-3-7-6-7-4 3-7 3-3-3-6-3-4 5-7 5-3-5-6-5v-2z'/%3E%3C/svg%3E"); }
+/* Inputs and switches */
+html.spooky .input, html.spooky textarea, html.spooky select { background: rgba(14,8,22,.85); border-color: rgba(168,85,247,.25); }
+html.spooky .input:focus, html.spooky textarea:focus { border-color: #ff7a18; box-shadow: 0 0 0 3px rgba(255,122,24,.18), 0 0 18px rgba(255,122,24,.12); }
+html.spooky .seg { background: rgba(14,8,22,.7); border-color: rgba(168,85,247,.25); }
+html.spooky .switch input:checked + .track { background: linear-gradient(135deg, #ff7a18, #a855f7); box-shadow: 0 0 10px rgba(255,122,24,.4); }
+html.spooky .chip { border-color: rgba(168,85,247,.3); }
+/* Chat: your messages are spell scrolls, the AI's answers are ghostly */
+html.spooky .msg.user .bubble { background: linear-gradient(135deg, #ff7a18, #c2410c); box-shadow: 0 6px 20px rgba(255,122,24,.25); }
+html.spooky .msg.ai .bubble { background: linear-gradient(180deg, rgba(185,246,202,.07), rgba(168,85,247,.06)); border: 1px solid rgba(185,246,202,.18);
+  box-shadow: 0 0 22px rgba(185,246,202,.06); }
+html.spooky .bubble pre, html.spooky .mg-script { background: #07040c; border-color: rgba(168,85,247,.25); }
+/* The 3D viewer and UI preview: a haunted stage */
+html.spooky .mg-stage { background: radial-gradient(120% 90% at 50% 15%, #2a1840 0%, #120a1c 60%, #07040c 100%); }
+html.spooky .mg-stats { background: rgba(20,10,30,.88); color: #ffd9b8; border: 1px solid rgba(255,122,24,.3); }
+html.spooky .mg-busy { background: rgba(20,8,30,.75); border-color: rgba(168,85,247,.4); }
+html.spooky .model-pop, html.spooky .pp-panel, html.spooky .notif-pop { background: linear-gradient(180deg, #1c1229, #120b1b); border-color: rgba(168,85,247,.3); }
+html.spooky #toast { background: #1a0f26; border-color: rgba(255,122,24,.4); box-shadow: 0 14px 40px rgba(0,0,0,.6), 0 0 22px rgba(168,85,247,.25); }
+/* Purple scrollbars */
+html.spooky ::-webkit-scrollbar { width: 10px; height: 10px; }
+html.spooky ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(168,85,247,.45), rgba(255,122,24,.35)); border-radius: 8px; border: 2px solid transparent; background-clip: padding-box; }
+html.spooky ::-webkit-scrollbar-track { background: transparent; }
+html.spooky ::selection { background: rgba(255,122,24,.4); }
+/* Logos glow purple */
+html.spooky .tb-logo, html.spooky .empty-logo, html.spooky .modal-logo, html.spooky .upd-ring img { filter: drop-shadow(0 0 8px rgba(168,85,247,.65)) drop-shadow(0 0 3px rgba(255,122,24,.6)); }
+html.spooky .empty-logo { width: 84px; height: 84px; animation: bob 3.6s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-3deg); } 50% { transform: translateY(-6px) rotate(3deg); } }
+/* Bats and ghosts drifting past, behind everything you click */
+/* inside #view, under the pages: they only show in the gaps between cards */
+.spooky-bats { position: absolute; inset: 0; pointer-events: none; z-index: 0; overflow: hidden; }
+.spooky-bats i { position: absolute; width: 26px; height: 12px; opacity: .55; animation: bat-fly linear infinite;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 24'%3E%3Cpath fill='%231a1024' stroke='%23a855f7' stroke-width='1.2' d='M0 6c6-6 14-6 18 2 2-4 6-4 8-1 2-3 6-3 8 1 4-8 12-8 18-2-6 1-8 6-8 10-4-3-8-3-10 1-2-3-4-4-6-2-2-2-4-1-6 2-2-4-6-4-10-1 0-4-2-9-12-10z'/%3E%3C/svg%3E"); }
+.spooky-bats i:nth-child(1) { top: 14%; animation-duration: 26s; animation-delay: -4s; }
+.spooky-bats i:nth-child(2) { top: 38%; animation-duration: 34s; animation-delay: -19s; transform: scale(.7); }
+.spooky-bats i:nth-child(3) { top: 66%; animation-duration: 41s; animation-delay: -30s; transform: scale(.85); }
+.spooky-bats b { position: absolute; width: 34px; height: 40px; opacity: 0; animation: ghost-float 22s ease-in-out infinite;
+  background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 34 40'%3E%3Cpath fill='%23efe8ff' fill-opacity='.85' d='M17 1C8 1 2 8 2 17v21l5-4 5 4 5-4 5 4 5-4 5 4V17C32 8 26 1 17 1z'/%3E%3Ccircle cx='12' cy='16' r='2.4' fill='%231a1024'/%3E%3Ccircle cx='22' cy='16' r='2.4' fill='%231a1024'/%3E%3Cellipse cx='17' cy='24' rx='2.6' ry='3.2' fill='%231a1024'/%3E%3C/svg%3E"); }
+.spooky-bats b:nth-of-type(1) { left: 72%; top: 70%; animation-delay: -3s; }
+.spooky-bats b:nth-of-type(2) { left: 30%; top: 80%; animation-delay: -13s; animation-duration: 27s; }
+@keyframes bat-fly {
+  0% { left: -40px; margin-top: 0; } 25% { margin-top: -18px; } 50% { margin-top: 10px; } 75% { margin-top: -12px; } 100% { left: calc(100% + 40px); margin-top: 0; }
+}
+@keyframes ghost-float { 0% { opacity: 0; transform: translate(0, 20px); } 20% { opacity: .5; } 50% { opacity: .35; transform: translate(-30px, -120px); } 80% { opacity: .45; } 100% { opacity: 0; transform: translate(10px, -260px); } }
+@media (prefers-reduced-motion: reduce) { .spooky-bats, html.spooky .nav-item.active, html.spooky .empty-logo, html.spooky #view::after { animation: none !important; } .spooky-bats { display: none; } }
+html.spooky .view { z-index: 1; }
+/* SpookyScript type: scrawled headings, a condensed body font (both ship with Windows 10/11). */
+html.spooky body { font-family: "Bahnschrift", "Segoe UI Variable Text", "Segoe UI", sans-serif; font-stretch: semi-condensed; letter-spacing: .15px; }
+html.spooky h1, html.spooky h2, html.spooky .card-t, html.spooky .tb-name, html.spooky #mg-name, html.spooky #ub-name, html.spooky .nav-item span { font-weight: 700; }
+html.spooky .nav-item { font-family: var(--spook-font); font-size: 15px; letter-spacing: .3px; }
+html.spooky .btn { font-family: "Bahnschrift", "Segoe UI", sans-serif; font-weight: 600; letter-spacing: .3px; }
+.dev-tag { font: 800 9.5px/1 "Segoe UI", sans-serif; letter-spacing: .8px; padding: 3px 6px; border-radius: 6px; vertical-align: middle;
+  background: linear-gradient(135deg, #ff7a18, #a855f7); color: #fff; -webkit-text-fill-color: #fff; }
+
+/* More haunting: a vignette, cobwebs on the window, a dangling spider, the odd
+   flash of lightning and a little graveyard at the bottom of the sidebar. */
+html.spooky #view::before { content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  box-shadow: inset 0 0 120px rgba(8, 2, 16, .85), inset 0 0 0 1px rgba(168, 85, 247, .12); }
+.spooky-deco { position: absolute; inset: 0; pointer-events: none; z-index: 3; overflow: hidden; }
+.spooky-deco .web { position: absolute; width: 120px; height: 120px; opacity: .2; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120' fill='none' stroke='%23e2d6ff' stroke-width='.9'%3E%3Cpath d='M0 0 L120 70 M0 0 L95 110 M0 0 L60 120 M0 0 L120 30 M0 0 L20 120'/%3E%3Cpath d='M22 13 C28 22 26 30 18 36 M40 24 C52 40 48 56 34 66 M62 36 C78 58 72 82 50 96 M84 49 C100 72 94 100 70 116'/%3E%3Cpath d='M38 22 C34 32 28 38 18 40 M70 40 C64 58 52 70 34 74 M104 60 C96 86 80 102 56 108'/%3E%3Cpath d='M12 7 C14 14 12 20 6 24 M28 16 C30 26 26 34 14 40'/%3E%3C/svg%3E"); }
+.spooky-deco .web.tl { top: 0; left: 0; }
+.spooky-deco .web.br { bottom: 0; right: 0; transform: rotate(180deg); }
+.spooky-deco .spider { position: absolute; top: 0; right: 18%; width: 1px; background: rgba(226, 214, 255, .5); animation: spider-drop 9s ease-in-out infinite; }
+.spooky-deco .spider::after { content: ""; position: absolute; left: -15px; bottom: -22px; width: 30px; height: 26px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E%3Cg stroke='%231a1024' stroke-width='2.2' stroke-linecap='round' fill='none'%3E%3Cpath d='M14 15 6 8 2 12M14 18 4 17 1 22M15 21 7 25 5 31M26 15 34 8 38 12M26 18 36 17 39 22M25 21 33 25 35 31'/%3E%3C/g%3E%3Cellipse cx='20' cy='19' rx='8' ry='9' fill='%231a1024' stroke='%23a855f7' stroke-width='1'/%3E%3Ccircle cx='20' cy='9' r='5' fill='%231a1024' stroke='%23a855f7' stroke-width='1'/%3E%3Ccircle cx='18' cy='8.5' r='1.3' fill='%23ff7a18'/%3E%3Ccircle cx='22' cy='8.5' r='1.3' fill='%23ff7a18'/%3E%3C/svg%3E"); animation: spider-sway 3s ease-in-out infinite; }
+@keyframes spider-drop { 0%, 100% { height: 40px; } 40% { height: 150px; } 55% { height: 140px; } 70% { height: 155px; } }
+@keyframes spider-sway { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.spooky-deco .flash { position: absolute; inset: 0; background: rgba(220, 200, 255, .9); opacity: 0; animation: lightning 47s linear infinite; mix-blend-mode: soft-light; }
+@keyframes lightning { 0%, 96%, 100% { opacity: 0; } 96.4% { opacity: .55; } 96.7% { opacity: .05; } 97% { opacity: .4; } 97.6% { opacity: 0; } }
+html.spooky .side-status::before { content: ""; display: block; height: 34px; margin: 0 4px 8px; opacity: .9;
+  background: no-repeat 4% 100%/28px 32px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 34'%3E%3Cpath d='M3 34V12C3 5 8 1 15 1s12 4 12 11v22z' fill='%232b2238' stroke='%235b4a78' stroke-width='1.2'/%3E%3Cpath d='M10 13h10M15 8v14' stroke='%237d6c98' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M0 34c4-3 9-3 15-2s10 0 15 2z' fill='%231c3b1a'/%3E%3C/svg%3E"), no-repeat 34% 100%/26px 22px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E%3Cpath d='M19 7c-1-4 1-6 4-7l1 2c-2 1-3 3-2 5z' fill='%233f8a35'/%3E%3Cg fill='%23ff7a18' stroke='%237a2a05' stroke-width='1'%3E%3Cellipse cx='12' cy='20' rx='10' ry='12'/%3E%3Cellipse cx='28' cy='20' rx='10' ry='12'/%3E%3Cellipse cx='20' cy='20' rx='9' ry='13'/%3E%3C/g%3E%3Cpath d='M13 17l3-4 2 5zM27 17l-3-4-2 5z' fill='%23ffd23f'/%3E%3Cpath d='M12 24c4 4 12 4 16 0l-3 1-2-2-2 2-2-2-2 2z' fill='%23ffd23f'/%3E%3C/svg%3E"), no-repeat 62% 100%/22px 26px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 34'%3E%3Cpath d='M3 34V12C3 5 8 1 15 1s12 4 12 11v22z' fill='%232b2238' stroke='%235b4a78' stroke-width='1.2'/%3E%3Cpath d='M10 13h10M15 8v14' stroke='%237d6c98' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M0 34c4-3 9-3 15-2s10 0 15 2z' fill='%231c3b1a'/%3E%3C/svg%3E"), no-repeat 92% 100%/30px 25px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 34'%3E%3Cpath d='M19 7c-1-4 1-6 4-7l1 2c-2 1-3 3-2 5z' fill='%233f8a35'/%3E%3Cg fill='%23ff7a18' stroke='%237a2a05' stroke-width='1'%3E%3Cellipse cx='12' cy='20' rx='10' ry='12'/%3E%3Cellipse cx='28' cy='20' rx='10' ry='12'/%3E%3Cellipse cx='20' cy='20' rx='9' ry='13'/%3E%3C/g%3E%3Cpath d='M13 17l3-4 2 5zM27 17l-3-4-2 5z' fill='%23ffd23f'/%3E%3Cpath d='M12 24c4 4 12 4 16 0l-3 1-2-2-2 2-2-2-2 2z' fill='%23ffd23f'/%3E%3C/svg%3E"); }
+@media (prefers-reduced-motion: reduce) { .spooky-deco .spider, .spooky-deco .spider::after, .spooky-deco .flash { animation: none !important; } .spooky-deco .flash { display: none; } }
+#btn-music svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+#btn-music svg path:first-child { fill: currentColor; }
+#btn-music .mute { display: none; }
+#btn-music.off .wave { display: none; }
+#btn-music.off .mute { display: inline; }
+#btn-music:not(.off) { color: var(--acc); }
+/* Prompt Enhancer buttons */
+.btn.enh svg, .enh-sm svg { width: 17px; height: 17px; stroke: none; fill: none; } /* each wand path sets its own stroke/fill */
+.btn.enh svg path, .enh-sm svg path { stroke-linejoin: round; }
+.btn.enh { color: var(--acc); }
+.enh-sm { margin: 8px 0 2px; display: inline-flex; align-items: center; gap: 6px; color: var(--acc-txt); }
+.enh-sm svg { width: 13px; height: 13px; }
+.btn.enh.busy svg, .enh-sm.busy svg { animation: enh-spin 1s linear infinite; }
+@keyframes enh-spin { to { transform: rotate(360deg); } }
 .mg-learn { margin: 10px 0 0; font-size: 12px; color: var(--dim); }
 .mg-learn:empty { display: none; }
 .mg-learn .link { font-size: 12px; }

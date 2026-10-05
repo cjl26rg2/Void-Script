@@ -330,7 +330,19 @@ def full_mode():
     return 0 if perform_swap(tag, url, quiet=False) else 1
 
 
+def is_dev_folder():
+    """A development copy (voidscript-dev, "voidscript - Copy", a .dev marker) holds
+    work that isn't released yet - updating would overwrite it with the release."""
+    root = os.path.dirname(os.path.abspath(__file__))
+    return bool(re.search(r"test|dev|copy|backup|staging|\(\d+\)", os.path.basename(root), re.I)
+                or os.path.exists(os.path.join(root, ".dev")))
+
+
 def main():
+    if is_dev_folder():
+        if not (len(sys.argv) > 1 and sys.argv[1] in ("--check", "--auto")):
+            log("[update] This is a development folder - updates are off here so your work isn't overwritten.")
+        return 0
     clean_stale()
     if len(sys.argv) > 1 and sys.argv[1] == "--check":
         return check_mode()

@@ -6,6 +6,14 @@
 const VSKit = (() => {
   // One-click game starters. Each is a build brief the agent follows in Studio.
   const TEMPLATES = [
+    { id: "haunted", name: "Haunted house", icon: "🏚️", desc: "creaky mansion, jump scares, flickering lights",
+      brief: "Build a haunted house experience: a two-storey spooky mansion (dark wood, broken windows, cobwebs, candles with flickering PointLights), a creaking front door that swings open when you approach, three jump-scare trigger zones (a ghost that flies across a hallway with a scream sound, a portrait whose eyes follow you, a closet that bursts open), thick purple fog and dim moonlight, and a way out at the end with a 'You escaped!' message." },
+    { id: "zombies", name: "Zombie survival", icon: "🧟", desc: "waves of zombies, weapons, round counter",
+      brief: "Build a zombie survival game: zombies (R15 NPCs with a green tint) spawn in waves from graveyard spawn points and path-find to the nearest player, a simple sword and a slingshot as starter weapons, wave counter + zombies-left GUI, waves get bigger and faster, coins dropped by zombies saved in leaderstats, and a safe lobby between waves. Server-authoritative damage." },
+    { id: "candy", name: "Trick-or-treat simulator", icon: "🍬", desc: "collect candy, bigger bags, sell, rebirth",
+      brief: "Build a trick-or-treat simulator: a Halloween street with houses whose doors give candy when you knock (with a cooldown each), a candy bag with a capacity, a sell stand that turns candy into coins, a shop for bigger bags and costumes that boost candy per knock, rebirths, leaderstats (Candy, Coins, Rebirths) and DataStore saving. Pumpkin lanterns and string lights along the street." },
+    { id: "ghosthunt", name: "Ghost hunt", icon: "👻", desc: "find hidden ghosts, flashlight, timer",
+      brief: "Build a ghost hunt: 10 ghosts hidden around a dark graveyard map that are only visible in a flashlight beam (a Tool with a SpotLight that reveals them when aimed at), a counter GUI (Ghosts found 3/10), a 5-minute timer, eerie ambient sound, and a win screen with your time. Ghosts drift and bob slowly." },
     { id: "obby", name: "Obby", icon: "🧗", desc: "10 stages, checkpoints, kill bricks, a finish",
       brief: "Build a complete obby: 10 stages that get harder (jumps, moving platforms, spinning bars, disappearing tiles, kill bricks), a checkpoint at the start of each stage that saves the player's stage in leaderstats (Stage), respawning at your last checkpoint, a timer GUI, and a finish platform with a celebration effect. Make the stages look good with a consistent color theme." },
     { id: "tycoon", name: "Tycoon", icon: "🏭", desc: "droppers, conveyor, collector, buy buttons",
@@ -130,6 +138,8 @@ return HttpService:JSONEncode(R)`;
 
   // ── lighting presets: one click sets the whole mood ────────────────────────
   const LIGHTING = [
+    { id: "halloween", name: "Halloween night", icon: "🎃", L: { ClockTime: 0.2, Brightness: 0.6, Ambient: "#2A1A3A", OutdoorAmbient: "#3A2050", FogEnd: 260, FogStart: 10, FogColor: "#2A1440", ExposureCompensation: 0.1 },
+      atm: { Density: 0.5, Haze: 2.2, Color: "#5A2E86", Decay: "#FF7A18", Glare: 0.4 }, cc: { Brightness: 0, Contrast: 0.2, Saturation: -0.05, TintColor: "#E8D2FF" }, bloom: [1.1, 26, 0.9], rays: [0.05, 0.3] },
     { id: "sunny", name: "Sunny day", icon: "☀️", L: { ClockTime: 13, Brightness: 3, Ambient: "#6E7680", OutdoorAmbient: "#8C96A0", FogEnd: 100000, FogColor: "#C0D6EA", ExposureCompensation: 0.1 },
       atm: { Density: 0.25, Haze: 0.5, Color: "#C7DCF0", Decay: "#6A88A8", Glare: 0.2 }, cc: { Brightness: 0.02, Contrast: 0.08, Saturation: 0.12, TintColor: "#FFFFFF" }, bloom: [0.6, 22, 1.4], rays: [0.08, 0.4] },
     { id: "sunset", name: "Golden sunset", icon: "🌅", L: { ClockTime: 17.9, Brightness: 2.2, Ambient: "#5A4646", OutdoorAmbient: "#8A6A5A", FogEnd: 100000, FogColor: "#E8A070", ExposureCompensation: 0.2 },

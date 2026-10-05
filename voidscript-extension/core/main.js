@@ -73,6 +73,8 @@
     vsCowork: false,            // Co-work: human-in-the-loop steering of the running agent
     vsLang: "en",               // UI + AI reply language (core/i18n.js); English default
     vsSounds: false,            // short sound cues (ready / done / error / needs you) - opt-in
+    vsHalloween: true,          // SpookyScript all October (core/spooky.js)
+    vsSpookyMusic: true,        // the SpookyScript track while it's on
   };
   let VS_CFG = { ...VS_CFG_DEFAULTS };
   try {
@@ -3487,6 +3489,7 @@
            <span id="vs-live"></span>
            <button id="vs-quick-shot" hidden aria-label="Screenshot Studio" title="Take a screenshot of Studio and inspect it"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 14a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg></button>
            <button id="vs-quick-list" hidden aria-label="List assets" title="List all objects/scripts in the game"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><line x1="8" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="20" y2="12"/><line x1="8" y1="18" x2="20" y2="18"/><circle cx="3.6" cy="6" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.6" cy="12" r="1.3" fill="currentColor" stroke="none"/><circle cx="3.6" cy="18" r="1.3" fill="currentColor" stroke="none"/></svg></button>
+           <button id="vs-enhance" aria-label="Enhance prompt" title="Prompt Enhancer: makes what you typed clearer for the AI - same request, just better. Ctrl+Z undoes it."><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg></button>
            <button id="vs-action"></button>
           <button id="vs-stop" hidden>■ Stop</button>
           <button id="vs-pause" hidden>⏸ Pause</button>
@@ -3755,6 +3758,87 @@
       // menu's own handler runs) so the bar renders in the right theme from frame 1.
       // Waits for the page to settle like every other write to <html> (see whenSettled).
       whenSettled.then(() => { try { if (VS_CFG.vsTheme) applyVsTheme(VS_CFG.vsTheme); } catch {} });
+      // SpookyScript: all October the bar becomes SpookyScript - pumpkin logo,
+      // orange-and-purple look and the SpookyScript track. AI sites only allow
+      // sound after a click, so the music starts on your first click on the bar.
+      let spookyWatch = null;
+      // "VoidScript" <-> "SpookyScript" in VoidScript's own panels (never in code or the AI's text).
+      function renameBar(on) {
+        const [from, to] = on ? [/VoidScript/g, "SpookyScript"] : [/SpookyScript/g, "VoidScript"];
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+          acceptNode: (n) => (n.nodeValue.search(from) >= 0 && !n.parentElement.closest("pre, code, textarea, .vs-chip-body, .vs-kit-pre") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+        });
+        const hits = [];
+        let n;
+        while ((n = w.nextNode())) hits.push(n);
+        for (const t of hits) t.nodeValue = t.nodeValue.replace(from, to);
+      }
+      function applySpooky() {
+        const on = VS_CFG.vsHalloween !== false && typeof VSSpooky !== "undefined" && VSSpooky.inSeason();
+        const html = document.documentElement, bar = root.querySelector("#vs-bar");
+        if (on) html.setAttribute("data-vs-spooky", "1"); else html.removeAttribute("data-vs-spooky");
+        const brand = root.querySelector("#vs-brand");
+        if (brand && brand.firstChild && brand.firstChild.nodeType === 3) brand.firstChild.nodeValue = on ? "SpookyScript " : "VoidScript ";
+        let pk = root.querySelector("#vs-mark-spooky");
+        if (on && !pk && bar) {
+          pk = document.createElement("img");
+          pk.id = "vs-mark-spooky"; pk.alt = ""; pk.width = pk.height = 20;
+          pk.src = chrome.runtime.getURL("spooky/icon-48.png");
+          root.querySelector("#vs-mark").after(pk);
+        }
+        if (!on && pk) pk.remove();
+        let btn = root.querySelector("#vs-spooky");
+        if (on && !btn && brand) {
+          btn = document.createElement("button");
+          btn.id = "vs-spooky";
+          btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="vs-sp-wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="vs-sp-mute" d="m16 9 6 6m0-6-6 6"/></svg>`;
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            VS_CFG.vsSpookyMusic = VS_CFG.vsSpookyMusic === false;
+            try { chrome.storage.local.set({ vsSpookyMusic: VS_CFG.vsSpookyMusic }); } catch {}
+            applySpooky();
+          };
+          brand.after(btn);
+        }
+        if (!on && btn) btn.remove();
+        renameBar(on);
+        let frame = document.getElementById("vs-spooky-frame");
+        if (on && !frame) {
+          frame = document.createElement("div");
+          frame.id = "vs-spooky-frame";
+          frame.setAttribute("aria-hidden", "true");
+          frame.innerHTML = '<i class="moon"></i><i class="web tl"></i><i class="web tr"></i><i class="web bl"></i><i class="web br"></i>' +
+            '<i class="spider"></i><i class="spider s2"></i><i class="bat"></i><i class="bat b2"></i><i class="bat b3"></i>' +
+            '<i class="ghost"></i><i class="ghost g2"></i><i class="pk l"></i><i class="pk r"></i>';
+          frame.style.overflow = "hidden";
+          document.documentElement.appendChild(frame);
+        }
+        if (!on && frame) frame.remove();
+        if (on && !spookyWatch) {
+          // The bar rewrites its labels all the time ("Start VoidScript"...): keep them renamed.
+          let queued = false;
+          spookyWatch = new MutationObserver(() => {
+            if (queued || !document.documentElement.hasAttribute("data-vs-spooky")) return;
+            queued = true;
+            setTimeout(() => { queued = false; renameBar(true); }, 120);
+          });
+          spookyWatch.observe(root, { childList: true, subtree: true, characterData: true });
+        }
+        const music = on && VS_CFG.vsSpookyMusic !== false;
+        if (btn) { btn.classList.toggle("off", !music); btn.title = music ? "Mute the SpookyScript music" : "Play the SpookyScript music"; }
+        if (!music) { if (typeof VSSpooky !== "undefined") VSSpooky.stop(); return; }
+        if (!VSSpooky.playing) VSSpooky.start(0.25, chrome.runtime.getURL("spooky/music.mp3"));
+      }
+      whenSettled.then(() => { try { applySpooky(); } catch {} });
+      try {
+        chrome.storage.onChanged.addListener((ch, area) => {
+          if (area === "local" && (ch.vsHalloween || ch.vsSpookyMusic)) {
+            if (ch.vsHalloween) VS_CFG.vsHalloween = ch.vsHalloween.newValue;
+            if (ch.vsSpookyMusic) VS_CFG.vsSpookyMusic = ch.vsSpookyMusic.newValue;
+            try { applySpooky(); } catch {}
+          }
+        });
+      } catch {}
       // Both bar controls open the same panel; the heart lands on the Support
       // section (last), the model button opens at the top with Switch AI.
       const toggleMenu = (toSupport) => {
@@ -5814,8 +5898,9 @@
     const GEN = {
       model: { kit: () => VSModel, page: "model.html", channel: "model", title: "Model generator", noun: "model",
         hint: "Describe a model - a red phoenix, a bullet train…",
-        opts: `<select data-o="detail"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>`,
-        prompt: (desc, o) => VSModel.buildPrompt(desc, o.detail || "medium"),
+        opts: `<select data-o="detail"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option></select>` +
+          `<select data-o="style"><option value="realistic" selected>Realistic</option><option value="lowpoly">Low poly</option><option value="cartoon">Cartoon</option><option value="blocky">Blocky</option></select>`,
+        prompt: (desc, o) => VSModel.buildPrompt(desc, o.detail || "medium", { style: o.style }),
         stats: (spec) => { const st = VSModel.stats(spec); return `${st.parts} parts · ${st.size.join(" × ")} studs`; },
         done: (spec) => `${spec.name} is in Studio. Ctrl+Z undoes it.`, reset: true },
       ui: { kit: () => VSUI, page: "ui-view.html", channel: "ui", title: "UI builder", noun: "UI",
@@ -5835,13 +5920,130 @@
       genPanels[kind].el.querySelector(".vs-mg-desc").focus();
     }
     // Hand a prompt to the site's AI in this chat and read the reply back.
-    async function askSite(text) {
+    // Not waitForResponse: that reader is built for agent commands and can keep
+    // waiting on a long JSON reply (seen on Claude - the model was written, the
+    // panel spun forever). Here we only need "the site stopped writing": the
+    // newest reply exists, generation is off, and its text hasn't grown for a bit.
+    // onText gets the reply as it streams, for the live preview.
+    // key: the JSON field the reply must hold ("parts" / "elements").
+    // ── Prompt Enhancer ────────────────────────────────────────────────────
+    // The extension has no API key, so the site's own AI does the rewrite. The
+    // exchange is hidden from the chat; the clearer text comes back into the box
+    // (or the panel) for you to check. Same request - nothing new added.
+    const ENHANCE = {
+      chat: "a request a Roblox developer is about to send to an AI agent that builds directly in Roblox Studio. Keep exactly what they asked for - the same feature, names, numbers and details - and never add features, mechanics, content or extra polish they didn't ask for. Only make the implied parts explicit: what it should do, where its parts and scripts belong (Workspace, ServerScriptService, StarterGui, ReplicatedStorage), how it behaves, and how to check it works. Write it as the developer, in plain sentences or a few bullet points, at most 120 words.",
+      model: "a description for an AI that builds a 3D model out of Roblox parts. It must stay the same object - never change what it is or add things that aren't part of it. Spell out its overall shape and real-world proportions, its main sections, the details that make it recognisable, and its colours and materials (only where they fit what they described). One short paragraph, at most 70 words.",
+      ui: "a description for an AI that designs a Roblox ScreenGui. It must stay the same screen - never add screens, features or buttons they didn't ask for. Spell out the layout (what goes where), each element and its text, what each button does, and the look (colours, style) only where it fits what they described. One short paragraph, at most 80 words.",
+    };
+    async function enhanceViaSite(kind, text) {
+      const ask = `(System note: VoidScript Prompt Enhancer - this is not a task to do.)\nRewrite the text below so it is clear and specific. It is ${ENHANCE[kind]}\n` +
+        `Put ONLY the rewritten text between <<< and >>>, nothing else.\n\nTheir text:\n${text}`;
+      const reply = await askSite(ask, null, "<<<");
+      const item = P.lastAssistant();
+      if (item) item.classList.add("vs-hidden"); // keep the chat clean
+      const m = /<<<([\s\S]*?)>>>/.exec(reply);
+      const out = (m ? m[1] : reply).trim().replace(/^["“”']+|["“”']+$/g, "").trim();
+      if (!out) throw new Error(`${P.displayName} didn't send a rewrite - try again.`);
+      return out;
+    }
+    // Put text into the site's chat box as an edit (so Ctrl+Z gets the old text back where the site allows it).
+    function setComposer(text) {
+      const ed = P.getEditor();
+      if (!ed) return false;
+      ed.focus();
+      if (ed.tagName === "TEXTAREA" || ed.tagName === "INPUT") {
+        ed.select();
+        if (!document.execCommand("insertText", false, text)) {
+          Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ed), "value").set.call(ed, text);
+          ed.dispatchEvent(new Event("input", { bubbles: true }));
+        }
+        return true;
+      }
+      const r = document.createRange();
+      r.selectNodeContents(ed);
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(r);
+      document.execCommand("insertText", false, text);
+      if (!(ed.textContent || "").trim()) {
+        const dt = new DataTransfer();
+        dt.setData("text/plain", text);
+        ed.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+      }
+      return true;
+    }
+    async function enhanceComposer(btn) {
+      const text = String(P.editorText() || "").trim();
+      if (!text) { toast("Type your request first, then press the wand to make it clearer."); return; }
+      if (A.running || A.starting || A.injecting) { toast("Wait for the agent to finish (or stop it) first."); return; }
+      btn.disabled = true; btn.classList.add("vs-busy");
+      try {
+        const out = await enhanceViaSite("chat", text);
+        setComposer(out);
+        toast("Clearer now - check it, then send.");
+      } catch (e) {
+        setComposer(text); // never lose what you typed
+        toast(String((e && e.message) || e));
+      } finally { btn.disabled = false; btn.classList.remove("vs-busy"); }
+    }
+    // On the document (capture): the bar is built later, and its own handlers may stop clicks bubbling.
+    document.addEventListener("click", (e) => { const b = e.target.closest && e.target.closest("#vs-enhance"); if (b) { e.stopPropagation(); enhanceComposer(b); } }, true);
+
+    async function askSite(text, onText, key) {
       if (A.running || A.starting || A.injecting) throw new Error("Wait for the agent to finish (or stop it) first.");
       A.stop = false;
       const base = await submitAndGetBase(text);
-      const res = await waitForResponse(base);
-      if (res.kind === "text") return res.text;
-      throw new Error(res.kind === "stopped" ? "Stopped." : `${P.displayName} didn't answer. Try again.`);
+      const t0 = Date.now();
+      let lastLen = -1, stableSince = Date.now();
+      while (Date.now() - t0 < 10 * 60000) {
+        if (A.stop) throw new Error("Stopped.");
+        await sleep(500);
+        const item = P.assistantCount() > base ? P.lastAssistant() : null;
+        // The site's reply selectors can miss (new layouts, a fresh chat that
+        // re-renders on its first message): then find the reply by what's in it.
+        const reply = (item && P.itemText(item)) || findReplyByContent(key) || "";
+        if (!reply) {
+          if (Date.now() - t0 > 180000) throw new Error(`${P.displayName} didn't answer. Try again.`);
+          continue;
+        }
+        if (reply.length !== lastLen) { lastLen = reply.length; stableSince = Date.now(); if (onText && reply) onText(reply); continue; }
+        // Done when the site says it stopped - or when the text simply stopped
+        // changing: on many sites the "still generating" check sticks on after the
+        // reply has finished, which is what kept every site but DeepSeek spinning.
+        const still = Date.now() - stableSince;
+        if (reply && ((!P.isGenerating() && still > 1500) || still > 8000)) return reply;
+      }
+      throw new Error(`${P.displayName} took too long. Try again, or use a lower detail level.`);
+    }
+    // The newest block on the page holding `"<key>": [` that isn't our own request
+    // (which carries the format example and our end tag) or our own UI. Starts at
+    // the text node and widens to the biggest block that still excludes the request.
+    function findReplyByContent(key) {
+      if (!key || !document.body) return "";
+      // key: one field name, or a list of them (a revision can be all "remove").
+      const keys = [].concat(key), ours = (s) => s.includes(VS_END) || s.includes("Answer with ONLY one JSON object");
+      // A JSON field name is looked for in quotes; a marker like "<<<" as-is.
+      const holds = (s) => keys.some((k) => s.includes(/^\w+$/.test(k) ? `"${k}"` : k));
+      const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        acceptNode: (n) => (keys.some((k) => n.nodeValue.includes(k)) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+      });
+      // Our request ends with VS_END; the reply comes after the newest one.
+      const tags = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+        acceptNode: (t) => (t.nodeValue.includes(VS_END) && !t.parentElement.closest("#vs-root, [contenteditable], textarea, form") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+      });
+      let after = null, t;
+      while ((t = tags.nextNode())) after = t;
+      if (!after) return "";
+      let best = null, n;
+      while ((n = w.nextNode())) {
+        const el = n.parentElement;
+        if (!el || el.closest("#vs-root, [contenteditable], textarea, form")) continue;
+        if (!(after.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+        let box = el;
+        while (box.parentElement && box.parentElement !== document.body && !ours(box.parentElement.textContent)) box = box.parentElement;
+        if (holds(box.textContent) && !ours(box.textContent)) best = box; // last one wins: the newest
+      }
+      return best ? best.textContent : "";
     }
     function buildGen(kind) {
       const G = GEN[kind], st = { spec: null, badge: "", revs: 0, busy: false, ready: false, opts: {} };
@@ -5852,6 +6054,7 @@
           <div class="vs-mg-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
           <button class="vs-mg-x" title="Close">&times;</button></div>
         <div class="vs-mg-new"><input class="vs-mg-desc" type="text" placeholder="${G.hint}" autocomplete="off" />${G.opts}
+          <button class="vs-mg-enh" title="Prompt Enhancer: spell out what you described so it builds right"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg></button>
           <button class="vs-mg-go vs-mg-primary">Generate</button></div>
         <div class="vs-mg-tools"><button data-a="txt">Save .txt</button><button data-a="copy">Copy script</button>
           <button data-a="insert" class="vs-mg-primary">Insert into Studio</button><span class="vs-mg-grow"></span>${G.reset ? '<button data-a="reset">Reset view</button>' : ""}</div>
@@ -5888,8 +6091,21 @@
       const run = async (text, label, badge, after, read) => {
         st.busy = true;
         render(`${label}… ${P.displayName} is working on it`);
+        // Live: show what's finished so far and draw it as it streams in.
+        let drawAt = 0;
+        const unit = kind === "model" ? "parts" : "elements";
+        const onText = (t) => {
+          const n = (t.match(/"n"\s*:/g) || []).length;
+          if (n) q(".vs-mg-busy-t").textContent = `${label}… ${n} ${unit} so far`;
+          if (read || Date.now() - drawAt < 900) return; // revisions show when done
+          let sp = null;
+          try { sp = G.kit().parse(t, true); } catch {}
+          if (sp) { drawAt = Date.now(); q(".vs-mg-empty").hidden = true; post({ type: "show", spec: sp }); }
+        };
         try {
-          const reply = await askSite(text);
+          // The field the reply has to hold (a model revision answers with "add").
+          const key = kind === "ui" ? "elements" : read ? ["add", "remove"] : "parts";
+          const reply = await askSite(text, onText, key);
           const spec = read ? read(reply) : G.kit().parse(reply);
           after();
           show(spec, badge);
@@ -5898,6 +6114,15 @@
         finally { st.busy = false; render(); }
       };
       el.querySelectorAll("select[data-o]").forEach((sel) => { st.opts[sel.dataset.o] = sel.value; sel.onchange = () => { st.opts[sel.dataset.o] = sel.value; }; });
+      q(".vs-mg-enh").onclick = async () => {
+        const box = q(".vs-mg-desc"), b = q(".vs-mg-enh"), text = box.value.trim();
+        if (!text) { toast("Describe it first, then press the wand to make it clearer."); return box.focus(); }
+        if (st.busy || A.running || A.starting || A.injecting) { toast("Wait for the AI to finish first."); return; }
+        b.disabled = true; b.classList.add("vs-busy");
+        try { box.value = await enhanceViaSite(kind === "ui" ? "ui" : "model", text); box.focus(); toast("Clearer now - check it, then Generate."); }
+        catch (e) { toast(String((e && e.message) || e)); }
+        finally { b.disabled = false; b.classList.remove("vs-busy"); }
+      };
       const generate = () => {
         const desc = q(".vs-mg-desc").value.trim();
         if (!desc) return q(".vs-mg-desc").focus();
@@ -5961,12 +6186,157 @@
       try { const base = await submitAndGetBase(`${item.name}: ${item.brief}`); await agentLoop(base); }
       catch (e) { toast(String((e && e.message) || e)); }
     }
+    // ── Site check: test this AI site end to end, and fix it if it broke ──────
+    // Sends one tiny message with the same code the agent uses, then checks every
+    // step: typing box, send, your message, the reply, and "finished". Anything
+    // the site's built-in selectors miss is found by its TEXT instead, and a
+    // selector for it is learned and saved for this site (generic providers).
+    const CHECK_SEMANTIC = /user|human|query|question|prompt|assistant|bot|answer|response|reply|message|bubble|turn|markdown|prose/i;
+    function cssPath(e) {
+      // Attribute selectors that match this element, most stable first.
+      const tag = e.tagName.toLowerCase(), out = [];
+      const idish = (v) => /\d{4,}|[0-9a-f]{8}-[0-9a-f]{4}|^:r|^_r/i.test(v) || v.length > 40;
+      for (const a of e.attributes) {
+        if (!/^data-|^role$|^aria-roledescription$/.test(a.name) || /^data-(v-|reactid|state|headlessui|radix|sentry-element|sentry-source)/.test(a.name)) continue;
+        if (a.value && !idish(a.value)) out.push(`${tag}[${a.name}="${a.value.replace(/"/g, '\\"')}"]`);
+        else if (!a.value) out.push(`${tag}[${a.name}]`);
+      }
+      const cls = [...e.classList].filter((c) => !/\d{3,}|^css-|^sc-|^_|^x[a-z0-9]{4,}$/i.test(c));
+      for (const c of cls.filter((c) => CHECK_SEMANTIC.test(c))) out.push(`${tag}.${CSS.escape(c)}`);
+      return out;
+    }
+    // Walk up from the text to the turn - stopping before the ancestor that also
+    // holds the OTHER side's text - and return the outermost stable selector that
+    // matches this turn without ever matching one holding the other side.
+    function learnTurn(textNode, avoidNode) {
+      const chain = [];
+      for (let e = textNode.parentElement; e && e !== document.body; e = e.parentElement) {
+        if (avoidNode && e.contains(avoidNode)) break;
+        if (e.closest("#vs-root")) return null;
+        chain.push(e);
+      }
+      for (const e of chain.reverse()) {
+        for (const sel of cssPath(e)) {
+          let all;
+          try { all = [...document.querySelectorAll(sel)]; } catch { continue; }
+          if (!all.includes(e) || all.length > 80) continue;
+          if (avoidNode && all.some((x) => x.contains(avoidNode))) continue;
+          if (all.some((x) => x.contains(document.activeElement) && document.activeElement !== document.body)) continue; // never the page or the composer
+          return sel;
+        }
+      }
+      return null;
+    }
+    function findText(re, after, not) {
+      const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let n, hit = null;
+      while ((n = w.nextNode())) {
+        const p = n.parentElement;
+        if (!p || p.closest("#vs-root, textarea, [contenteditable], script, style, form")) continue;
+        if (after && !(after.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+        if (re.test(n.nodeValue) && !(not && not.test(n.nodeValue))) hit = n; // the last match: the newest
+      }
+      return hit;
+    }
+    function findEditor() {
+      const vis = (e) => { const r = e.getBoundingClientRect(); return r.width > 120 && r.height > 14; };
+      const c = [...document.querySelectorAll('textarea, [contenteditable="true"], [contenteditable=""]')]
+        .filter((e) => !e.closest("#vs-root") && vis(e)).sort((a, b) => b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom);
+      const e = c[0];
+      if (!e) return null;
+      if (e.id && !/\d{4,}/.test(e.id)) return "#" + CSS.escape(e.id);
+      if (e.tagName === "TEXTAREA") return e.name ? `textarea[name="${e.name}"]` : "textarea";
+      return e.getAttribute("role") === "textbox" ? 'div[contenteditable="true"][role="textbox"]' : '[contenteditable="true"]';
+    }
+    async function siteCheck(report) {
+      if (A.running || A.starting || A.injecting) throw new Error("Stop the agent first - the check sends a message of its own.");
+      const steps = [], fix = {}, canFix = typeof P.applyFixes === "function";
+      const step = (name, ok, note) => { steps.push({ name, ok, note: note || "" }); report(steps, fix); };
+      const tag = "vs" + Math.random().toString(36).slice(2, 7);
+      const ask = `Reply with just the word pong (check ${tag})`;
+      // 1. typing box
+      if (!P.getEditor()) {
+        const sel = canFix && findEditor();
+        if (sel) { fix.editor = sel; P.applyFixes(fix); }
+        step("Typing box", !!P.getEditor(), P.getEditor() ? (sel ? "found it a new way - fixed" : "") : "can't find where to type on this page");
+        if (!P.getEditor()) return { steps, fix };
+      } else step("Typing box", true);
+      // 2. send
+      const u0 = P.userCount(), a0 = P.assistantCount();
+      A.stop = false;
+      try { await P.typeAndSend(ask, []); } catch (e) { step("Send", false, String(e.message || e)); return { steps, fix }; }
+      const tagRe = new RegExp(tag);
+      let mine = null;
+      for (let i = 0; i < 24 && !(mine = findText(tagRe)); i++) await sleep(500);
+      if (!mine) {
+        // Still sitting in the box? Try Enter, then any enabled button next to the box.
+        const ed = P.getEditor();
+        if (ed && /pong/.test(ed.value || ed.textContent || "")) {
+          ed.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+          await sleep(1500);
+          if (!(mine = findText(tagRe))) {
+            const box = ed.closest("form") || ed.parentElement && ed.parentElement.parentElement;
+            const btn = box && [...box.querySelectorAll("button")].reverse().find((b) => !b.disabled && b.offsetParent);
+            if (btn) {
+              btn.click();
+              await sleep(1500);
+              if ((mine = findText(tagRe)) && canFix) {
+                const lab = btn.getAttribute("aria-label"), tid = btn.getAttribute("data-testid");
+                fix.sendBtn = tid ? `button[data-testid="${tid}"]` : lab ? `button[aria-label="${lab.replace(/"/g, '\\"')}"]` : fix.sendBtn;
+              }
+            }
+          }
+        }
+      }
+      step("Send", !!mine, mine ? (fix.sendBtn ? "found the send button a new way - fixed" : "") : "the message never left the typing box");
+      if (!mine) return { steps, fix };
+      // 3. reply: wait for "pong" after our message
+      let reply = null;
+      const t0 = Date.now();
+      while (Date.now() - t0 < 120000 && !(reply = findText(/\bpong\b/i, mine, tagRe))) await sleep(700);
+      // Sites re-render the chat (often on the first message of a new chat), so the
+      // nodes found earlier may be gone: look both up again before learning from them.
+      mine = findText(tagRe) || mine;
+      if (reply) reply = findText(/\bpong\b/i, mine, tagRe) || reply;
+      // 4. your message
+      const userOk = P.userCount() > u0;
+      if (!userOk && canFix) {
+        const sel = learnTurn(mine, reply);
+        if (sel) { fix.userItem = sel; P.applyFixes(fix); }
+      }
+      step("Your message", P.userCount() > u0, P.userCount() > u0 ? (userOk ? "" : "fixed") : "can't tell which part of the page is your message");
+      if (!reply) { step("AI reply", false, "no reply in 2 minutes - is the site asking you to log in, or out of messages?"); return { steps, fix }; }
+      // 5. AI reply
+      const readOk = () => P.assistantCount() > a0 && /pong/i.test(P.itemText(P.lastAssistant()) || "");
+      const replyOk = readOk();
+      if (!replyOk && canFix) {
+        const sel = learnTurn(reply, mine);
+        if (sel) { fix.assistantItem = sel; P.applyFixes(fix); }
+      }
+      step("AI reply", readOk(), readOk() ? (replyOk ? "" : "fixed") : "can't read the AI's reply on this page");
+      // 6. finished: the "still writing" signal must clear once the reply stops growing
+      let done = false;
+      for (let i = 0; i < 40 && !(done = !P.isGenerating()); i++) await sleep(500);
+      if (!done && canFix) {
+        const before = P.selectors.stopBtn;
+        P.applyFixes({ stopBtn: "" });
+        await sleep(800);
+        if ((done = !P.isGenerating())) fix.stopBtn = "";
+        else P.applyFixes({ stopBtn: before }); // didn't help: put it back
+      }
+      step("Knows when it's finished", done, done ? (fix.stopBtn === "" ? "fixed" : "")
+        : "the site still looks busy after replying - it works, VoidScript just waits a few extra seconds each time");
+      if (canFix && Object.keys(fix).length) {
+        try { await chrome.storage.local.set({ [P.fixKey]: fix }); } catch {}
+      }
+      return { steps, fix };
+    }
     function buildKit() {
       const el = document.createElement("div");
       el.className = "vs-gen vs-kit";
       const cards = (list) => list.map((t) => `<button class="vs-kit-card" data-id="${t.id}"><span class="vs-kit-i">${t.icon}</span><b>${t.name}</b><span>${t.desc}</span></button>`).join("");
       el.innerHTML = `
-        <div class="vs-mg-head"><b>Toolkit</b><div class="vs-mg-tabs"><button data-k="tpl" class="on">Templates</button><button data-k="tools">Script tools</button><button data-k="world">World</button><button data-k="assets">Assets</button><button data-k="console">Console</button><button data-k="changes">Changes</button><button data-k="snips">Snippets</button><button data-k="health">Health</button></div>
+        <div class="vs-mg-head"><b>Toolkit</b><div class="vs-mg-tabs"><button data-k="tpl" class="on">Templates</button><button data-k="tools">Script tools</button><button data-k="world">World</button><button data-k="assets">Assets</button><button data-k="console">Console</button><button data-k="changes">Changes</button><button data-k="snips">Snippets</button><button data-k="health">Health</button><button data-k="site">Site check</button></div>
           <button class="vs-mg-x" title="Close">&times;</button></div>
         <div class="vs-kit-body" data-k="tpl"><div class="vs-kit-note">One click and the agent builds it in your open place.</div><div class="vs-kit-grid">${cards(VSKit.TEMPLATES)}</div></div>
         <div class="vs-kit-body" data-k="tools" hidden><div class="vs-kit-note">Quick jobs on your current game.</div><div class="vs-kit-grid">${cards(VSKit.TOOLS)}</div></div>
@@ -5994,7 +6364,11 @@
           <div class="vs-kit-row"><input class="vs-sn-name" type="text" placeholder="Name" style="max-width:150px" /><input class="vs-sn-text" type="text" placeholder="Prompt - e.g. add a kill brick that respawns the player" />
             <button class="vs-mg-primary vs-sn-add">Save</button></div><div class="vs-kit-list vs-sn-out"></div></div>
         <div class="vs-kit-body" data-k="health" hidden><div class="vs-kit-note">Scans every script and part for free-model backdoors, loose parts, lag sources and outdated code. Read-only.</div>
-          <button class="vs-mg-primary vs-kit-run">Run health check</button><div class="vs-kit-out"></div></div>`;
+          <button class="vs-mg-primary vs-kit-run">Run health check</button><div class="vs-kit-out"></div></div>
+        <div class="vs-kit-body" data-k="site" hidden><div class="vs-kit-note">Not working on this AI site? This sends one tiny test message (use a new chat), checks every step VoidScript needs, and fixes what it can automatically - saved for this site.</div>
+          <div class="vs-kit-row"><button class="vs-mg-primary vs-sc-run">Run site check</button><span class="vs-mg-grow"></span>
+            <button class="vs-sc-copy" disabled>Copy report</button><button class="vs-sc-reset">Reset fixes</button></div>
+          <div class="vs-kit-list vs-sc-out"></div></div>`;
       root.appendChild(el);
       el.querySelector(".vs-mg-x").onclick = () => { el.hidden = true; };
       el.querySelectorAll(".vs-mg-tabs button").forEach((b) => b.addEventListener("click", () => {
@@ -6012,6 +6386,34 @@
         if (/^ERROR/.test(res)) { toast(res.replace(/^ERROR:?\s*/, "").slice(0, 180)); sfx("error"); return null; }
         if (okMsg) { toast(okMsg); sfx("done"); }
         return res;
+      };
+      // Site check
+      let lastCheck = null;
+      const drawCheck = (steps) => {
+        $k(".vs-sc-out").innerHTML = steps.map((st) => `<div class="vs-kit-item"><b>${st.ok ? "✓" : "✗"} ${esc2(st.name)}</b><span>${esc2(st.note)}</span></div>`).join("");
+      };
+      $k(".vs-sc-run").onclick = async () => {
+        const b = $k(".vs-sc-run");
+        b.disabled = true; b.textContent = "Checking…";
+        $k(".vs-sc-out").innerHTML = "";
+        try {
+          lastCheck = await siteCheck(drawCheck);
+          const bad = lastCheck.steps.filter((st) => !st.ok).length, fixed = Object.keys(lastCheck.fix).length;
+          toast(bad ? `${bad} step${bad > 1 ? "s" : ""} still failing here - press Copy report and send it to us.`
+            : fixed ? `Fixed - VoidScript works on ${P.displayName} now.` : `Everything works on ${P.displayName}.`);
+          sfx(bad ? "error" : "done");
+        } catch (e) { toast(String((e && e.message) || e)); }
+        finally { b.disabled = false; b.textContent = "Run site check"; $k(".vs-sc-copy").disabled = !lastCheck; }
+      };
+      $k(".vs-sc-copy").onclick = async () => {
+        const rep = { site: location.host, provider: P.id, version: chrome.runtime.getManifest().version, when: new Date().toISOString(),
+          steps: lastCheck && lastCheck.steps, fixes: lastCheck && lastCheck.fix, selectors: P.selectors || null };
+        try { await navigator.clipboard.writeText(JSON.stringify(rep, null, 2)); toast("Report copied."); } catch { toast("Could not copy."); }
+      };
+      $k(".vs-sc-reset").onclick = async () => {
+        if (!P.fixKey) { toast(`${P.displayName} uses a hand-tuned adapter - nothing to reset.`); return; }
+        try { await chrome.storage.local.remove(P.fixKey); } catch {}
+        toast("This site's fixes are gone. Reload the page to use the built-in settings again.");
       };
       // World: lighting + terrain
       let terPreset = "island";

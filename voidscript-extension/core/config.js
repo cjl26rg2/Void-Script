@@ -330,6 +330,11 @@ IMPORTANT: Your very first action is to write \`list_commands\` with no params (
       variants: { npx: "npx -y blender-mcp", uvx: "uvx blender-mcp" },
       note: "Drives Blender (model/mesh work, materials, scenes). First install the blender-mcp addon inside Blender (Edit > Preferences > Add-ons > Install from Disk: the blender_mcp_addon folder that ships with the server) and keep Blender open; the server talks to it over a local socket.",
     },
+    godot: {
+      name: "Godot",
+      variants: { npx: "npx -y @coding-solo/godot-mcp" },
+      note: "Opens the Godot editor, runs your Godot project and reads its debug output. Needs Godot 4 installed; if it isn't found automatically, set GODOT_PATH to the Godot program in the server's env.",
+    },
     figma: {
       name: "Figma (design)",
       variants: { npx: "npx -y figma-developer-mcp --figma-api-key=YOUR_KEY --stdio" },

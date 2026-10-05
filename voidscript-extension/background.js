@@ -8,6 +8,20 @@
 // even when the bridge is offline. The agentic loop must never hang waiting.
 
 const PORT = 17613;
+
+// SpookyScript: the toolbar icon is a pumpkin all October (and Halloween night
+// into 1 November), unless Halloween mode is switched off.
+function spookyIcon() {
+  chrome.storage.local.get("vsHalloween", (o) => {
+    const d = new Date(), season = d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() === 1);
+    const on = season && !(o && o.vsHalloween === false);
+    const path = on ? { 16: "spooky/icon-16.png", 32: "spooky/icon-32.png", 48: "spooky/icon-48.png", 128: "spooky/icon-128.png" }
+      : chrome.runtime.getManifest().action.default_icon;
+    try { chrome.action.setIcon({ path }); chrome.action.setTitle({ title: on ? "SpookyScript" : "VoidScript Free" }); } catch {}
+  });
+}
+spookyIcon();
+try { chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.vsHalloween) spookyIcon(); }); } catch {}
 const URL = `ws://127.0.0.1:${PORT}`;
 
 // Optional shared bridge secret (matches bridge.py VS_BRIDGE_TOKEN). Read from
