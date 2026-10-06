@@ -1,0 +1,14 @@
+{
+  "name": "voidscript-website",
+  "version": "7.0.0",
+  "private": true,
+  "description": "The VoidScript website - a static page served by a tiny Node server (no dependencies).",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "license": "GPL-3.0-or-later"
+}

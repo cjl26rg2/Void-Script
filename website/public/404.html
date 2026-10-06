@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Not found · VoidScript</title>
+<link rel="icon" href="/logo.png" />
+<link rel="stylesheet" href="/style.css" />
+<script>
+  // SpookyScript: 1 October to 1 November (or ?spooky to preview it any time).
+  (function () {
+    var d = new Date(), m = d.getMonth();
+    if (m === 9 || (m === 10 && d.getDate() === 1) || /[?&]spooky\b/.test(location.search)) document.documentElement.classList.add("spooky");
+  })();
+</script>
+</head>
+<body>
+<main class="wrap final" style="min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center">
+  <img src="/logo.png" alt="" width="54" height="54" />
+  <h2>This page went into the void.</h2>
+  <p class="muted">It doesn't exist, or it moved.</p>
+  <div class="cta"><a class="btn primary" href="/">Back home</a></div>
+</main>
+<div class="spooky-deco" aria-hidden="true"><i class="web l"></i><i class="web r"></i><i class="moon"></i><i class="bat b1"></i><i class="bat b2"></i><i class="bat b3"></i><i class="ghost"></i><i class="spider"></i></div>
+<script>
+// SpookyScript: the name, logo and title follow the season.
+if (document.documentElement.classList.contains("spooky")) {
+  document.title = document.title.replace("VoidScript", "SpookyScript");
+  document.querySelectorAll('img[src="/logo.png"]').forEach((i) => { i.src = "/spooky.png"; });
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const hits = [];
+  let n;
+  while ((n = w.nextNode())) if (n.nodeValue.includes("VoidScript")) hits.push(n);
+  hits.forEach((x) => { x.nodeValue = x.nodeValue.replace(/VoidScript/g, "SpookyScript"); });
+  const brand = document.querySelector(".brand span");
+  if (brand) brand.innerHTML = "Spooky<b>Script</b>";
+  const h1 = document.querySelector(".hero h1");
+  if (h1) h1.innerHTML = "Build spooky Roblox games<br />by describing them.";
+}
+</script>
+</body>
+</html>

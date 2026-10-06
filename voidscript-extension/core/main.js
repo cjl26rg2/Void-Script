@@ -315,6 +315,7 @@
     { name: "v0", url: "https://v0.app/" },
     { name: "Genspark", url: "https://www.genspark.ai/" },
     { name: "Lambda", url: "https://lambda.chat/" },
+    { name: "SuperApp", url: "https://superapp.chat/" },
     { name: "Yiyan", url: "https://yiyan.baidu.com/" },
     { name: "Minimax", url: "https://chat.minimax.io/" },
     { name: "Manus", url: "https://manus.im/" },
@@ -4187,7 +4188,8 @@
            <div class="vs-sec-label"><span>Create</span></div>
            <button class="vs-tip-opt" id="vs-open-models"><span>Model generator</span><span class="vs-tip-sub">describe it, see it in 3D, drop it into Studio</span></button>
            <button class="vs-tip-opt" id="vs-open-ui"><span>UI builder</span><span class="vs-tip-sub">shops, menus, HUDs - previewed, then inserted</span></button>
-           <button class="vs-tip-opt" id="vs-open-kit"><span>Toolkit</span><span class="vs-tip-sub">game templates, script fixes, health check</span></button>
+           <button class="vs-tip-opt" id="vs-open-kit"><span>Toolkit</span><span class="vs-tip-sub">templates, script library, terrain, health check</span></button>
+           <button class="vs-tip-opt" id="vs-open-pal"><span>Search everything</span><span class="vs-tip-sub">every template, system and action - Alt+Shift+K</span></button>
          </section>
          <section class="vs-menu-sec">
            <div class="vs-sec-label"><span>Switch AI</span></div>
@@ -4450,6 +4452,8 @@
       if (mgOpen) mgOpen.addEventListener("click", () => { menuEl.hidden = true; openModels(); });
       const uiOpen = menuEl.querySelector("#vs-open-ui");
       if (uiOpen) uiOpen.addEventListener("click", () => { menuEl.hidden = true; openGen("ui"); });
+      const palOpen = menuEl.querySelector("#vs-open-pal");
+      if (palOpen) palOpen.addEventListener("click", () => { menuEl.hidden = true; openPalette(); });
       const kitOpen = menuEl.querySelector("#vs-open-kit");
       if (kitOpen) kitOpen.addEventListener("click", () => { menuEl.hidden = true; openKit(); });
       // Theme picker (Feature): persist vsTheme to chrome.storage + apply immediately.
@@ -6336,17 +6340,20 @@
       el.className = "vs-gen vs-kit";
       const cards = (list) => list.map((t) => `<button class="vs-kit-card" data-id="${t.id}"><span class="vs-kit-i">${t.icon}</span><b>${t.name}</b><span>${t.desc}</span></button>`).join("");
       el.innerHTML = `
-        <div class="vs-mg-head"><b>Toolkit</b><div class="vs-mg-tabs"><button data-k="tpl" class="on">Templates</button><button data-k="tools">Script tools</button><button data-k="world">World</button><button data-k="assets">Assets</button><button data-k="console">Console</button><button data-k="changes">Changes</button><button data-k="snips">Snippets</button><button data-k="health">Health</button><button data-k="site">Site check</button></div>
+        <div class="vs-mg-head"><b>Toolkit</b><div class="vs-mg-tabs"><button data-k="tpl" class="on">Templates</button><button data-k="tools">Script tools</button><button data-k="lib">Library</button><button data-k="world">World</button><button data-k="assets">Assets</button><button data-k="console">Console</button><button data-k="changes">Changes</button><button data-k="snips">Snippets</button><button data-k="health">Health</button><button data-k="site">Site check</button></div>
           <button class="vs-mg-x" title="Close">&times;</button></div>
         <div class="vs-kit-body" data-k="tpl"><div class="vs-kit-note">One click and the agent builds it in your open place.</div><div class="vs-kit-grid">${cards(VSKit.TEMPLATES)}</div></div>
         <div class="vs-kit-body" data-k="tools" hidden><div class="vs-kit-note">Quick jobs on your current game.</div><div class="vs-kit-grid">${cards(VSKit.TOOLS)}</div></div>
+        <div class="vs-kit-body" data-k="lib" hidden><div class="vs-kit-note">Ready-made systems that go straight in as real scripts - no AI needed, Ctrl+Z in Studio undoes them. Parts opt in by name: KillBrick, Coin, JumpPad, Door…</div>
+          <div class="vs-kit-grid vs-kit-small">${VSKit.SNIPPETS.map((s) => `<button class="vs-kit-card" data-s="${s.id}"><span class="vs-kit-i">${s.icon}</span><b>${s.name}</b><span>${s.desc}</span></button>`).join("")}</div>
+          <div class="vs-lib-detail" hidden></div></div>
         <div class="vs-kit-body" data-k="world" hidden>
           <div class="vs-kit-note">Lighting - one click sets the whole mood (Ctrl+Z in Studio undoes it).</div>
           <div class="vs-kit-grid vs-kit-small">${VSKit.LIGHTING.map((p) => `<button class="vs-kit-card" data-l="${p.id}"><span class="vs-kit-i">${p.icon}</span><b>${p.name}</b><span>apply</span></button>`).join("")}</div>
           <div class="vs-kit-note" style="margin-top:14px">Terrain - real smooth terrain from a seed, in seconds.</div>
           <div class="vs-kit-grid vs-kit-small vs-ter">${VSKit.TERRAIN.map((p, i) => `<button class="vs-kit-card${i ? "" : " on"}" data-t="${p.id}"><span class="vs-kit-i">${p.icon}</span><b>${p.name}</b><span>preset</span></button>`).join("")}</div>
           <div class="vs-kit-row"><select class="vs-ter-size"><option value="small">Small</option><option value="medium" selected>Medium</option><option value="large">Large</option></select>
-            <input class="vs-ter-seed" type="number" value="1" title="Seed" /><button class="vs-ter-dice" title="Random seed">🎲</button>
+            <input class="vs-ter-seed" type="number" value="1" title="Seed" /><button class="vs-ter-dice" title="Random seed"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.2"/><circle cx="15.5" cy="15.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg></button>
             <label class="vs-kit-check"><input type="checkbox" class="vs-ter-replace" /> Replace existing</label>
             <button class="vs-mg-primary vs-ter-go">Generate</button></div></div>
         <div class="vs-kit-body" data-k="assets" hidden>
@@ -6356,7 +6363,7 @@
         <div class="vs-kit-body" data-k="console" hidden>
           <textarea class="vs-lc-code" rows="7" spellcheck="false" placeholder='return #workspace:GetDescendants() .. " objects"'></textarea>
           <div class="vs-kit-row"><select class="vs-lc-dm"><option>Edit</option><option>Server</option><option>Client</option></select>
-            <button class="vs-mg-primary vs-lc-run">Run (Ctrl+Enter)</button><span class="vs-mg-grow"></span><button class="vs-lc-play">▶ Play</button><button class="vs-lc-stop">■ Stop</button></div>
+            <button class="vs-mg-primary vs-lc-run">Run (Ctrl+Enter)</button><span class="vs-mg-grow"></span><button class="vs-lc-play">Play</button><button class="vs-lc-stop">Stop</button></div>
           <pre class="vs-kit-pre vs-lc-out" hidden></pre></div>
         <div class="vs-kit-body" data-k="changes" hidden><div class="vs-kit-note">Scripts the agent edited. Undo puts a script back to how it was before that edit.</div>
           <div class="vs-kit-list vs-ch-out"></div><button class="vs-ch-all">Undo everything</button></div>
@@ -6376,8 +6383,28 @@
         el.querySelectorAll(".vs-kit-body").forEach((x) => { x.hidden = x.dataset.k !== b.dataset.k; });
       }));
       el.addEventListener("click", (e) => {
-        const c = e.target.closest(".vs-kit-card");
+        const c = e.target.closest(".vs-kit-card[data-id]");
         if (c) runBrief(VSKit.TEMPLATES.concat(VSKit.TOOLS).find((t) => t.id === c.dataset.id));
+      });
+      // Library: show the code, add it as a script, or have the agent fit it to the game.
+      el.addEventListener("click", async (e) => {
+        const c = e.target.closest(".vs-kit-card[data-s]");
+        if (!c) return;
+        const sn = VSKit.SNIPPETS.find((x) => x.id === c.dataset.s);
+        el.querySelectorAll(".vs-kit-card[data-s]").forEach((x) => x.classList.toggle("on", x === c));
+        const d = el.querySelector(".vs-lib-detail");
+        d.hidden = false;
+        d.innerHTML = `<div class="vs-kit-row"><b class="vs-lib-name">${esc2(sn.name)}</b><span class="vs-kit-note" style="margin:0">${esc2(sn.kind)} in ${esc2(sn.where)}</span><span class="vs-mg-grow"></span>
+          <button class="vs-lib-copy">Copy</button><button class="vs-lib-ai">Fit it with the agent</button><button class="vs-mg-primary vs-lib-add">Add to Studio</button></div>
+          <pre class="vs-kit-pre">${esc2(sn.code)}</pre>`;
+        d.querySelector(".vs-lib-add").onclick = async (ev) => {
+          const b = ev.currentTarget;
+          b.disabled = true;
+          try { const out = await luau(VSKit.snippetLuau(sn), ""); if (out != null) { toast(`${sn.name} added.`); sfx("done"); } }
+          finally { b.disabled = false; }
+        };
+        d.querySelector(".vs-lib-copy").onclick = async () => { try { await navigator.clipboard.writeText(sn.code); toast("Copied."); } catch { toast("Could not copy."); } };
+        d.querySelector(".vs-lib-ai").onclick = () => runBrief({ name: sn.name, brief: `Add this ${sn.kind} to ${sn.where} as "VS_${sn.name.replace(/[^A-Za-z0-9]+/g, "")}", adapted to my game (look at what already exists first, and tell me what you changed):\n\n\`\`\`lua\n${sn.code}\n\`\`\`` });
       });
       const $k = (sel) => el.querySelector(sel);
       const esc2 = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -6547,7 +6574,125 @@
       if (k === "t") { e.preventDefault(); openKit(); }
       else if (k === "g") { e.preventDefault(); openGen("model"); }
       else if (k === "u") { e.preventDefault(); openGen("ui"); }
+      else if (k === "k") { e.preventDefault(); openPalette(); }
+      else if (k === "s") { e.preventDefault(); if (actionBtn && !actionBtn.disabled) actionBtn.click(); }
     }, true);
+
+    // ── Command palette (Alt+Shift+K): everything VoidScript can do, one search away.
+    function openKitTab(k) {
+      openKit();
+      const b = kitPanel.querySelector(`.vs-mg-tabs button[data-k="${k}"]`);
+      if (b) b.click();
+      return kitPanel;
+    }
+    function kitClick(tab, sel) {
+      const el = openKitTab(tab).querySelector(sel);
+      if (el) el.click();
+    }
+    let pal = null, palItems = [], palShown = [], palSel = 0, palSnips = [], palRecent = [];
+    function palEntries() {
+      const it = [];
+      const act = (g, t, d, icon, run) => it.push({ g, t, d, icon, run });
+      act("Actions", A.started ? "Stop VoidScript" : "Start VoidScript", "", VSKit.ICON.sim, () => actionBtn.click());
+      act("Actions", "Enhance my prompt", "make what you typed clearer", VSKit.ICON.explain, () => { const b = root.querySelector("#vs-enhance"); if (b) b.click(); });
+      if (quickShotBtn) act("Actions", "Screenshot Studio", "and inspect it", VSKit.ICON.explain, () => quickShotBtn.click());
+      if (quickListBtn) act("Actions", "List everything in the game", "objects and scripts", VSKit.ICON.lb, () => quickListBtn.click());
+      act("Open", "Toolkit", "Alt+Shift+T", VSKit.ICON.tycoon, () => openKit());
+      act("Open", "Model generator", "Alt+Shift+G", VSKit.ICON.candy, () => openGen("model"));
+      act("Open", "UI builder", "Alt+Shift+U", VSKit.ICON.mobile, () => openGen("ui"));
+      act("Open", "Script library", "", VSKit.ICON.bugs, () => openKitTab("lib"));
+      act("Open", "Health check", "", VSKit.ICON.security, () => openKitTab("health"));
+      act("Open", "Luau console", "", VSKit.ICON.fix, () => openKitTab("console"));
+      act("Open", "Site check", "fix VoidScript on this site", VSKit.ICON.perf, () => openKitTab("site"));
+      for (const t of VSKit.TEMPLATES) act("Templates", t.name, t.desc, t.icon, () => { if (!kitPanel) kitPanel = buildKit(); runBrief(t); });
+      for (const t of VSKit.TOOLS) act("Script tools", t.name, t.desc, t.icon, () => { if (!kitPanel) kitPanel = buildKit(); runBrief(t); });
+      for (const sn of VSKit.SNIPPETS) act("Library", sn.name, sn.desc, sn.icon, () => kitClick("lib", `.vs-kit-card[data-s="${sn.id}"]`));
+      for (const l of VSKit.LIGHTING) act("Lighting", l.name, "apply in Studio", l.icon, () => kitClick("world", `.vs-kit-card[data-l="${l.id}"]`));
+      for (const t of VSKit.TERRAIN) act("Terrain", t.name, "pick this preset", t.icon, () => kitClick("world", `.vs-kit-card[data-t="${t.id}"]`));
+      for (const [n, u] of [["ChatGPT", "https://chatgpt.com/"], ["Gemini", "https://gemini.google.com/app"], ["DeepSeek", "https://chat.deepseek.com/"], ["Claude", "https://claude.ai/new"], ["Grok", "https://grok.com/"], ["Qwen", "https://chat.qwen.ai/"], ["Kimi", "https://www.kimi.com/"], ["GLM", "https://chat.z.ai/"], ["Mistral", "https://chat.mistral.ai/chat"], ["Perplexity", "https://www.perplexity.ai/"]])
+        if (!location.href.startsWith(u)) act("Switch AI", "Open " + n, "in a new tab", VSKit.ICON.neon, () => window.open(u, "_blank", "noopener"));
+      for (const sn of palSnips) act("Your prompts", sn.name, sn.text, VSKit.ICON.explain, () => { if (!kitPanel) kitPanel = buildKit(); runBrief({ name: sn.name, brief: sn.text }); });
+      return it;
+    }
+    function palRender() {
+      const raw = pal.querySelector("input").value.trim();
+      const q = raw.toLowerCase();
+      // ">" runs the rest as Luau in Studio.
+      const code = raw.startsWith(">") ? raw.slice(1).trim() : "";
+      const recent = palRecent.map((t) => palItems.find((x) => x.t === t)).filter(Boolean);
+      palShown = code ? [{ g: "Luau", t: "Run in Studio: " + code, d: "Enter", icon: VSKit.ICON.fix, run: () => runLuauLine(code) }]
+        : raw === ">" ? [{ g: "Luau", t: "Type Luau after > to run it in Studio", d: 'e.g. > return #workspace:GetChildren()', icon: VSKit.ICON.fix, run: () => openPalette() }]
+        : !q ? recent.concat(palItems.filter((x) => (x.g === "Actions" || x.g === "Open") && !recent.includes(x)))
+        : palItems.map((x) => ({ x, i: (x.t + " " + x.d).toLowerCase().indexOf(q) })).filter((o) => o.i >= 0).sort((a, b) => a.i - b.i).slice(0, 40).map((o) => o.x);
+      palSel = Math.min(palSel, Math.max(0, palShown.length - 1));
+      const e = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+      pal.querySelector(".vs-pal-list").innerHTML = palShown.map((x, i) =>
+        `<button class="vs-pal-item${i === palSel ? " hl" : ""}" data-i="${i}"><span class="vs-pal-i">${x.icon || ""}</span><span class="vs-pal-t">${e(x.t)}</span><span class="vs-pal-d">${e(x.d || x.g)}</span></button>`).join("")
+        || '<div class="vs-pal-empty">Nothing found.</div>';
+      const hl = pal.querySelector(".hl");
+      if (hl) hl.scrollIntoView({ block: "nearest" });
+    }
+    // The popup's "Open on this page" buttons.
+    try {
+      chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+        if (!msg || msg.type !== "vs-open") return;
+        const w = msg.what;
+        if (w === "palette") openPalette();
+        else if (w === "kit") openKit();
+        else if (w === "model" || w === "ui") openGen(w);
+        else if (w === "lib" || w === "health") openKitTab(w);
+        reply({ ok: true });
+      });
+    } catch {}
+    function palRun(i) {
+      const x = palShown[i];
+      if (!x) return;
+      pal.hidden = true;
+      if (x.g !== "Luau") {
+        palRecent = [x.t].concat(palRecent.filter((t) => t !== x.t)).slice(0, 5);
+        try { chrome.storage.local.set({ vsPalRecent: palRecent }); } catch {}
+      }
+      x.run();
+    }
+    async function runLuauLine(code) {
+      // A bare expression ("workspace.Baseplate.Size") gets a return so its value shows.
+      if (!/^\s*(local|for|if|while|return|function|do|repeat)\b/.test(code) && !/[^=~<>]=[^=]/.test(code)) code = "return " + code;
+      const res = await runTool({ tool: "execute_luau", arguments: { code, datamodel_type: "Edit" } });
+      toast(/^ERROR/.test(res) ? res.replace(/^ERROR:?\s*/, "").slice(0, 200) : "Studio: " + (String(res || "done").slice(0, 200)));
+    }
+    async function openPalette() {
+      if (!pal) {
+        pal = document.createElement("div");
+        pal.className = "vs-pal-wrap";
+        pal.innerHTML = `<div class="vs-pal"><input type="text" placeholder="Search VoidScript, or type > to run Luau in Studio" spellcheck="false" autocomplete="off" /><div class="vs-pal-list"></div>
+          <div class="vs-pal-foot">Enter to run · Esc to close · &gt; runs Luau · Alt+Shift+K</div></div>`;
+        root.appendChild(pal);
+        const inp = pal.querySelector("input");
+        inp.addEventListener("input", () => { palSel = 0; palRender(); });
+        inp.addEventListener("keydown", (e) => {
+          e.stopPropagation();
+          if (e.key === "ArrowDown") { e.preventDefault(); palSel = Math.min(palShown.length - 1, palSel + 1); palRender(); }
+          else if (e.key === "ArrowUp") { e.preventDefault(); palSel = Math.max(0, palSel - 1); palRender(); }
+          else if (e.key === "Enter") { e.preventDefault(); palRun(palSel); }
+          else if (e.key === "Escape") pal.hidden = true;
+        });
+        pal.addEventListener("mousedown", (e) => {
+          const b = e.target.closest("[data-i]");
+          if (b) { e.preventDefault(); palRun(Number(b.dataset.i)); }
+          else if (e.target === pal) pal.hidden = true;
+        });
+      }
+      try {
+        const st = await new Promise((r) => chrome.storage.local.get(["vsSnippets", "vsPalRecent"], r));
+        palSnips = Array.isArray(st && st.vsSnippets) ? st.vsSnippets : [];
+        palRecent = Array.isArray(st && st.vsPalRecent) ? st.vsPalRecent : [];
+      } catch {}
+      palItems = palEntries(); palSel = 0;
+      pal.querySelector("input").value = "";
+      pal.hidden = false;
+      palRender();
+      setTimeout(() => pal.querySelector("input").focus(), 0);
+    }
 
     function toast(msg) {
       const t = document.createElement("div");

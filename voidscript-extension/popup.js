@@ -23,7 +23,7 @@ const PROVIDERS = [
   ["Groq", /groq\.com/], ["LMArena", /lmarena\.ai/], ["Doubao", /doubao\.com/],
   ["Yuanbao", /yuanbao\.tencent\.com/], ["Reka", /reka\.ai/], ["Pi", /(^|\/\/)pi\.ai/],
   ["Coral", /coral\.cohere\.com/], ["OpenRouter", /openrouter\.ai/], ["v0", /v0\.(app|dev)/],
-  ["Genspark", /genspark\.ai/], ["Lambda Chat", /lambda\.chat/], ["ERNIE", /yiyan\.baidu\.com/],
+  ["Genspark", /genspark\.ai/], ["Lambda Chat", /lambda\.chat/], ["SuperApp", /superapp\.chat/], ["ERNIE", /yiyan\.baidu\.com/],
   ["MiniMax", /minimax\.io/], ["Manus", /manus\.im/], ["Together", /together\.ai/],
   ["Claude", /(^|\/\/)claude\.ai/], ["DuckDuckGo AI", /(^|\/\/)duck\.ai/],
   ["Brave Leo", /leo\.brave\.com/], ["Character.AI", /character\.ai/],
@@ -54,7 +54,7 @@ const PROVIDERS = [
   ["HuggingChat", /huggingface\.co\/chat/], ["Reka", /chat\.reka\.ai/],
   ["Pi", /pi\.ai/], ["Coral", /coral\.cohere\.com/],
   ["OpenRouter", /openrouter\.ai/], ["v0", /v0\.(app|dev)/],
-  ["Genspark", /genspark\.ai/], ["Lambda", /lambda\.chat/],
+  ["Genspark", /genspark\.ai/], ["Lambda", /lambda\.chat/], ["SuperApp", /superapp\.chat/],
   ["Yiyan", /yiyan\.baidu\.com/], ["Minimax", /chat\.minimax\.io/],
   ["Manus", /manus\.im/], ["Together", /chat\.together\.ai/],
   ["LM Arena", /lmarena\.ai/], ["Doubao", /doubao\.com/],
@@ -203,6 +203,19 @@ document.querySelectorAll("[data-open]").forEach((el) => {
   el.addEventListener("click", () => {
     const url = el.getAttribute("data-open");
     if (url) chrome.tabs.create({ url });
+  });
+});
+
+// "Open on this page": opens a VoidScript panel on the AI site in this tab.
+document.querySelectorAll("[data-act]").forEach((el) => {
+  el.addEventListener("click", async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const fail = () => { $("test-result").textContent = "Open an AI site (ChatGPT, DeepSeek…) in this tab first."; };
+    if (!tab) return fail();
+    try {
+      const r = await chrome.tabs.sendMessage(tab.id, { type: "vs-open", what: el.dataset.act });
+      if (r && r.ok) window.close(); else fail();
+    } catch { fail(); }
   });
 });
 

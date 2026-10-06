@@ -730,6 +730,8 @@ async fn save_text(app: AppHandle, name: String, content: String, base64: Option
     let (title, kind, exts): (&str, &str, &[&str]) = match name.rsplit('.').next().unwrap_or("") {
         "rbxmx" => ("Save the Roblox model", "Roblox model", &["rbxmx"]),
         "png" => ("Save the picture", "PNG image", &["png"]),
+        "md" => ("Save the chat", "Markdown", &["md"]),
+        "json" => ("Save the file", "JSON", &["json"]),
         _ => ("Save the script", "Text", &["txt", "lua", "luau"]),
     };
     let bytes = if base64 == Some(true) { b64_decode(&content)? } else { content.into_bytes() };
@@ -840,8 +842,6 @@ fn mcp_remove(st: State<'_, AppState>, id: String) -> Result<(), String> {
 // The active AI provider. Both speak the OpenAI chat-completions API, so one code
 // path serves both; only the base URL, key and a couple of headers differ.
 struct Provider { name: String, base: String, key: String, openrouter: bool, google: bool }
-
-fn active_provider(st: &AppState) -> Result<Provider, String> { provider_for(st, None) }
 
 // `which` lets the model picker list another provider's models without switching.
 fn provider_for(st: &AppState, which: Option<&str>) -> Result<Provider, String> {
@@ -1049,6 +1049,111 @@ fn rpc_start() {
     });
 }
 
+// ── built-in browser ────────────────────────────────────────────────────────
+// Each Browser tab is a real Chromium (WebView2) page laid over the app's Browser
+// page. Tabs share one saved profile (so logins stay) separate from the app's own,
+// and load the VoidScript extension. Only http(s) pages open here.
+const BROWSER_PREFIX: &str = "vsb-";
+static BROWSER_EXT_READY: AtomicBool = AtomicBool::new(false);
+
+#[derive(Deserialize)]
+struct Bounds { x: f64, y: f64, w: f64, h: f64 }
+
+fn copy_dir(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for e in std::fs::read_dir(src)? {
+        let e = e?;
+        let to = dst.join(e.file_name());
+        if e.file_type()?.is_dir() { copy_dir(&e.path(), &to)?; } else { std::fs::copy(e.path(), to)?; }
+    }
+    Ok(())
+}
+
+// WebView2 loads every folder inside extensions_path as an extension, so the
+// extension gets a folder of its own, refreshed from the VoidScript folder once a run.
+fn browser_extension_dir(app: &AppHandle, st: &AppState) -> Option<PathBuf> {
+    let src = st.root.clone()?.join("voidscript-extension");
+    if !src.join("manifest.json").is_file() { return None; }
+    let base = app.path().app_local_data_dir().ok()?.join("browser-extensions");
+    let dst = base.join("voidscript");
+    if !BROWSER_EXT_READY.swap(true, Ordering::SeqCst) {
+        let _ = std::fs::remove_dir_all(&dst);
+        if copy_dir(&src, &dst).is_err() { BROWSER_EXT_READY.store(false, Ordering::SeqCst); return None; }
+    }
+    Some(base)
+}
+
+fn browser_label(id: &str) -> String {
+    format!("{BROWSER_PREFIX}{}", id.chars().filter(|c| c.is_ascii_alphanumeric()).take(24).collect::<String>())
+}
+
+#[tauri::command]
+async fn browser_open(app: AppHandle, st: State<'_, AppState>, id: String, url: String, b: Bounds) -> Result<(), String> {
+    let url: tauri::Url = url.trim().parse().map_err(|_| "That isn't a web address.".to_string())?;
+    if !matches!(url.scheme(), "http" | "https") { return Err("Only http and https pages open here.".into()); }
+    let label = browser_label(&id);
+    if let Some(wv) = app.get_webview(&label) {
+        return wv.navigate(url).map_err(|e| e.to_string());
+    }
+    let win = app.get_window("main").ok_or("The main window is missing.")?;
+    let data = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("browser-profile");
+    let mut builder = tauri::webview::WebviewBuilder::new(&label, tauri::WebviewUrl::External(url))
+        .data_directory(data)
+        .zoom_hotkeys_enabled(true)
+        .on_page_load(|wv, p| {
+            let id = wv.label().trim_start_matches(BROWSER_PREFIX).to_string();
+            let loading = matches!(p.event(), tauri::webview::PageLoadEvent::Started);
+            let _ = wv.app_handle().emit("browser-page", json!({ "id": id, "url": p.url().as_str(), "loading": loading }));
+        })
+        .on_document_title_changed(|wv, title| {
+            let id = wv.label().trim_start_matches(BROWSER_PREFIX).to_string();
+            let _ = wv.app_handle().emit("browser-title", json!({ "id": id, "title": title }));
+        });
+    if let Some(ext) = browser_extension_dir(&app, &st) {
+        builder = builder.browser_extensions_enabled(true).extensions_path(ext);
+    }
+    win.add_child(builder, tauri::LogicalPosition::new(b.x, b.y), tauri::LogicalSize::new(b.w.max(1.0), b.h.max(1.0)))
+        .map_err(|e| format!("Couldn't open the page: {e}"))?;
+    Ok(())
+}
+
+// Show one tab where the Browser page is (or none: the page is hidden or covered).
+#[tauri::command]
+fn browser_layout(app: AppHandle, active: Option<String>, b: Bounds) {
+    let want = active.map(|a| browser_label(&a));
+    for (label, wv) in app.webviews() {
+        if !label.starts_with(BROWSER_PREFIX) { continue; }
+        if Some(&label) == want.as_ref() {
+            let _ = wv.set_position(tauri::LogicalPosition::new(b.x, b.y));
+            let _ = wv.set_size(tauri::LogicalSize::new(b.w.max(1.0), b.h.max(1.0)));
+            let _ = wv.show();
+        } else {
+            let _ = wv.hide();
+        }
+    }
+}
+
+#[tauri::command]
+fn browser_ctl(app: AppHandle, id: String, op: String) -> Result<(), String> {
+    let wv = app.get_webview(&browser_label(&id)).ok_or("That tab is gone.")?;
+    match op.as_str() {
+        "back" => wv.eval("history.back()"),
+        "forward" => wv.eval("history.forward()"),
+        "reload" => wv.reload(),
+        "close" => wv.close(),
+        _ => return Err("unknown action".into()),
+    }.map_err(|e| e.to_string())
+}
+
+// Sign out of every site in the built-in browser (it keeps its own profile).
+#[tauri::command]
+fn browser_clear(app: AppHandle) -> Result<(), String> {
+    for (label, wv) in app.webviews() {
+        if label.starts_with(BROWSER_PREFIX) { let _ = wv.clear_all_browsing_data(); let _ = wv.close(); }
+    }
+    Ok(())
+}
+
 // Does this model answer at all (and with tools, if asked)? A tiny, non-streamed
 // call with its own timeout - separate from ai_chat so several can run at once
 // without cancelling each other or the chat.
@@ -1121,8 +1226,9 @@ impl StreamAcc {
 }
 
 #[tauri::command]
-async fn ai_chat(app: AppHandle, st: State<'_, AppState>, mut body: Value) -> Result<Value, String> {
-    let p = active_provider(&st)?;
+async fn ai_chat(app: AppHandle, st: State<'_, AppState>, mut body: Value, provider: Option<String>) -> Result<Value, String> {
+    // `provider`: "never run out" retries the same request on another provider.
+    let p = provider_for(&st, provider.as_deref())?;
     // Stop in the UI fires this, which drops the request mid-flight.
     let (tx, mut cancel) = oneshot::channel::<()>();
     *st.chat_cancel.lock().unwrap() = Some(tx);
@@ -1619,7 +1725,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_snapshot, start_bridge, stop_bridge, restart_bridge, bridge_request,
             save_settings, pick_workspace, save_text, open_url, open_folder, mcp_list, mcp_add, mcp_remove,
-            ai_models, ai_chat, ai_cancel, ai_probe, rpc_set, studio_running, is_dev, set_spooky_icon, check_update, run_update, relaunch, pick_reference_files, read_reference_files,
+            ai_models, ai_chat, ai_cancel, ai_probe, browser_open, browser_layout, browser_ctl, browser_clear, rpc_set, studio_running, is_dev, set_spooky_icon, check_update, run_update, relaunch, pick_reference_files, read_reference_files,
             ws_list, ws_read, ws_write, ws_delete, ws_run, quit_app
         ])
         .build(tauri::generate_context!())

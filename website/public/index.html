@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VoidScript · Build Roblox games with AI</title>
+<meta name="description" content="VoidScript connects AI to your open Roblox Studio. Describe what you want and it builds it: scripts, models, UIs, whole games. Free and open source." />
+<meta property="og:title" content="VoidScript · Build Roblox games with AI" />
+<meta property="og:description" content="Describe it, and VoidScript builds it in your open Roblox Studio. Free and open source." />
+<meta property="og:image" content="/logo.png" />
+<meta name="theme-color" content="#0e0f12" />
+<link rel="icon" href="/logo.png" />
+<link rel="stylesheet" href="/style.css" />
+<script>
+  // SpookyScript: 1 October to 1 November (or ?spooky to preview it any time).
+  (function () {
+    var d = new Date(), m = d.getMonth();
+    if (m === 9 || (m === 10 && d.getDate() === 1) || /[?&]spooky\b/.test(location.search)) document.documentElement.classList.add("spooky");
+  })();
+</script>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-in">
+    <a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b></span></a>
+    <nav class="links">
+      <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#faq">FAQ</a>
+      <a href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <a class="btn sm primary" href="/download">Download</a>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <a class="pill" href="#new"><span class="pill-dot"></span><span id="rel-tag">VoidScript 7.0 is out</span><span class="pill-go">What's new →</span></a>
+    <h1>Build Roblox games<br />by describing them.</h1>
+    <p class="lead">VoidScript connects AI to your open Roblox Studio. Ask for a feature, a model or a whole game, and watch it get built, tested and fixed right in your place.</p>
+    <div class="cta">
+      <a class="btn primary" href="/download"><svg viewBox="0 0 24 24"><path d="M12 3.5v11M7.5 10 12 14.5l4.5-4.5"/><path d="M4 16.5v2A2 2 0 0 0 6 20.5h12a2 2 0 0 0 2-2v-2"/></svg>Download for Windows</a>
+      <a class="btn" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>View the source</a>
+    </div>
+    <p class="fine">Free and open source · Windows, Linux (Wine) and macOS · <span id="rel-ver">latest release</span></p>
+
+    <div class="shot" aria-hidden="true">
+      <div class="shot-bar"><i></i><i></i><i></i><span>VoidScript</span></div>
+      <div class="shot-body">
+        <div class="shot-rail"><b class="on"></b><b></b><b></b><b></b><b></b></div>
+        <div class="shot-list"><em>Today</em><b class="on">Build a 5-stage obby</b><b>Spinning coin pickup</b><b>Shop with DataStore</b><em>Yesterday</em><b>Zombie waves</b><b>Day / night cycle</b></div>
+        <div class="shot-chat">
+          <div class="m me">Build a 5-stage obby with checkpoints and a timer</div>
+          <div class="m ai"><span class="av"></span><div>
+            <p>Done. I built 5 stages that get harder, with checkpoints that save your stage.</p>
+            <div class="tool"><span class="ok"></span>multi_edit · ServerScriptService.Checkpoints</div>
+            <div class="tool"><span class="ok"></span>playtest · round 1 · no errors</div>
+            <div class="code"><span class="k">local</span> stage = player.leaderstats.<span class="f">Stage</span><br /><span class="k">if</span> stage.Value == n - <span class="n">1</span> <span class="k">then</span> stage.Value = n <span class="k">end</span></div>
+          </div></div>
+          <div class="composer"><span>Ask VoidScript to build something…</span><i></i></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="strip wrap">
+    <span>Works with</span>
+    <b>ChatGPT</b><b>Gemini</b><b>DeepSeek</b><b>Claude</b><b>Grok</b><b>Qwen</b><b>Kimi</b><b>NVIDIA</b><b>Groq</b><b>OpenRouter</b><b>Ollama</b>
+  </section>
+
+  <section class="wrap sec" id="features">
+    <p class="eyebrow">Features</p>
+    <h2>Everything you need to build faster.</h2>
+    <div class="grid">
+      <div class="feat"><i><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3.5V7M9.5 12v1.5M14.5 12v1.5"/></svg></i><h3>Agent mode</h3><p>It builds, playtests the game in Studio, reads the Output and fixes its own errors until it works.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg></i><h3>Model generator</h3><p>Describe a model, preview it in 3D with real textures, tweak it, then drop it in or export .rbxmx.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7M8.5 16.5h4"/></svg></i><h3>UI builder</h3><p>Shops, HUDs and menus that look good on phone, tablet and PC, with animations and their LocalScript.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M17 3.5 20.5 7 17 10.5"/><path d="M20.5 7H9a5.5 5.5 0 0 0 0 11h1.5"/><path d="M7 20.5 3.5 17 7 13.5"/></svg></i><h3>Never run out</h3><p>35 AI providers, most with free tiers. When one hits its limit, the next one you have takes over.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></i><h3>Script library</h3><p>Saving, coins, doors, jump pads, checkpoints, admin commands and more. One click, no AI needed.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M2.5 20 9 8.5l4 6.5 2.7-4L21.5 20z"/></svg></i><h3>Terrain and lighting</h3><p>Islands, volcanoes, canyons and swamps from a seed, plus one-click lighting moods.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M12 2.5l7.5 3v5.3c0 4.7-3.2 8.6-7.5 10.2-4.3-1.6-7.5-5.5-7.5-10.2V5.5z"/><path d="M9 12l2.2 2.2L15.5 9.8"/></svg></i><h3>Health check</h3><p>Finds free-model backdoors, lag, loose parts and outdated code, then fixes them with you.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.5 3.8 5.5 3.8 9s-1.2 6.5-3.8 9c-2.6-2.5-3.8-5.5-3.8-9S9.4 5.5 12 3z"/></svg></i><h3>Any AI website</h3><p>The browser extension adds VoidScript to ChatGPT, Gemini, DeepSeek and 20+ more, no API key needed.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></i><h3>Built for speed</h3><p>Command palette, slash commands, chat history, project memory and undo for every change.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap sec" id="how">
+    <p class="eyebrow">How it works</p>
+    <h2>Three steps, then just talk.</h2>
+    <ol class="steps">
+      <li><b>1</b><h3>Install VoidScript</h3><p>Download it, unzip it and open SpookyScript.exe (VoidScript.exe outside October). It sets itself up.</p></li>
+      <li><b>2</b><h3>Connect Studio</h3><p>In Roblox Studio, turn on <em>Studio as MCP server</em> in the Assistant settings. VoidScript finds it.</p></li>
+      <li><b>3</b><h3>Ask for anything</h3><p>Chat in the app with a free API key, or use the extension on any AI site. It builds straight into your place.</p></li>
+    </ol>
+  </section>
+
+  <section class="wrap sec" id="ai">
+    <div class="split">
+      <div>
+        <p class="eyebrow">Your choice of AI</p>
+        <h2>Free models that actually build.</h2>
+        <p class="muted">Use a free key from NVIDIA, Groq, Gemini, Cerebras, Mistral, GitHub Models or 30 others, run models on your own PC with Ollama, or skip keys entirely and use the AI websites you already have.</p>
+        <ul class="ticks">
+          <li>Keys stay on your PC and only go to their own provider</li>
+          <li>Test which models work with one click</li>
+          <li>Prompt Enhancer makes vague requests clear</li>
+        </ul>
+      </div>
+      <div class="provs">
+        <span>NVIDIA</span><span>Groq</span><span>Gemini</span><span>Cerebras</span><span>Mistral</span><span>OpenRouter</span><span>GitHub Models</span><span>Hugging Face</span><span>Together</span><span>Z.ai</span><span>SambaNova</span><span>DeepSeek</span><span>Ollama</span><span>LM Studio</span><span>+ 21 more</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap sec" id="new">
+    <p class="eyebrow">New in 7.0</p>
+    <h2>A whole new VoidScript.</h2>
+    <div class="grid two">
+      <div class="feat flat"><h3>Redesigned app</h3><p>A calmer look, chat history, icon rail, command palette and focus mode.</p></div>
+      <div class="feat flat"><h3>Agent playtesting</h3><p>It plays your game for you and fixes the errors it finds.</p></div>
+      <div class="feat flat"><h3>Never run out</h3><p>Automatic fallback between your free providers.</p></div>
+      <div class="feat flat"><h3>Script library</h3><p>16 ready-made systems you add in one click.</p></div>
+    </div>
+  </section>
+
+  <section class="wrap sec" id="faq">
+    <p class="eyebrow">FAQ</p>
+    <h2>Questions</h2>
+    <div class="faq">
+      <details><summary>Is it free?</summary><p>Yes. VoidScript is free and open source (GPL-3.0). Many AI providers have free tiers, and the extension works with free AI websites.</p></details>
+      <details><summary>Is it safe? My antivirus flagged it.</summary><p>VoidScript is a new, unsigned app, so some antivirus tools warn about it the first time. All the code is public on GitHub, so you (or anyone) can read exactly what it does.</p></details>
+      <details><summary>Does it work with my existing game?</summary><p>Yes. It reads your scripts and instances first and makes small, surgical edits. Every change can be undone with Ctrl+Z in Studio, and you can back up your place from the app.</p></details>
+      <details><summary>Is this an exploit?</summary><p>No. It only works inside Roblox Studio, on places you own, through Roblox's own Studio MCP server. It never touches live games.</p></details>
+      <details><summary>Is it made by Roblox?</summary><p>No. VoidScript is an independent project and isn't affiliated with Roblox Corporation.</p></details>
+    </div>
+  </section>
+
+  <section class="wrap final">
+    <img src="/logo.png" alt="" width="54" height="54" />
+    <h2>Start building today.</h2>
+    <div class="cta"><a class="btn primary" href="/download">Download VoidScript</a><a class="btn" href="https://discord.gg/EyGxnp2jaw" target="_blank" rel="noopener">Join the Discord</a></div>
+  </section>
+</main>
+
+<footer class="wrap foot">
+  <span>VoidScript · free &amp; open source · not affiliated with Roblox Corporation</span>
+  <span class="grow"></span>
+  <a href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub</a>
+  <a href="https://discord.gg/EyGxnp2jaw" target="_blank" rel="noopener">Discord</a>
+  <a href="https://github.com/cjl26rg2/Void-Script/releases" target="_blank" rel="noopener">Releases</a>
+</footer>
+<script>
+fetch("/api/release").then((r) => r.ok ? r.json() : null).then((d) => {
+  if (!d || !d.version) return;
+  document.getElementById("rel-ver").textContent = "latest: " + d.version;
+  document.getElementById("rel-tag").textContent = (d.name || "VoidScript " + d.version).replace(/^V(?=\d)/, "v") + " is out";
+}).catch(() => {});
+</script>
+<div class="spooky-deco" aria-hidden="true"><i class="web l"></i><i class="web r"></i><i class="moon"></i><i class="bat b1"></i><i class="bat b2"></i><i class="bat b3"></i><i class="ghost"></i><i class="spider"></i></div>
+<script>
+// SpookyScript: the name, logo and title follow the season.
+if (document.documentElement.classList.contains("spooky")) {
+  document.title = document.title.replace("VoidScript", "SpookyScript");
+  document.querySelectorAll('img[src="/logo.png"]').forEach((i) => { i.src = "/spooky.png"; });
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const hits = [];
+  let n;
+  while ((n = w.nextNode())) if (n.nodeValue.includes("VoidScript")) hits.push(n);
+  hits.forEach((x) => { x.nodeValue = x.nodeValue.replace(/VoidScript/g, "SpookyScript"); });
+  const brand = document.querySelector(".brand span");
+  if (brand) brand.innerHTML = "Spooky<b>Script</b>";
+  const h1 = document.querySelector(".hero h1");
+  if (h1) h1.innerHTML = "Build spooky Roblox games<br />by describing them.";
+}
+</script>
+</body>
+</html>

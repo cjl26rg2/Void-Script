@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-<!-- ── custom title bar (the window is frameless) ─────────────────────────── -->
+<!-- ── title bar (the window is frameless) ─────────────────────────────────── -->
 <header id="titlebar" data-tauri-drag-region>
   <div class="tb-brand" data-tauri-drag-region>
     <img src="assets/logo.png" alt="" class="tb-logo" data-tauri-drag-region />
@@ -16,51 +16,69 @@
     <span class="tb-ver" id="tb-ver" data-tauri-drag-region></span>
   </div>
   <div class="tb-spacer" data-tauri-drag-region></div>
-  <button class="tb-btn" id="btn-music" title="Spooky music" aria-label="Spooky music" hidden><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6"/></svg></button>
+  <button class="tb-search" id="btn-palette" title="Search pages, actions, templates and chats">
+    <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
+    <span>Search or run a command</span><kbd>Ctrl K</kbd>
+  </button>
+  <div class="tb-spacer" data-tauri-drag-region></div>
+  <div class="tb-tools">
+    <button class="tb-chip" id="tb-studio" title="Roblox Studio connection"><span class="dot"></span><span id="tb-studio-t">Studio</span></button>
+    <button class="tb-btn tb-i" id="tb-play" title="Play in Studio"><svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg></button>
+    <button class="tb-btn tb-i" id="tb-stop" title="Stop playing"><svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2"/></svg></button>
+    <span class="tb-sep"></span>
+    <button class="tb-btn tb-i" id="tb-focus" title="Focus mode (Ctrl+Shift+F)"><svg viewBox="0 0 24 24"><path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15"/></svg></button>
+    <button class="tb-btn tb-i" id="tb-help" title="Keyboard shortcuts (Ctrl+/)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.8M12 17h.01"/></svg></button>
+  </div>
+  <button class="tb-btn tb-i" id="btn-music" title="Spooky music" aria-label="Spooky music" hidden><svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="mute" d="m16 9 6 6m0-6-6 6"/></svg></button>
   <div class="bell-wrap">
-    <button class="tb-btn bell" id="btn-bell" title="Notifications" aria-label="Notifications">
-      <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+    <button class="tb-btn tb-i bell" id="btn-bell" title="Notifications" aria-label="Notifications">
+      <svg viewBox="0 0 24 24"><path d="M6 10a6 6 0 0 1 12 0v3.5l1.6 2.6a.6.6 0 0 1-.5.9H4.9a.6.6 0 0 1-.5-.9L6 13.5z"/><path d="M10 20a2.2 2.2 0 0 0 4 0"/></svg>
       <span class="bell-badge" id="bell-badge" hidden></span>
     </button>
     <div class="notif-pop" id="notif-pop" hidden>
-      <div class="notif-h"><b>Notifications</b><button class="link" id="btn-notif-read">Mark all read</button><button class="link" id="btn-notif-clear">Clear</button></div>
+      <div class="notif-h"><b>Notifications</b><button class="link" id="btn-notif-mute">Mute sounds</button><button class="link" id="btn-notif-read">Mark all read</button><button class="link" id="btn-notif-clear">Clear</button></div>
       <div class="notif-list" id="notif-list"></div>
     </div>
   </div>
   <div class="tb-btns">
-    <button class="tb-btn" id="win-min" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2 6h8"/></svg></button>
-    <button class="tb-btn" id="win-max" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg></button>
-    <button class="tb-btn tb-close" id="win-close" title="Close" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
+    <button class="tb-btn win" id="win-min" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 12 12"><path d="M2.5 6h7"/></svg></button>
+    <button class="tb-btn win" id="win-max" title="Maximize" aria-label="Maximize"><svg viewBox="0 0 12 12"><rect x="2.5" y="2.5" width="7" height="7" rx="1.6"/></svg></button>
+    <button class="tb-btn win tb-close" id="win-close" title="Close" aria-label="Close"><svg viewBox="0 0 12 12"><path d="M3 3l6 6M9 3l-6 6"/></svg></button>
   </div>
 </header>
 
 <div id="shell">
-  <!-- ── sidebar ──────────────────────────────────────────────────────────── -->
+  <!-- ── icon rail: labels show on hover ──────────────────────────────────── -->
   <nav id="side">
-    <button class="nav-item active" data-view="home">
-      <svg viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
-    <button class="nav-item" data-view="chat">
-      <svg viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><span>Chat</span></button>
-    <button class="nav-item" data-view="models">
-      <svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg><span>Models</span></button>
-    <button class="nav-item" data-view="uib">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18M8 13h4M8 15.5h7"/></svg><span>UI builder</span></button>
-    <button class="nav-item" data-view="kit">
-      <svg viewBox="0 0 24 24"><path d="M3 7h18v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 7V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M3 12h18"/></svg><span>Toolkit</span></button>
-    <button class="nav-item" data-view="tools">
+    <button class="nav-item active" data-view="home" data-tip="Home">
+      <svg viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
+    <button class="nav-item" data-view="chat" data-tip="Chat">
+      <svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 14h4.5"/></svg><span>Chat</span></button>
+    <button class="nav-item" data-view="models" data-tip="Models">
+      <svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg><span>Models</span></button>
+    <button class="nav-item" data-view="uib" data-tip="UI builder">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7M8.5 16.5h4"/></svg><span>UI builder</span></button>
+    <button class="nav-item" data-view="kit" data-tip="Toolkit">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.25 13.5v7.5M13.5 17.25H21"/></svg><span>Toolkit</span></button>
+    <button class="nav-item" data-view="explorer" data-tip="Explorer">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3.5" width="7" height="5" rx="1.5"/><rect x="13" y="9.5" width="8" height="5" rx="1.5"/><rect x="13" y="16" width="8" height="5" rx="1.5"/><path d="M6.5 8.5v10H13M6.5 12H13"/></svg><span>Explorer</span></button>
+    <button class="nav-item" data-view="browser" data-tip="Browser · soon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.5 3.8 5.5 3.8 9s-1.2 6.5-3.8 9c-2.6-2.5-3.8-5.5-3.8-9S9.4 5.5 12 3z"/></svg><span>Browser</span><i class="nav-soon"></i></button>
+    <div class="side-sep"></div>
+    <button class="nav-item" data-view="tools" data-tip="Tools">
       <svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Tools</span></button>
-    <button class="nav-item" data-view="mcp">
+    <button class="nav-item" data-view="mcp" data-tip="MCP servers">
       <svg viewBox="0 0 24 24"><path d="M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0zM12 16v5"/></svg><span>MCP servers</span></button>
-    <button class="nav-item" data-view="terminal">
-      <svg viewBox="0 0 24 24"><path d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm3 4 3 3-3 3m5 0h5"/></svg><span>Terminal</span></button>
-    <button class="nav-item" data-view="updates">
-      <svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.6-6.4L21 8"/><path d="M21 3v5h-5"/><path d="M12 8v5l3 2"/></svg><span>Updates</span><i class="nav-dot" id="upd-dot" hidden></i></button>
-    <button class="nav-item" data-view="settings">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
+    <button class="nav-item" data-view="terminal" data-tip="Terminal">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m7 9.5 3 2.5-3 2.5M12.5 15h4.5"/></svg><span>Terminal</span></button>
     <div class="side-spacer"></div>
-    <div class="side-status">
-      <div class="pill" id="pill-bridge"><span class="dot"></span><span class="lbl">Bridge</span><span class="val">—</span></div>
-      <div class="pill" id="pill-studio"><span class="dot"></span><span class="lbl">Studio</span><span class="val">—</span></div>
+    <button class="nav-item" data-view="updates" data-tip="Updates">
+      <svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-2.5-6L20.5 8.5"/><path d="M20.5 3.5v5h-5"/></svg><span>Updates</span><i class="nav-dot" id="upd-dot" hidden></i></button>
+    <button class="nav-item" data-view="settings" data-tip="Settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Settings</span></button>
+    <div class="side-status" title="Bridge and Studio">
+      <div class="pill" id="pill-bridge" data-tip="Bridge"><span class="dot"></span><span class="lbl">Bridge</span><span class="val">—</span></div>
+      <div class="pill" id="pill-studio" data-tip="Roblox Studio"><span class="dot"></span><span class="lbl">Studio</span><span class="val">—</span></div>
     </div>
   </nav>
 
@@ -72,9 +90,9 @@
       </div>
       <div class="hero">
         <div>
+          <p class="eyebrow" id="home-greet">Welcome back</p>
           <h1>Build Roblox games with AI.</h1>
-          <p class="sub">VoidScript connects AI to your open Roblox Studio. Keep this app running while you build.</p>
-          <p class="how-note"><b>Two ways to build:</b> use ChatGPT, DeepSeek, Gemini and the rest through the <b>browser extension</b>, or chat here with <b>your own NVIDIA / OpenRouter API key</b>. The in-app chat only has the models your key gives you, not every AI.</p>
+          <p class="sub">VoidScript connects AI to your open Roblox Studio. Keep it running while you build.</p>
         </div>
         <div class="hero-actions">
           <button class="btn primary" id="btn-bridge-toggle">Start bridge</button>
@@ -105,9 +123,31 @@
         </div>
       </div>
 
+      <div class="sec-h">Start something</div>
+      <div class="quick" id="home-quick">
+        <button class="qa" data-qa="chat"><span class="qi"><svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 20.5 12z"/></svg></span><b>New chat</b><span>Ask the AI to build anything</span></button>
+        <button class="qa" data-qa="models"><span class="qi"><svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg></span><b>Generate a model</b><span>Describe it, preview it in 3D</span></button>
+        <button class="qa" data-qa="uib"><span class="qi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7"/></svg></span><b>Design a UI</b><span>Shops, HUDs, menus</span></button>
+        <button class="qa" data-qa="kit"><span class="qi"><svg viewBox="0 0 24 24"><path d="M3 20h4.5v-4.5H12V11h4.5V6.5H21"/></svg></span><b>Start from a template</b><span>Obby, tycoon, simulator…</span></button>
+        <button class="qa" data-qa="health"><span class="qi"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg></span><b>Health check</b><span>Backdoors, lag, old code</span></button>
+        <button class="qa" data-qa="palette"><span class="qi"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span><b>Command palette</b><span>Everything, one keystroke away</span></button>
+      </div>
+
       <div class="grid2">
         <div class="card">
-          <div class="card-t">Option 1 · Browser extension <span class="tag">every AI site</span></div>
+          <div class="card-t row-between">Recent chats <button class="link" id="btn-home-chats">All chats →</button></div>
+          <div class="home-chats" id="home-chats"></div>
+        </div>
+        <div class="card">
+          <div class="card-t">Your stats <span class="tag">this PC</span></div>
+          <div class="stats" id="home-stats"></div>
+          <div class="tipcard"><b>Tip</b><span id="home-tip"></span><button class="link" id="btn-tip-next">Next tip</button></div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="card">
+          <div class="card-t">Browser extension <span class="tag">every AI site</span></div>
           <ol class="steps">
             <li>Open <b>Roblox Studio</b> and enable <i>Studio as MCP server</i> (Assistant settings).</li>
             <li>Keep the <b>bridge</b> running (this app).</li>
@@ -121,11 +161,11 @@
           </div>
         </div>
         <div class="card">
-          <div class="card-t">Option 2 · In-app chat <span class="tag">your API key</span></div>
-          <p class="muted">Paste your own NVIDIA or OpenRouter key in Settings and chat here. Those models build straight into Studio with real tool-calling and reference files. Want ChatGPT, Gemini or DeepSeek? Use the extension instead.</p>
+          <div class="card-t">In-app chat <span class="tag">your API key</span></div>
+          <p class="muted">Paste a free key from any of 35 providers in Settings. With <b>Never run out</b> on, the chat moves to your next provider whenever one hits its limit.</p>
           <div class="row"><button class="btn primary sm" id="btn-go-chat">Open Chat</button>
             <button class="btn sm ghost" data-url="https://build.nvidia.com/">Free NVIDIA key</button>
-            <button class="btn sm ghost" data-url="https://openrouter.ai/keys">OpenRouter key</button></div>
+            <button class="btn sm ghost" data-url="https://console.groq.com/keys">Free Groq key</button></div>
         </div>
       </div>
 
@@ -137,69 +177,101 @@
 
     <!-- ── CHAT ──────────────────────────────────────────────────────────── -->
     <section class="view" id="view-chat">
-      <div class="chat-top">
-        <div class="chat-title">Chat
-          <div class="model-wrap">
-            <button class="model-btn" id="chat-model" title="Change the AI model">
-              <span class="prov" id="chat-prov">NVIDIA</span><span class="mname" id="chat-model-name">model</span>
-              <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <div class="model-pop" id="model-pop" hidden>
-              <select class="input sm prov-select" id="pop-prov" title="Provider"></select>
-              <input class="input" id="pop-search" placeholder="Search models, or type any model ID…" autocomplete="off" spellcheck="false" />
-              <div class="pop-list" id="pop-list"></div>
-              <div class="pop-foot" id="pop-foot">Models with <span class="tl">tools</span> can build in Studio.</div>
+      <aside class="chats" id="chats-panel">
+        <div class="chats-h">
+          <button class="btn primary sm grow" id="btn-new-chat"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New chat</button>
+          <button class="ibtn" id="btn-chats-hide" title="Hide chat list (Ctrl+B)"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg></button>
+        </div>
+        <div class="chats-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="chats-q" placeholder="Search chats" spellcheck="false" /></div>
+        <div class="chats-list" id="chats-list"></div>
+      </aside>
+      <div class="chat-main">
+        <div class="chat-top">
+          <div class="chat-title">
+            <button class="ibtn" id="btn-chats-show" title="Show chat list (Ctrl+B)" hidden><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M9 4v16"/></svg></button>
+            <div class="model-wrap">
+              <button class="model-btn" id="chat-model" title="Change the AI model">
+                <span class="prov" id="chat-prov">NVIDIA</span><span class="mname" id="chat-model-name">model</span>
+                <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div class="model-pop" id="model-pop" hidden>
+                <select class="input sm prov-select" id="pop-prov" title="Provider"></select>
+                <input class="input" id="pop-search" placeholder="Search models, or type any model ID…" autocomplete="off" spellcheck="false" />
+                <div class="pop-list" id="pop-list"></div>
+                <div class="pop-foot" id="pop-foot">Models with <span class="tl">tools</span> can build in Studio.</div>
+              </div>
+            </div>
+            <span class="chip" id="chat-ws">workspace off</span><span class="chip warn" id="chat-bridge" hidden>bridge offline — Studio tools unavailable</span>
+          </div>
+          <div class="chat-acts">
+            <button class="ibtn" id="btn-chat-play" title="Play in Studio"><svg viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z"/></svg></button>
+            <button class="ibtn" id="btn-chat-stopplay" title="Stop playing"><svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+            <button class="ibtn" id="btn-chat-undo" title="Undo the last change in Studio"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+            <span class="vsep"></span>
+            <button class="ibtn" id="btn-chat-copyall" title="Copy the whole chat"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+            <button class="ibtn" id="btn-chat-export" title="Save this chat as Markdown"><svg viewBox="0 0 24 24"><path d="M12 3.5v11M7.5 10 12 14.5l4.5-4.5"/><path d="M4 16.5v2A2 2 0 0 0 6 20.5h12a2 2 0 0 0 2-2v-2"/></svg></button>
+          </div>
+        </div>
+        <div class="chat-body" id="chat-body">
+          <div class="empty" id="chat-empty">
+            <img src="assets/logo.png" alt="" class="empty-logo" />
+            <h2>What are we building?</h2>
+            <p class="muted" id="chat-empty-sub">Describe a feature and VoidScript builds it in your open Studio place.</p>
+            <div class="suggest">
+              <button class="sugg">Make a spinning coin that gives +1 cash when touched</button>
+              <button class="sugg">Build a 5-stage obby with checkpoints</button>
+              <button class="sugg">Add a leaderstats Cash value for every player</button>
+              <button class="sugg">Explain how my game's scripts fit together</button>
+            </div>
+            <div class="starts" id="chat-starts"></div>
+            <p class="empty-tip">Type <kbd>/</kbd> for commands · <kbd>Ctrl K</kbd> for everything else</p>
+          </div>
+        </div>
+        <button class="scroll-down" id="btn-scroll-down" title="Jump to the latest" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+        <div class="composer-wrap">
+          <div class="attach-row" id="attach-row" hidden></div>
+          <div class="composer">
+            <div class="slash-pop" id="slash-pop" hidden></div>
+            <textarea id="chat-input" rows="1" placeholder="Ask VoidScript to build something…"></textarea>
+            <div class="comp-bar">
+              <button class="ibtn" id="btn-attach" title="Attach reference files (or drop them on the window)" aria-label="Attach reference files">
+                <svg viewBox="0 0 24 24"><path d="M21 11.5 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>
+              </button>
+              <button class="ibtn enh" id="btn-enhance-chat" title="Prompt Enhancer: make what you typed clearer for the AI (same request, just better). Ctrl+Z undoes it." aria-label="Enhance prompt"><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg></button>
+              <div class="modes-wrap">
+                <button class="modes-btn" id="btn-modes" title="How the AI works: effort, access and modes"><svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span id="modes-sum">Balanced</span><svg class="cv" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg></button>
+                <div class="modes-pop" id="modes-pop" hidden>
+                  <div class="mp-row"><span class="mp-l">Effort</span>
+                    <div class="mseg" id="seg-effort" title="How hard the AI works on each request">
+                      <button data-v="fast" title="Quick: smallest change that works, no extra checks">Fast</button>
+                      <button data-v="balanced" title="Plan briefly, build, one quick check">Balanced</button>
+                      <button data-v="deep" title="Reads around first, tests and verifies before finishing">Deep</button>
+                    </div></div>
+                  <div class="mp-row"><span class="mp-l">Access</span>
+                    <div class="mseg" id="seg-access" title="What the AI may touch">
+                      <button data-v="ask" title="You approve every change in Studio, every file write and every command">Ask</button>
+                      <button data-v="sandbox" title="Studio plus your workspace folder. Deletes ask.">Sandbox</button>
+                      <button data-v="full" title="Any file on this PC and commands anywhere. Deletes ask.">Full PC</button>
+                    </div></div>
+                  <div class="mtoggles">
+                    <button class="mtog" id="btn-agent"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3.5V7M9.5 12v1.5M14.5 12v1.5M2.5 12.5v3M21.5 12.5v3"/></svg><span><b>Agent</b><em>Builds, playtests in Studio, reads errors and fixes them by itself</em></span><i></i></button>
+                    <button class="mtog" id="btn-think"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg><span><b>Thinking</b><em>Reasoning models think before they answer</em></span><i></i></button>
+                    <button class="mtog" id="btn-selfcheck"><svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/></svg><span><b>Self-check</b><em>Reviews its own work and fixes what it finds</em></span><i></i></button>
+                    <button class="mtog" id="btn-plan"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg><span><b>Plan first</b><em>You approve a plan before anything changes</em></span><i></i></button>
+                    <button class="mtog" id="btn-memory"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg><span><b>Memory</b><em>Remembers this game between chats</em></span><i></i></button>
+                    <button class="mtog" id="btn-nro"><svg viewBox="0 0 24 24"><path d="M17 3.5 20.5 7 17 10.5"/><path d="M20.5 7H9a5.5 5.5 0 0 0 0 11h1.5"/><path d="M7 20.5 3.5 17 7 13.5"/></svg><span><b>Never run out</b><em>Switches to your next provider when one hits its limit</em></span><i></i></button>
+                  </div>
+                </div>
+              </div>
+              <div class="mode-chips" id="mode-chips"></div>
+              <span class="grow"></span>
+              <span class="comp-count" id="comp-count"></span>
+              <button class="send" id="btn-send" title="Send (Enter)" aria-label="Send"><svg viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
+              <button class="send stop" id="btn-stop-chat" title="Stop (Esc)" aria-label="Stop" hidden><svg viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg></button>
             </div>
           </div>
-          <span class="chip" id="chat-ws">workspace off</span><span class="chip warn" id="chat-bridge" hidden>bridge offline — Studio tools unavailable</span></div>
-        <div class="row"><button class="btn sm" id="btn-new-chat">New chat</button></div>
-      </div>
-      <div class="chat-body" id="chat-body">
-        <div class="empty" id="chat-empty">
-          <img src="assets/logo.png" alt="" class="empty-logo" />
-          <h2>What are we building?</h2>
-          <p class="muted" id="chat-empty-sub">Describe a feature and VoidScript builds it in your open Studio place.</p>
-          <div class="suggest">
-            <button class="sugg">Make a spinning coin that gives +1 cash when touched</button>
-            <button class="sugg">Build a 5-stage obby with checkpoints</button>
-            <button class="sugg">Add a leaderstats Cash value for every player</button>
-            <button class="sugg">Explain how my game's scripts fit together</button>
-          </div>
+          <p class="comp-foot">AI can make mistakes. Ctrl+Z in Studio undoes its changes.</p>
         </div>
-      </div>
-      <div class="mode-bar" id="mode-bar">
-        <div class="mseg" id="seg-effort" title="How hard the AI works on each request">
-          <span class="mlbl">Effort</span>
-          <button data-v="fast" title="Quick: smallest change that works, no extra checks">Fast</button>
-          <button data-v="balanced" title="Plan briefly, build, one quick check">Balanced</button>
-          <button data-v="deep" title="Reads around first, tests and verifies before finishing">Deep</button>
-        </div>
-        <div class="mseg" id="seg-access" title="What the AI may touch">
-          <span class="mlbl">Access</span>
-          <button data-v="ask" title="You approve every change in Studio, every file write and every command">Ask</button>
-          <button data-v="sandbox" title="Studio plus your workspace folder. Deletes ask.">Sandbox</button>
-          <button data-v="full" title="Any file on this PC and commands anywhere. Deletes ask.">Full PC</button>
-        </div>
-        <div class="mtoggles">
-          <button class="mtog" id="btn-think" title="Reasoning models think before they answer. Open their thoughts in the chat.">
-            <svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>Thinking<i></i></button>
-          <button class="mtog" id="btn-selfcheck" title="After building, the AI reviews its own work and fixes what it finds">
-            <svg viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/></svg>Self-check<i></i></button>
-          <button class="mtog" id="btn-plan" title="The AI looks around and writes a plan first. Nothing changes until you press Build it.">
-            <svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>Plan first<i></i></button>
-          <button class="mtog" id="btn-memory" title="Project memory: the AI keeps notes about this game in ServerStorage.VoidScript.Memory, shared with the browser extension, so it remembers what was done last time">
-            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/></svg>Memory<i></i></button>
-        </div>
-      </div>
-      <div class="attach-row" id="attach-row" hidden></div>
-      <div class="composer">
-        <button class="btn icon" id="btn-attach" title="Attach reference files (or drop them on the window)" aria-label="Attach reference files">
-          <svg viewBox="0 0 24 24"><path d="M21 11.5 12.3 20.2a5.5 5.5 0 0 1-7.8-7.8l9.2-9.2a3.7 3.7 0 0 1 5.2 5.2l-9.2 9.2a1.8 1.8 0 0 1-2.6-2.6l8.5-8.5"/></svg>
-        </button>
-        <textarea id="chat-input" rows="1" placeholder="Ask VoidScript to build something…"></textarea>
-        <button class="btn icon enh" id="btn-enhance-chat" title="Prompt Enhancer: make what you typed clearer for the AI (same request, just better). Ctrl+Z undoes it." aria-label="Enhance prompt"><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg></button>
-        <button class="btn primary" id="btn-send">Send</button>
-        <button class="btn danger" id="btn-stop-chat" hidden>Stop</button>
       </div>
     </section>
 
@@ -235,7 +307,8 @@
               </div>
             </div>
             <div class="row">
-              <button class="btn primary grow" id="btn-mg-go">Generate</button>
+              <button class="btn sm" id="btn-mg-dice" title="Surprise me: a random idea">Surprise me</button>
+              <button class="btn primary grow" id="btn-mg-go">Generate <kbd class="kb-in">Ctrl ↵</kbd></button>
               <button class="btn" id="btn-mg-stop" hidden>Stop</button>
             </div>
             <div class="mg-ideas" id="mg-ideas">
@@ -256,17 +329,19 @@
             <div class="mg-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
           </div>
           <div class="mg-tools">
-            <button class="btn sm" id="btn-mg-txt" disabled>Save .txt</button>
-            <button class="btn sm" id="btn-mg-copy" disabled>Copy script</button>
             <button class="btn sm primary" id="btn-mg-insert" disabled>Insert into Studio</button>
-            <button class="btn sm" id="btn-mg-save" disabled>Save</button>
-            <button class="btn sm" id="btn-mg-rbxmx" disabled title="A Roblox model file - drag it into Studio, no bridge needed">Export .rbxmx</button>
-            <button class="btn sm" id="btn-mg-png" disabled title="Save the preview as a picture">Picture</button>
-            <button class="btn sm" id="btn-mg-undo" disabled>Undo</button>
             <label class="chk small" title="One rigid, unanchored model - for vehicles, tools and props that move"><input type="checkbox" id="mg-welded" /> Welded</label>
+            <span class="vsep"></span>
+            <button class="ibtn" id="btn-mg-save" disabled title="Save to your list"><svg viewBox="0 0 24 24"><path d="M6 3.5h9.5L20 8v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M8 3.5V8h7M8 20.5v-6h8v6"/></svg></button>
+            <button class="ibtn" id="btn-mg-copy" disabled title="Copy the build script"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+            <button class="ibtn" id="btn-mg-txt" disabled title="Save the script as a file"><svg viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5M9 13h6M9 16.5h4"/></svg></button>
+            <button class="ibtn" id="btn-mg-rbxmx" disabled title="Export .rbxmx - drag it into Studio, no bridge needed"><svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M12 12v9.5M12 12l8.5-4.8M12 12 3.5 7.2"/><path d="m16 14 2 1.2"/></svg></button>
+            <button class="ibtn" id="btn-mg-png" disabled title="Save the preview as a picture"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="m21 15.5-5-5L5 20.5"/></svg></button>
+            <button class="ibtn" id="btn-mg-undo" disabled title="Undo the last change to this model"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
             <span class="grow"></span>
-            <button class="btn sm rate" id="btn-mg-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="btn sm rate" id="btn-mg-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
-            <button class="btn sm" id="btn-mg-reset" disabled>Reset view</button>
+            <button class="ibtn" id="btn-mg-spin" title="Turntable: slowly rotate the preview"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 9 9"/><path d="M21 12a9 9 0 1 1-9-9"/><path d="M17.5 3.5 21 3v3.5"/></svg></button>
+            <button class="ibtn rate" id="btn-mg-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="ibtn rate" id="btn-mg-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
+            <button class="ibtn" id="btn-mg-reset" disabled title="Reset the camera"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3.5V8h4.5"/><circle cx="12" cy="12" r="2"/></svg></button>
           </div>
           <div class="mg-stage">
             <div class="mg-view" id="mg-view"></div>
@@ -326,7 +401,8 @@
               </div>
             </div>
             <div class="row">
-              <button class="btn primary grow" id="btn-ub-go">Generate</button>
+              <button class="btn sm" id="btn-ub-dice" title="Surprise me: a random idea">Surprise me</button>
+              <button class="btn primary grow" id="btn-ub-go">Generate <kbd class="kb-in">Ctrl ↵</kbd></button>
               <button class="btn" id="btn-ub-stop" hidden>Stop</button>
             </div>
             <div class="mg-ideas" id="ub-ideas">
@@ -347,13 +423,14 @@
             <div class="mg-tabs" id="ub-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
           </div>
           <div class="mg-tools">
-            <button class="btn sm" id="btn-ub-txt" disabled>Save .txt</button>
-            <button class="btn sm" id="btn-ub-copy" disabled>Copy script</button>
             <button class="btn sm primary" id="btn-ub-insert" disabled>Insert into Studio</button>
-            <button class="btn sm" id="btn-ub-save" disabled>Save</button>
             <label class="chk small" title="Buttons grow on hover and squish on click, panels pop in"><input type="checkbox" id="ub-anim" checked /> Animations</label>
+            <span class="vsep"></span>
+            <button class="ibtn" id="btn-ub-save" disabled title="Save to your list"><svg viewBox="0 0 24 24"><path d="M6 3.5h9.5L20 8v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M8 3.5V8h7M8 20.5v-6h8v6"/></svg></button>
+            <button class="ibtn" id="btn-ub-copy" disabled title="Copy the build script"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+            <button class="ibtn" id="btn-ub-txt" disabled title="Save the script as a file"><svg viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5M9 13h6M9 16.5h4"/></svg></button>
             <span class="grow"></span>
-            <button class="btn sm rate" id="btn-ub-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="btn sm rate" id="btn-ub-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
+            <button class="ibtn rate" id="btn-ub-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="ibtn rate" id="btn-ub-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
           </div>
           <div class="mg-stage ub-stage">
             <div class="ub-view" id="ub-view"></div>
@@ -377,35 +454,52 @@
     <!-- ── TOOLKIT ───────────────────────────────────────────────────────── -->
     <section class="view" id="view-kit">
       <div class="view-h">
-        <div><h2>Toolkit</h2><p class="muted">Start a game in one click, run quick jobs on your scripts, and keep your place healthy.</p></div>
+        <div><h2>Toolkit</h2><p class="muted">Start a game in one click, drop in ready-made systems, and keep your place healthy.</p></div>
         <button class="btn sm" id="btn-undo-studio" title="Undo the last change made in Studio">Undo last Studio change</button>
       </div>
-      <div class="card">
-        <div class="card-t">Game templates <span class="tag">the AI builds it in Studio</span></div>
-        <div class="kit-grid" id="kit-templates"></div>
+      <div class="tabs" id="kit-tabs">
+        <button data-k="start" class="on">Templates</button><button data-k="lib">Script library</button><button data-k="world">World</button><button data-k="care">Place care</button>
       </div>
-      <div class="card">
-        <div class="card-t">Script tools <span class="tag">works on your open place</span></div>
-        <div class="kit-grid" id="kit-tools"></div>
-      </div>
-      <div class="grid2">
+      <div class="kit-pane" data-k="start">
         <div class="card">
-          <div class="card-t">Lighting <span class="tag">one click, Ctrl+Z to undo</span></div>
-          <div class="kit-grid kit-small" id="kit-lighting"></div>
+          <div class="card-t">Game templates <span class="tag">the AI builds it in Studio</span></div>
+          <div class="kit-grid" id="kit-templates"></div>
         </div>
         <div class="card">
-          <div class="card-t">Terrain generator</div>
-          <div class="kit-grid kit-small" id="kit-terrain"></div>
-          <div class="row kit-row">
-            <div class="seg" id="ter-size"><button data-v="small">Small</button><button data-v="medium" class="on">Medium</button><button data-v="large">Large</button></div>
-            <input class="input" id="ter-seed" type="number" value="1" title="Seed - same seed, same terrain" style="width:90px" />
-            <button class="btn sm ghost" id="btn-ter-dice" title="Random seed">🎲</button>
-            <label class="check"><input type="checkbox" id="ter-replace" /> Replace existing terrain</label>
+          <div class="card-t">Script tools <span class="tag">works on your open place</span></div>
+          <div class="kit-grid" id="kit-tools"></div>
+        </div>
+      </div>
+      <div class="kit-pane" data-k="lib" hidden>
+        <div class="lib">
+          <div class="card">
+            <div class="card-t">Ready-made systems <span class="tag">no AI needed · Ctrl+Z undoes</span></div>
+            <p class="muted small-p">Each one goes in as a real script. Parts opt in by name (or a CollectionService tag): name a part <code>KillBrick</code>, <code>Coin</code>, <code>JumpPad</code>…</p>
+            <div class="kit-grid kit-small" id="kit-lib"></div>
           </div>
-          <button class="btn primary" id="btn-ter-go">Generate terrain</button>
+          <div class="card lib-detail" id="lib-detail">
+            <div class="lib-empty muted">Pick a system to see its code.</div>
+          </div>
         </div>
       </div>
-      <div class="grid2">
+      <div class="kit-pane" data-k="world" hidden>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-t">Lighting <span class="tag">one click, Ctrl+Z to undo</span></div>
+            <div class="kit-grid kit-small" id="kit-lighting"></div>
+          </div>
+          <div class="card">
+            <div class="card-t">Terrain generator</div>
+            <div class="kit-grid kit-small" id="kit-terrain"></div>
+            <div class="row kit-row">
+              <div class="seg" id="ter-size"><button data-v="small">Small</button><button data-v="medium" class="on">Medium</button><button data-v="large">Large</button></div>
+              <input class="input" id="ter-seed" type="number" value="1" title="Seed - same seed, same terrain" style="width:90px" />
+              <button class="btn sm" id="btn-ter-dice" title="Random seed"><svg class="bi" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="17" height="17" rx="3.5"/><circle cx="8.5" cy="8.5" r="1.2"/><circle cx="15.5" cy="15.5" r="1.2"/><circle cx="12" cy="12" r="1.2"/></svg></button>
+              <label class="check"><input type="checkbox" id="ter-replace" /> Replace existing terrain</label>
+            </div>
+            <button class="btn primary" id="btn-ter-go">Generate terrain</button>
+          </div>
+        </div>
         <div class="card">
           <div class="card-t">Asset finder <span class="tag">free Creator Store</span></div>
           <div class="row kit-row">
@@ -415,9 +509,22 @@
           </div>
           <div class="kit-assets" id="as-out"><p class="muted small-p">Results insert straight into Studio's Workspace.</p></div>
         </div>
+      </div>
+      <div class="kit-pane" data-k="care" hidden>
+        <div class="grid2">
+          <div class="card">
+            <div class="card-t">Health check <button class="btn sm" id="btn-health" style="margin-left:auto">Run check</button></div>
+            <div id="health-out"><p class="muted small-p">Scans every script and part for backdoors in free models, loose parts, lag sources and outdated code. Read-only - nothing is changed.</p></div>
+          </div>
+          <div class="card">
+            <div class="card-t">Backups <button class="btn sm" id="btn-backup" style="margin-left:auto">Back up now</button></div>
+            <p class="muted small-p">Copies of your saved place file. Restoring replaces the file on disk - close and reopen the place in Studio afterwards.</p>
+            <div class="kit-backups" id="kit-backups"></div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-t">Luau console
-            <span class="row" style="margin-left:auto"><button class="btn sm" id="btn-play">▶ Play</button><button class="btn sm" id="btn-stopplay">■ Stop</button></span></div>
+            <span class="row" style="margin-left:auto"><button class="btn sm" id="btn-play">Play</button><button class="btn sm" id="btn-stopplay">Stop</button></span></div>
           <textarea class="input kit-code" id="lc-code" rows="6" spellcheck="false" placeholder='return #workspace:GetDescendants() .. " objects"'></textarea>
           <div class="row kit-row">
             <select class="input" id="lc-dm"><option>Edit</option><option>Server</option><option>Client</option></select>
@@ -426,15 +533,53 @@
           <pre class="kit-out" id="lc-out" hidden></pre>
         </div>
       </div>
-      <div class="grid2">
-        <div class="card">
-          <div class="card-t">Health check <button class="btn sm" id="btn-health" style="margin-left:auto">Run check</button></div>
-          <div id="health-out"><p class="muted small-p">Scans every script and part for backdoors in free models, loose parts, lag sources and outdated code. Read-only - nothing is changed.</p></div>
+    </section>
+
+    <!-- ── EXPLORER: the game tree, live from Studio ────────────────────────── -->
+    <section class="view" id="view-explorer">
+      <div class="view-h">
+        <div><h2>Explorer</h2><p class="muted">Your game, live from Studio. Inspect anything, read and edit scripts, or hand them to the AI.</p></div>
+        <div class="row"><button class="btn sm" id="btn-ex-refresh">Refresh</button></div>
+      </div>
+      <div class="ex">
+        <div class="ex-tree card">
+          <div class="chats-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="ex-q" placeholder="Find anything by name (Enter)" spellcheck="false" /></div>
+          <div class="ex-list" id="ex-list"><p class="muted small-p">Start the bridge and open Studio to see your game.</p></div>
         </div>
-        <div class="card">
-          <div class="card-t">Backups <button class="btn sm" id="btn-backup" style="margin-left:auto">Back up now</button></div>
-          <p class="muted small-p">Copies of your saved place file. Restoring replaces the file on disk - close and reopen the place in Studio afterwards.</p>
-          <div class="kit-backups" id="kit-backups"></div>
+        <div class="ex-detail card" id="ex-detail">
+          <div class="lib-empty muted">Pick something on the left.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── BROWSER: AI sites with VoidScript built in ─────────────────────── -->
+    <section class="view" id="view-browser">
+      <div class="br-top">
+        <div class="br-tabs" id="br-tabs"></div>
+        <button class="ibtn br-newtab" id="br-new" title="New tab (Ctrl+T)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+      <div class="br-bar">
+        <button class="ibtn" id="br-back" title="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+        <button class="ibtn" id="br-fwd" title="Forward"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+        <button class="ibtn" id="br-reload" title="Reload"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/></svg></button>
+        <div class="br-url"><span class="br-lock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><input id="br-url" placeholder="Pick an AI below, or type an address" spellcheck="false" autocomplete="off" /></div>
+        <div class="br-quick" id="br-quick"></div>
+        <button class="ibtn" id="br-ext" title="Open the address in your normal browser"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg></button>
+      </div>
+      <div class="br-view" id="br-view">
+        <div class="br-start" id="br-start">
+          <h2>Open an AI</h2>
+          <p class="muted">VoidScript is already on every page here. Sign in once and you stay signed in.</p>
+          <div class="br-grid" id="br-grid"></div>
+          <p class="br-note">Google sign-in blocked? Sign in with email instead, or use the AI's own login.</p>
+        </div>
+        <div class="br-loading" id="br-loading" hidden><span class="spin"></span>Opening…</div>
+      </div>
+      <div class="br-soon" id="br-soon">
+        <div class="br-soon-card">
+          <span class="soon-tag">Soon</span>
+          <h2>A browser, built in</h2>
+          <p class="muted">ChatGPT, Gemini and more, right inside VoidScript with the extension already on them. We're making sure it's solid first.</p>
         </div>
       </div>
     </section>
@@ -445,13 +590,14 @@
         <div><h2>Tools</h2><p class="muted" id="tools-sub">Everything the AI can do through the bridge.</p></div>
         <input class="input search" id="tools-search" placeholder="Search tools…" />
       </div>
+      <div class="chips" id="tools-chips"></div>
       <div id="tools-list"></div>
     </section>
 
     <!-- ── MCP SERVERS ───────────────────────────────────────────────────── -->
     <section class="view" id="view-mcp">
       <div class="view-h">
-        <div><h2>MCP servers</h2><p class="muted">Plug extra apps into VoidScript, like Blender. Their tools work in the in-app chat and through the extension. Adding or removing one restarts the bridge.</p></div>
+        <div><h2>MCP servers</h2><p class="muted">Plug extra apps into VoidScript, like Blender or Godot. Their tools work in the in-app chat and through the extension. Adding or removing one restarts the bridge.</p></div>
       </div>
       <div class="card mcp-card">
         <div class="card-t">Catalog <span class="tag">one click</span></div>
@@ -473,15 +619,21 @@
       <div class="view-h">
         <div><h2>Terminal</h2><p class="muted">Live bridge output, plus run any tool by hand.</p></div>
         <div class="row">
-          <label class="check"><input type="checkbox" id="term-follow" checked /> Follow</label>
+          <button class="btn sm" id="btn-term-save">Save log</button>
           <button class="btn sm" id="btn-term-copy">Copy</button>
           <button class="btn sm" id="btn-term-clear">Clear view</button>
           <button class="btn sm" id="btn-open-logs">Log folder</button>
         </div>
       </div>
+      <div class="term-bar">
+        <div class="seg sm" id="term-level"><button data-l="all" class="on">All</button><button data-l="warn">Warnings</button><button data-l="err">Errors</button></div>
+        <div class="chats-search term-q"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="term-q" placeholder="Filter the log" spellcheck="false" /></div>
+        <span class="grow"></span>
+        <label class="check"><input type="checkbox" id="term-follow" checked /> Follow</label>
+      </div>
       <div class="term" id="term"></div>
       <div class="runner">
-        <input class="input" id="run-tool" list="tool-names" placeholder="tool name (e.g. list_roblox_studios)" />
+        <input class="input" id="run-tool" list="tool-names" placeholder="tool name (e.g. get_studio_state)" />
         <datalist id="tool-names"></datalist>
         <input class="input mono" id="run-args" placeholder='arguments JSON, e.g. {}' value="{}" />
         <button class="btn primary sm" id="btn-run-tool">Run</button>
@@ -514,9 +666,16 @@
 
     <!-- ── SETTINGS ──────────────────────────────────────────────────────── -->
     <section class="view" id="view-settings">
-      <div class="view-h"><div><h2>Settings</h2><p class="muted">Saved on this PC only.</p></div></div>
+      <div class="view-h"><div><h2>Settings</h2><p class="muted">Saved on this PC only.</p></div>
+        <button class="btn sm" id="btn-shortcuts">Keyboard shortcuts</button></div>
+      <div class="set-wrap">
+      <nav class="set-nav" id="set-nav">
+        <div class="chats-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="set-q" placeholder="Search settings" spellcheck="false" /></div>
+        <button data-sec="ai" class="on">AI provider</button><button data-sec="look">Appearance</button><button data-sec="ws">Workspace</button><button data-sec="app">App</button><button data-sec="data">Your data</button><button data-sec="about">About</button>
+      </nav>
+      <div class="set-body" id="set-body">
 
-      <div class="card">
+      <div class="card" data-sec="ai">
         <div class="card-t">AI provider</div>
         <p class="muted">Powers the built-in Chat. Keys are stored in VoidScript's settings on this PC and are only ever sent to the provider they belong to.</p>
         <select class="input prov-select" id="prov-select"></select>
@@ -545,11 +704,55 @@
           </div>
           <div class="hint" id="model-hint">Pick a model that supports tool calling.</div>
         </div>
+        <div class="field">
+          <label>Custom instructions <span class="muted">(every chat follows these)</span></label>
+          <textarea class="input" id="set-instr" rows="3" placeholder="e.g. I'm making a horror game. Use task.wait, keep scripts in ServerScriptService, comment the tricky parts."></textarea>
+        </div>
+        <label class="switch-row"><span>Let models that can see pictures look at Studio screenshots<em class="hint">Gemini, GPT-4o/4.1, Claude, Llama 4, Qwen-VL and other vision models</em></span><span class="switch"><input type="checkbox" id="set-vision" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Never run out: when a provider hits its limit, use the next one I have a key for<em class="hint" id="nro-list"></em></span><span class="switch"><input type="checkbox" id="set-nro" /><span class="track"></span></span></label>
       </div>
 
-      <div class="card">
+      <div class="card" data-sec="look">
+        <div class="card-t">Appearance</div>
+        <div class="field">
+          <label>Accent</label>
+          <div class="swatches" id="accent-row">
+            <button data-acc="ember" title="Ember" style="--sw:#ff7a3d"></button>
+            <button data-acc="ocean" title="Ocean" style="--sw:#4c8dff"></button>
+            <button data-acc="violet" title="Violet" style="--sw:#8b6cff"></button>
+            <button data-acc="mint" title="Mint" style="--sw:#2fc58b"></button>
+            <button data-acc="rose" title="Rose" style="--sw:#f2557a"></button>
+            <button data-acc="mono" title="Mono" style="--sw:#d9d9de"></button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Corners <span class="muted" id="radius-val"></span></label>
+          <div class="row"><span class="hint">Sharp</span><input type="range" id="set-radius" min="0" max="24" step="1" class="grow" /><span class="hint">Round</span><button class="btn sm ghost" id="btn-radius-reset">Reset</button></div>
+        </div>
+        <div class="field">
+          <label>Theme</label>
+          <div class="seg" id="theme-seg">
+            <button data-theme="void">VoidScript</button>
+            <button data-theme="or">OR</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Density</label>
+          <div class="seg" id="density-seg"><button data-d="cozy">Comfortable</button><button data-d="compact">Compact</button></div>
+        </div>
+        <div class="field">
+          <label>Interface zoom <span class="muted" id="zoom-val"></span></label>
+          <div class="seg" id="zoom-seg"><button data-z="0.9">90%</button><button data-z="1">100%</button><button data-z="1.1">110%</button><button data-z="1.25">125%</button></div>
+        </div>
+        <div class="field">
+          <label>Chat text</label>
+          <div class="seg" id="fs-seg"><button data-fs="13">Small</button><button data-fs="14">Medium</button><button data-fs="15.5">Large</button></div>
+        </div>
+      </div>
+
+      <div class="card" data-sec="ws">
         <div class="card-t">Workspace access <span class="chip">off by default</span></div>
-        <p class="muted">Lets the built-in Chat read and write files and run commands — <b>only inside one folder you choose</b> (for example your Roblox project or Rojo folder). Paths outside it are blocked. How much it asks first depends on <b>Access</b> above the chat box: <b>Ask</b> approves every write and command, <b>Sandbox</b> only asks before deleting, and <b>Full PC</b> lifts the folder limit (deletes still ask).</p>
+        <p class="muted">Lets the built-in Chat read and write files and run commands — <b>only inside one folder you choose</b> (for example your Roblox project or Rojo folder). Paths outside it are blocked. How much it asks first depends on <b>Access</b> in the chat's mode menu: <b>Ask</b> approves every write and command, <b>Sandbox</b> only asks before deleting, and <b>Full PC</b> lifts the folder limit (deletes still ask).</p>
         <label class="switch-row"><span>Allow workspace access</span><span class="switch"><input type="checkbox" id="set-ws-on" /><span class="track"></span></span></label>
         <div class="field">
           <label>Workspace folder</label>
@@ -561,15 +764,8 @@
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" data-sec="app">
         <div class="card-t">App</div>
-        <div class="field">
-          <label>Theme</label>
-          <div class="seg" id="theme-seg">
-            <button data-theme="void">VoidScript</button>
-            <button data-theme="or">OR</button>
-          </div>
-        </div>
         <label class="switch-row"><span>Sound effects (ready, done, errors, needs you)</span><span class="switch"><input type="checkbox" id="set-sounds" /><span class="track"></span></span></label>
         <div class="field" id="sounds-vol-row">
           <label>Sound volume</label>
@@ -581,11 +777,24 @@
         </div>
         <label class="switch-row"><span>Start the bridge when VoidScript opens</span><span class="switch"><input type="checkbox" id="set-autostart" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Closing the window keeps VoidScript running in the tray</span><span class="switch"><input type="checkbox" id="set-tray" /><span class="track"></span></span></label>
-        <label class="switch-row"><span>🎃 SpookyScript every October - Halloween look, logos and music</span><span class="switch"><input type="checkbox" id="set-halloween" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>SpookyScript every October - Halloween look, logos and music</span><span class="switch"><input type="checkbox" id="set-halloween" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Show what I'm doing on Discord ("In Roblox Studio", "Prompting the AI"…)</span><span class="switch"><input type="checkbox" id="set-discord" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Flash the taskbar when a long reply finishes in the background</span><span class="switch"><input type="checkbox" id="set-attn" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Watch Studio's Output and tell me about new errors<em class="hint">checks every 30 seconds while Studio is connected</em></span><span class="switch"><input type="checkbox" id="set-watch" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Back up my place every 15 minutes<em class="hint">only when it's saved to a file - Toolkit, Place care to restore</em></span><span class="switch"><input type="checkbox" id="set-autobk" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Keep what I'm typing in each chat as a draft</span><span class="switch"><input type="checkbox" id="set-drafts" /><span class="track"></span></span></label>
       </div>
 
-      <div class="card">
+      <div class="card" data-sec="data">
+        <div class="card-t">Your data</div>
+        <p class="muted">Chats, saved models and UIs, saved prompts and what the generators learned live on this PC.</p>
+        <div class="row">
+          <button class="btn sm" id="btn-data-export">Export everything</button>
+          <button class="btn sm ghost" id="btn-chats-wipe">Delete all chats</button>
+        </div>
+      </div>
+
+      <div class="card" data-sec="about">
         <div class="card-t">About</div>
         <p class="muted">VoidScript <span id="about-ver"></span> · free &amp; open-source (GPL-3.0) · not affiliated with Roblox Corporation.</p>
         <div class="row">
@@ -594,11 +803,15 @@
           <button class="btn sm ghost" data-url="https://github.com/cjl26rg2/Void-Script">GitHub</button>
           <button class="btn sm ghost" data-url="https://discord.gg/EyGxnp2jaw">Discord</button>
           <button class="btn sm ghost" id="btn-quit">Quit VoidScript</button>
+          <button class="btn sm ghost" id="btn-whatsnew">What's new</button>
         </div>
+      </div>
+      </div>
       </div>
     </section>
   </main>
 </div>
+<div class="tip" id="tip" hidden></div>
 
 <!-- ── modals ──────────────────────────────────────────────────────────────── -->
 <div class="modal-wrap" id="disclaimer" hidden>
@@ -631,6 +844,32 @@
   </div>
 </div>
 
+<!-- command palette -->
+<div class="pal-wrap" id="palette" hidden>
+  <div class="pal">
+    <div class="pal-in"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="pal-q" placeholder="Search pages, actions, templates, systems and chats…" spellcheck="false" autocomplete="off" /><kbd>Esc</kbd></div>
+    <div class="pal-list" id="pal-list"></div>
+    <div class="pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span></div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="whatsnew" hidden>
+  <div class="modal wide">
+    <span class="soon-tag">VoidScript 7.0</span>
+    <h2>A whole new VoidScript</h2>
+    <div class="wn" id="wn-list"></div>
+    <div class="row end"><button class="btn primary" id="btn-wn-close">Let's build</button></div>
+  </div>
+</div>
+
+<div class="modal-wrap" id="shortcuts" hidden>
+  <div class="modal">
+    <h2>Keyboard shortcuts</h2>
+    <div class="keys" id="keys-list"></div>
+    <div class="row end"><button class="btn" id="btn-keys-close">Close</button></div>
+  </div>
+</div>
+
 <div id="drop-hint" hidden><div class="drop-box">Drop files to attach them to your message</div></div>
 <div id="toast" hidden></div>
 
@@ -654,5 +893,8 @@
 <script src="toolkit.js"></script>
 <script src="spooky.js"></script>
 <script src="app.js"></script>
+<script src="features.js"></script>
+<script src="explorer.js"></script>
+<script src="browser.js"></script>
 </body>
 </html>

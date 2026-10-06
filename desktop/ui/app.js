@@ -10,6 +10,32 @@ const listen = TAURI.event.listen;
 const appWin = TAURI.window.getCurrentWindow();
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// Small line icons used across the app (24px grid, stroked with currentColor).
+const svgI = (d) => `<svg viewBox="0 0 24 24">${d}</svg>`;
+const ICONS = {
+  copy: svgI('<rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'),
+  play: svgI('<path d="M7 4.5v15l12-7.5z"/>'),
+  retry: svgI('<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/>'),
+  edit: svgI('<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>'),
+  trash: svgI('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/>'),
+  pin: svgI('<path d="M9 4h6l-1 6 4 4H6l4-4zM12 14v6"/>'),
+  star: svgI('<path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z"/>'),
+  agent: svgI('<rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3.5V7M9.5 12v1.5M14.5 12v1.5"/>'),
+  x: svgI('<path d="M6 6l12 12M18 6 6 18"/>'),
+  chat: svgI('<path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 20.5 12z"/>'),
+  bolt: svgI('<path d="M13.5 2 4.5 13.5H11L10 22l9-11.5h-6.5z"/>'),
+  go: svgI('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+  gear: svgI('<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>'),
+  code: svgI('<path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/>'),
+  sun: svgI('<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>'),
+  speak: svgI('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'),
+  mem: svgI('<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>'),
+  fork: svgI('<circle cx="6" cy="5" r="2"/><circle cx="6" cy="19" r="2"/><circle cx="18" cy="8" r="2"/><path d="M6 7v10M18 10c0 4-6 3-11.5 7"/>'),
+  find: svgI('<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>'),
+  camera: svgI('<path d="M4 8a2 2 0 0 1 2-2h1.5l1.5-2h6l1.5 2H18a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><circle cx="12" cy="12.5" r="3.5"/>'),
+  script: svgI('<path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5M9.5 13l-2 2 2 2M14.5 13l2 2-2 2"/>'),
+  mountain: svgI('<path d="M2.5 20 9 8.5l4 6.5 2.7-4L21.5 20z"/>'),
+};
 const DEFAULTS = { nvidia: "deepseek-ai/deepseek-v4.1-flash", openrouter: "openai/gpt-4o-mini", google: "gemini-2.5-flash" };
 // NVIDIA retires models without notice (Llama 3.3 70B went in 2026). If the chosen
 // one is gone, the chat switches to the first of these that is still listed.
@@ -91,6 +117,8 @@ function toast(msg, ms = 2600) {
 const fmtTime = (ms) => { const d = new Date(ms); return [d.getHours(), d.getMinutes(), d.getSeconds()].map((n) => String(n).padStart(2, "0")).join(":"); };
 const cap = (s, n = TOOL_RESULT_CAP) => (s.length > n ? s.slice(0, n) + "\n…(truncated)" : s);
 const errText = (e) => (e && e.message) || String(e);
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 
 // ── window chrome + navigation ─────────────────────────────────────────────
 $("win-min").onclick = () => appWin.minimize();
@@ -104,7 +132,6 @@ function go(view) {
   if (view === "chat") $("chat-input").focus();
   if (view === "mcp") loadMcp();
   if (view === "models") mgView();
-  if (view === "kit") loadBackups();
 }
 document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => go(b.dataset.view)));
 $("btn-go-chat").onclick = () => go("chat");
@@ -792,6 +819,7 @@ const mgJob = (total) => ({
 });
 // After a run: show the result, or put the previous model back in the preview.
 function mgFinish(job, spec, badge) {
+  if (spec) bumpStat("models");
   if (!spec) { if (mg.spec) { const v = mgView(); if (v) v.show(mg.spec); } return false; }
   VSModel.ground(spec);
   mgShow(spec, job.note ? "Partial" : badge);
@@ -1030,6 +1058,7 @@ const ubJob = (total) => ({
   preview(sp) { ubDraw(sp); $("ub-busy").classList.add("live"); },
 });
 function ubFinish(job, spec, badge) {
+  if (spec) bumpStat("uis");
   if (!spec) { if (ub.spec) ubDraw(ub.spec); else $("ub-view").innerHTML = ""; return false; }
   ubShow(spec, job.note ? "Partial" : badge);
   if (job.note) toast(`${job.note} - kept the ${spec.elements.length} elements it finished. Revise to keep going.`, 6000);
@@ -1237,7 +1266,39 @@ $("lc-code").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ct
 $("btn-play").onclick = () => callTool("start_stop_play", { is_start: true }).then(() => toast("Playing in Studio.")).catch((e) => toast(errText(e), 4000));
 $("btn-stopplay").onclick = () => callTool("start_stop_play", { is_start: false }).then(() => toast("Stopped.")).catch((e) => toast(errText(e), 4000));
 
-$("btn-undo-studio").onclick = () => runLuau('game:GetService("ChangeHistoryService"):Undo() return "ok"', "Undid the last Studio change.", $("btn-undo-studio"));
+const undoStudio = (btn) => runLuau('game:GetService("ChangeHistoryService"):Undo() return "ok"', "Undid the last Studio change.", btn);
+$("btn-undo-studio").onclick = () => undoStudio($("btn-undo-studio"));
+// The same Studio controls sit in the chat header.
+$("btn-chat-play").onclick = () => $("btn-play").click();
+$("btn-chat-stopplay").onclick = () => $("btn-stopplay").click();
+$("btn-chat-undo").onclick = () => undoStudio(null);
+
+// Toolkit tabs.
+function kitTab(k) {
+  $("kit-tabs").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.k === k));
+  document.querySelectorAll("#view-kit .kit-pane").forEach((p) => { p.hidden = p.dataset.k !== k; });
+  if (k === "care") loadBackups();
+}
+$("kit-tabs").addEventListener("click", (e) => { const b = e.target.closest("button[data-k]"); if (b) kitTab(b.dataset.k); });
+
+// Script library: ready-made systems, inserted as real scripts without the AI.
+$("kit-lib").innerHTML = VSKit.SNIPPETS.map((s) => `<button class="kit-card" data-s="${s.id}"><span class="ki">${s.icon}</span><b>${esc(s.name)}</b><span>${esc(s.desc)}</span></button>`).join("");
+function showSnippet(id) {
+  const s = VSKit.SNIPPETS.find((x) => x.id === id);
+  if (!s) return;
+  $("kit-lib").querySelectorAll(".kit-card").forEach((b) => b.classList.toggle("on", b.dataset.s === id));
+  $("lib-detail").innerHTML = `
+    <div class="lib-head"><span class="ki">${s.icon}</span><div><b>${esc(s.name)}</b><span>${esc(s.kind)} in ${esc(s.where)}</span></div></div>
+    <p class="muted small-p">${esc(s.desc[0].toUpperCase() + s.desc.slice(1))}.</p>
+    <div class="row"><button class="btn sm primary" id="btn-lib-add">Add to Studio</button><button class="btn sm" id="btn-lib-ai">Customise with AI</button></div>
+    ${md("```lua\n" + s.code + "\n```")}`;
+  $("btn-lib-add").onclick = async () => {
+    const out = await runLuau(VSKit.snippetLuau(s), "", $("btn-lib-add"));
+    if (out != null) { toast(out || `${s.name} added.`, 3500); sfx("done"); bumpStat("systems"); }
+  };
+  $("btn-lib-ai").onclick = () => runBrief({ name: s.name, brief: `Add this ${s.kind} to ${s.where} as "VS_${s.name.replace(/[^A-Za-z0-9]+/g, "")}", adapted to my game (look at what already exists first, and tell me what you changed):\n\n\`\`\`lua\n${s.code}\n\`\`\`` });
+}
+$("kit-lib").addEventListener("click", (e) => { const b = e.target.closest("[data-s]"); if (b) showSnippet(b.dataset.s); });
 
 // ── bridge controls ─────────────────────────────────────────────────────────
 $("btn-bridge-toggle").onclick = async () => {
@@ -1718,8 +1779,11 @@ function systemPrompt(opts = {}) {
   else if (ws) lines.push("", `You also have workspace_* tools for files in the user's chosen folder (${s.workspace_dir}). Paths are relative to that folder and you cannot leave it.${access() === "ask" ? " The user approves every write, delete and command, so say briefly why before each one." : " Deletes need the user's approval."}`);
   if (mode.memory && st.connected) lines.push(...memoryLines());
   lines.push("", effort().line);
+  if (mode.agent && !opts.plan) lines.push("", "AGENT MODE: work through the whole request on your own - break it into steps, build every part, and don't stop to ask unless something is truly ambiguous. After you finish, VoidScript playtests the game and sends you any new errors from the Output to fix.");
   if (opts.plan) lines.push("", "PLAN MODE: you only have read-only tools right now. Look at what exists if it helps, then reply with a short numbered plan (what you will add or change, and where) and stop. Do not write code yet - the user will approve the plan first.");
   else if (access() === "ask") lines.push("", "ACCESS: the user approves every change in Studio and every file write and command. If they deny one, don't retry it - ask what they want.");
+  const instr = (lsGet("vs-instr") || "").trim();
+  if (instr) lines.push("", "The user's standing instructions (follow them unless the current request says otherwise):", instr.slice(0, 3000));
   if (s.reply_language) lines.push("", `Write every message to the user in ${s.reply_language}. Keep tool names, arguments, file paths and code exactly as required (do not translate them).`);
   return lines.join("\n");
 }
@@ -1765,23 +1829,113 @@ function toolDefs(readOnly) {
   return { defs, map };
 }
 
+// ── Markdown + code highlighting for replies ────────────────────────────────
+const KW = {
+  lua: "and|break|do|else|elseif|end|false|for|function|if|in|local|nil|not|or|repeat|return|then|true|until|while|continue|export|type",
+  c: "const|let|var|function|return|if|else|for|while|do|switch|case|break|continue|new|class|extends|import|from|export|default|async|await|try|catch|finally|throw|typeof|instanceof|true|false|null|undefined|this|def|elif|pass|lambda|None|True|False|and|or|not|in|is|with|as|yield|fn|pub|use|mut|impl|struct|enum|match|self",
+};
+const LUA_GLOBALS = "game|workspace|script|plugin|Instance|Vector3|Vector2|CFrame|Color3|UDim2|UDim|Enum|task|math|string|table|print|warn|error|pairs|ipairs|require|typeof|tostring|tonumber|TweenInfo|BrickColor|NumberSequence|ColorSequence|RaycastParams|OverlapParams|os|coroutine|buffer|utf8|bit32";
+function hl(code, lang) {
+  const lua = !lang || /^(lua|luau|rbx|roblox)$/i.test(lang);
+  if (/^(text|txt|plain|output|log)$/i.test(lang)) return esc(code);
+  const re = lua
+    ? new RegExp(String.raw`(--\[(=*)\[[\s\S]*?\]\2\]|--[^\n]*)|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|\x60(?:\\.|[^\x60\\])*\x60|\[(=*)\[[\s\S]*?\]\4\])|\b(0x[\da-fA-F_]+|\d[\d_]*(?:\.\d+)?(?:e[+-]?\d+)?)\b|\b(${KW.lua})\b|\b(${LUA_GLOBALS})\b|([A-Za-z_]\w*)(?=\s*[({"'])`, "g")
+    : new RegExp(String.raw`(\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*)()|("(?:\\.|[^"\\\n])*"|'(?:\\.|[^'\\\n])*'|\x60(?:\\.|[^\x60\\])*\x60)()|\b(\d[\d_]*(?:\.\d+)?)\b|\b(${KW.c})\b|()(?!)|([A-Za-z_]\w*)(?=\s*\()`, "g");
+  let out = "", last = 0, m;
+  while ((m = re.exec(code))) {
+    out += esc(code.slice(last, m.index));
+    const cls = m[1] ? "c" : m[3] ? "s" : m[5] ? "n" : m[6] ? "k" : m[7] ? "g" : "f";
+    out += `<span class="t-${cls}">${esc(m[0])}</span>`;
+    last = re.lastIndex;
+    if (!m[0]) re.lastIndex++;
+  }
+  return out + esc(code.slice(last));
+}
+function inlineMd(s) {
+  return esc(s)
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s).,!?:;]|$)/g, "$1<i>$2</i>")
+    .replace(/\[([^\]\n]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="#" data-url="$2">$1</a>');
+}
+function blocksMd(text) {
+  const out = [];
+  let list = null, para = [];
+  const flushPara = () => { if (para.length) { out.push(`<p>${para.map(inlineMd).join("<br>")}</p>`); para = []; } };
+  const flushList = () => { if (list) { out.push(`<${list.tag}>${list.items.map((x) => `<li>${inlineMd(x)}</li>`).join("")}</${list.tag}>`); list = null; } };
+  for (const raw of text.split("\n")) {
+    const line = raw.replace(/\s+$/, "");
+    let m;
+    if (!line.trim()) { flushPara(); flushList(); continue; }
+    if ((m = line.match(/^(#{1,4})\s+(.*)$/))) { flushPara(); flushList(); out.push(`<h${Math.min(6, m[1].length + 2)} class="md-h">${inlineMd(m[2])}</h${Math.min(6, m[1].length + 2)}>`); continue; }
+    if ((m = line.match(/^\s*(?:[-*•]|(\d+)[.)])\s+(.*)$/))) {
+      flushPara();
+      const tag = m[1] ? "ol" : "ul";
+      if (!list || list.tag !== tag) { flushList(); list = { tag, items: [] }; }
+      list.items.push(m[2]);
+      continue;
+    }
+    if ((m = line.match(/^>\s?(.*)$/))) { flushPara(); flushList(); out.push(`<blockquote>${inlineMd(m[1])}</blockquote>`); continue; }
+    if (/^(-{3,}|\*{3,})$/.test(line.trim())) { flushPara(); flushList(); out.push("<hr>"); continue; }
+    if (list && /^\s{2,}\S/.test(raw)) { list.items[list.items.length - 1] += " " + line.trim(); continue; }
+    flushList();
+    para.push(line);
+  }
+  flushPara(); flushList();
+  return out.join("");
+}
+const RUNNABLE = /^(lua|luau|)$/i;
 function md(s) {
-  return String(s).split("```").map((part, i) => {
+  return '<div class="md">' + String(s).split("```").map((part, i) => {
     if (i % 2) {
       const nl = part.indexOf("\n");
-      const code = nl >= 0 && /^[\w+#.-]*$/.test(part.slice(0, nl).trim()) ? part.slice(nl + 1) : part;
-      return `<pre><code>${esc(code.replace(/\n$/, ""))}</code></pre>`;
+      const head = nl >= 0 ? part.slice(0, nl).trim() : "";
+      const lang = /^[\w+#.-]*$/.test(head) ? head : "";
+      const code = (nl >= 0 && lang === head ? part.slice(nl + 1) : part).replace(/\n$/, "");
+      return `<div class="code"><div class="code-h"><span>${esc(lang || "code")}</span>` +
+        `<button class="cb" data-cb="copy">${ICONS.copy}Copy</button>` +
+        (RUNNABLE.test(lang) ? `<button class="cb" data-cb="script">${ICONS.script}Add as script</button><button class="cb" data-cb="run">${ICONS.play}Run in Studio</button>` : "") +
+        `</div><pre><code>${hl(code, lang)}</code></pre></div>`;
     }
-    return esc(part).replace(/`([^`\n]+)`/g, "<code>$1</code>").replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>");
-  }).join("");
+    return blocksMd(part);
+  }).join("") + "</div>";
 }
+// Code block buttons (all replies share one listener).
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest(".code .cb");
+  if (!b) return;
+  const code = b.closest(".code").querySelector("pre").textContent;
+  if (b.dataset.cb === "copy") {
+    try { await navigator.clipboard.writeText(code); b.classList.add("done"); setTimeout(() => b.classList.remove("done"), 1400); } catch { toast("Couldn't copy."); }
+  } else if (b.dataset.cb === "script") {
+    // Client code goes to StarterPlayerScripts, modules to ReplicatedStorage, the rest to ServerScriptService.
+    const client = /LocalPlayer|UserInputService|PlayerGui|CurrentCamera|RenderStepped/.test(code);
+    const last = code.split("\n").filter((l) => l.trim()).slice(-1)[0] || "";
+    const module = /^\s*return\s+[\w{]/.test(last) && !/^\s*return\s+"/.test(last);
+    const n = (Number(lsGet("vs-script-n")) || 0) + 1;
+    lsSet("vs-script-n", String(n));
+    const sn = module ? { name: "Module" + n, kind: "ModuleScript", where: "ReplicatedStorage", code }
+      : client ? { name: "ClientScript" + n, kind: "LocalScript", where: "StarterPlayerScripts", code }
+      : { name: "ChatScript" + n, kind: "Script", where: "ServerScriptService", code };
+    if (code.includes("]==]")) { toast("This code can't be added automatically - copy it instead."); return; }
+    const out = await runLuau(VSKit.snippetLuau(sn), "", null);
+    if (out != null) { toast(out || "Added.", 4000); b.classList.add("done"); }
+  } else if (b.dataset.cb === "run") {
+    const out = await runLuau(code, "", null);
+    if (out != null) toast(out ? "Studio: " + out.slice(0, 160) : "Ran in Studio.", 4000);
+  }
+});
+// Follow new messages only while you're at the bottom - scrolling up to read stops it.
+let follow = true;
+const stick = (force) => { if (force) follow = true; if (follow) body.scrollTop = body.scrollHeight; };
+body.addEventListener("scroll", () => { follow = body.scrollHeight - body.scrollTop - body.clientHeight < 80; });
 function addMsg(role, html) {
   $("chat-empty").hidden = true;
   const m = document.createElement("div");
   m.className = "msg " + role;
   m.innerHTML = `<div class="bubble">${html}</div>`;
   body.appendChild(m);
-  body.scrollTop = body.scrollHeight;
+  stick();
   return m;
 }
 function typing(label) {
@@ -1789,18 +1943,48 @@ function typing(label) {
   m.className = "msg ai";
   m.innerHTML = `<div class="bubble typing"><i></i><i></i><i></i>${label ? `<span>${esc(label)}</span>` : ""}</div>`;
   body.appendChild(m);
-  body.scrollTop = body.scrollHeight;
+  stick();
   return m;
+}
+// Tool calls read like what they do ("Edited ServerScriptService.Coins"), not raw names.
+function toolLabel(name, a) {
+  a = a || {};
+  const short = (p) => String(p || "").replace(/^game\./, "").split(".").slice(-2).join(".");
+  const where = a.file_path || a.target_file || a.path || a.instance_path || a.target || a.script_path || "";
+  const L = {
+    script_read: ["Read", short(where)], multi_edit: [a.edits && a.edits.length === 1 && !a.edits[0].old_string ? "Created" : "Edited", short(where)],
+    execute_luau: ["Ran Luau", ""], search_game_tree: ["Looked through the game", ""], inspect_instance: ["Inspected", short(where)],
+    script_search: ["Searched scripts for", a.query || a.pattern || ""], script_grep: ["Searched scripts for", a.pattern || a.query || ""],
+    insert_asset: ["Inserted", a.assetName || "an asset"], search_asset: ["Searched the Creator Store for", a.query || ""],
+    screen_capture: ["Took a screenshot of Studio", ""], start_stop_play: [a.is_start ? "Started playing" : "Stopped playing", ""],
+    get_console_output: ["Read the Output", ""], get_studio_state: ["Checked Studio", ""], generate_mesh: ["Generated a mesh", a.prompt || ""],
+    workspace_read: ["Read file", a.path], workspace_write: ["Wrote file", a.path], workspace_list: ["Listed", a.path || "."], workspace_run: ["Ran", a.command], workspace_delete: ["Deleted", a.path],
+  }[name];
+  if (!L) return { verb: name.replace(/_/g, " "), obj: "" };
+  return { verb: L[0], obj: String(L[1] || "").slice(0, 80) };
+}
+// multi_edit as a red/green diff instead of JSON.
+function editDiff(a) {
+  if (!a || !Array.isArray(a.edits)) return "";
+  return a.edits.slice(0, 12).map((e) => {
+    const rows = [];
+    if (e.old_string) for (const l of String(e.old_string).split("\n").slice(0, 40)) rows.push(`<div class="dl del">- ${esc(l)}</div>`);
+    for (const l of String(e.new_string || "").split("\n").slice(0, 60)) rows.push(`<div class="dl add">+ ${esc(l)}</div>`);
+    return `<div class="diff">${rows.join("")}</div>`;
+  }).join("");
 }
 function toolCard(name, args) {
   $("chat-empty").hidden = true;
   const el = document.createElement("div");
   el.className = "msg ai";
-  el.innerHTML = `<div class="tool"><div class="tool-h"><span class="spin"></span><span class="nm">${esc(name)}</span><span class="st run">running</span></div>
-    <div class="tool-b"><pre>${esc(JSON.stringify(args, null, 2))}</pre><pre class="out"></pre></div></div>`;
+  const lab = toolLabel(name, args);
+  const diff = name === "multi_edit" ? editDiff(args) : "";
+  const body2 = name === "execute_luau" && args && args.code ? `<div class="code"><pre><code>${hl(String(args.code), "lua")}</code></pre></div>` : diff || `<pre>${esc(JSON.stringify(args, null, 2))}</pre>`;
+  el.innerHTML = `<div class="tool${diff ? " has-diff" : ""}"><div class="tool-h"><span class="spin"></span><span class="nm"><b>${esc(lab.verb)}</b>${lab.obj ? " " + esc(lab.obj) : ""}</span><span class="st run">running</span></div>
+    <div class="tool-b">${body2}<pre class="out"></pre></div></div>`;
   el.querySelector(".tool-h").onclick = () => el.querySelector(".tool").classList.toggle("open");
   body.appendChild(el);
-  body.scrollTop = body.scrollHeight;
+  stick();
   return {
     set(state, label, out) {
       const sp = el.querySelector(".spin");
@@ -1831,7 +2015,10 @@ async function runCall(call, map) {
       if (r === STOPPED) { card.set("deny", "stopped"); return "Stopped by the user."; }
       if (r && r.type === "tool_result" && r.ok) {
         let t = r.text || "(done - no output)";
-        if (r.images && r.images.length) t += `\n[${r.images.length} image(s) returned - not visible to this model]`;
+        if (r.images && r.images.length) {
+          if (canSee()) { chat.pendingImages = (chat.pendingImages || []).concat(r.images.slice(0, 2)); t += `\n[${r.images.length} image(s) - attached below so you can see them]`; }
+          else t += `\n[${r.images.length} image(s) returned - not visible to this model]`;
+        }
         card.set("ok", "done", t);
         return cap(t);
       }
@@ -1887,12 +2074,12 @@ listen("ai-delta", (e) => {
   const thought = live.thought || (tag ? tag[1] : "");
   if (!shown && !thought) return;
   live.el.innerHTML = `<div class="bubble live">${!shown ? `<div class="live-th">${esc(thought.slice(-700))}</div>` : md(shown)}</div>`;
-  body.scrollTop = body.scrollHeight;
+  stick();
 });
 
 // ── model calls: thinking + recovery ────────────────────────────────────────
 // Chat modes, kept per PC: effort, access level and three toggles.
-const MODE_DEFAULTS = { effort: "balanced", think: false, selfcheck: false, plan: false, memory: true };
+const MODE_DEFAULTS = { effort: "balanced", think: false, selfcheck: false, plan: false, memory: true, agent: false };
 const mode = Object.assign({}, MODE_DEFAULTS);
 try { Object.assign(mode, JSON.parse(localStorage.getItem("vs-mode") || "{}")); } catch {}
 const EFFORT = {
@@ -1911,7 +2098,32 @@ function renderMode() {
   $("btn-selfcheck").classList.toggle("on", !!mode.selfcheck);
   $("btn-plan").classList.toggle("on", !!mode.plan);
   $("btn-memory").classList.toggle("on", !!mode.memory);
+  $("btn-agent").classList.toggle("on", !!mode.agent);
+  $("btn-nro").classList.toggle("on", nroOn());
+  if ($("set-nro")) $("set-nro").checked = nroOn();
+  // The composer shows the effort and access at a glance, and a chip per mode that's on.
+  $("modes-sum").textContent = `${{ fast: "Fast", balanced: "Balanced", deep: "Deep" }[mode.effort] || "Balanced"} · ${{ ask: "Ask", sandbox: "Sandbox", full: "Full PC" }[access()] || "Sandbox"}`;
+  const chips = [["agent", "Agent"], ["think", "Thinking"], ["selfcheck", "Self-check"], ["plan", "Plan first"]].filter(([k]) => mode[k]);
+  $("mode-chips").innerHTML = chips.map(([k, n]) => `<button data-mode="${k}" title="Turn ${n} off">${esc(n)}${ICONS.x}</button>`).join("");
 }
+$("mode-chips").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-mode]");
+  if (b) { mode[b.dataset.mode] = false; saveMode(); }
+});
+$("btn-modes").onclick = (e) => {
+  e.stopPropagation();
+  const pop = $("modes-pop");
+  pop.hidden = !pop.hidden;
+  $("btn-modes").classList.toggle("open", !pop.hidden);
+};
+document.addEventListener("click", (e) => {
+  if (!$("modes-pop").hidden && !e.target.closest(".modes-wrap")) { $("modes-pop").hidden = true; $("btn-modes").classList.remove("open"); }
+});
+$("btn-nro").onclick = () => {
+  lsSet("vs-nro", nroOn() ? "off" : "on");
+  renderMode();
+  toast(nroOn() ? "Never run out on: the chat moves to your next provider when one hits its limit." : "Never run out off.");
+};
 $("seg-effort").addEventListener("click", (e) => { const b = e.target.closest("button[data-v]"); if (b) { mode.effort = b.dataset.v; saveMode(); } });
 $("seg-access").addEventListener("click", async (e) => {
   const b = e.target.closest("button[data-v]");
@@ -1927,6 +2139,7 @@ for (const [id, key, on, off] of [
   ["btn-selfcheck", "selfcheck", "Self-check on: the AI reviews and fixes its work before finishing.", "Self-check off."],
   ["btn-plan", "plan", "Plan first on: you get a plan to approve before anything changes.", "Plan first off."],
   ["btn-memory", "memory", "Project memory on: the AI remembers this game between chats.", "Project memory off."],
+  ["btn-agent", "agent", "Agent on: it builds, playtests in Studio, reads the errors and fixes them by itself.", "Agent off."],
 ]) $(id).onclick = () => { mode[key] = !mode[key]; saveMode(); toast(mode[key] ? on : off); };
 renderMode();
 
@@ -1968,16 +2181,66 @@ function noThinkParams(p) {
 
 // opts.model: use this model instead of the chat's (the generators' fast model).
 // opts.noThink: ask reasoning models to skip their thinking pass.
+// Vision: Studio screenshots go to models that can look at pictures.
+const SHOT_NOTE = "Here is what the screen_capture tool returned:";
+const VISION = /gemini|gemma-3|gpt-4o|gpt-4\.1|gpt-5|\bo[34]\b|claude|vision|[-_/]vl\b|vl-|llama-4|pixtral|mistral-(small|medium)|qwen.*(vl|omni)|qvq|kimi-(k2\.[5-9]|vl)|glm-4\.\dv|glm-5v|grok-4|phi-4-multimodal|minicpm-v|llava|moondream/i;
+const visionNo = {};
+function canSee() {
+  const m = curModel() || "";
+  return lsGet("vs-vision") !== "off" && VISION.test(m) && !visionNo[m];
+}
+const hasImages = (req) => req.messages.some((m) => Array.isArray(m.content) && m.content.some((p) => p.type === "image_url"));
+function stripImages(req) {
+  return Object.assign({}, req, { messages: req.messages.map((m) => Array.isArray(m.content)
+    ? Object.assign({}, m, { content: m.content.filter((p) => p.type === "text").map((p) => p.text).join("\n") + " [screenshot not shown - this model can't see pictures]" }) : m) });
+}
+
+// "Never run out": when a provider hits its limit (or is down), the same request
+// goes to the next provider you have a key for, and the empty one rests a while.
+const FALLBACK_ERR = /API (40[123]|408|429|5\d\d)|rate.?limit|quota|exceeded|credits|too many requests|overloaded|capacity|Could not reach|timed? ?out|stopped mid-reply|Add your .* key/i;
+const providerRest = {}; // provider -> resting until (ms)
+function nroOn() { return lsGet("vs-nro") !== "off"; }
+function fallbackChain(first) {
+  const local = new Set(["ollama", "lmstudio"]);
+  const all = ["nvidia", "google", "openrouter"].concat(MORE_PROVIDERS.map((x) => x[0]));
+  const rest = all.filter((p) => p !== first && !local.has(p) && keySet(p));
+  // Keyless public ones last: they work, but they're the weakest.
+  rest.sort((a, b) => (KEYLESS.has(a) ? 1 : 0) - (KEYLESS.has(b) ? 1 : 0));
+  return [first].concat(rest);
+}
 async function callModel(req, opts = {}) {
-  const p = prov();
+  const first = prov();
+  const chain = nroOn() && !opts.noFallback ? fallbackChain(first) : [first];
+  const live = chain.filter((p) => (providerRest[p] || 0) < Date.now());
+  const order = live.length ? live : chain;
+  let lastErr;
+  for (let i = 0; i < order.length; i++) {
+    const p = order[i];
+    try {
+      const r = await callOne(p, req, p === first ? opts : Object.assign({}, opts, { model: null, quiet: true }));
+      if (p !== first) { r.fellBack = p; bumpStat("fallbacks"); }
+      return r;
+    } catch (e) {
+      const msg = errText(e);
+      if (chat.stop || msg === "cancelled" || order.length < 2 || !FALLBACK_ERR.test(msg)) throw e;
+      providerRest[p] = Date.now() + 90000;
+      lastErr = e;
+      if (order[i + 1]) toast(`${PROV_NAME[p]} ran out for now - switching to ${PROV_NAME[order[i + 1]]}.`, 3500);
+    }
+  }
+  throw lastErr || new Error("Every provider you have a key for is out right now. Add another free key in Settings.");
+}
+
+async function callOne(p, req, opts = {}) {
   let model = opts.model || curModel(p), own = !opts.model;
+  if (!model && p !== prov()) model = await pickAvailable(p, null);
   if (!model) throw new Error(`Pick a ${PROV_NAME[p]} model first: open the model menu at the top of Chat.`);
   let useTools = !!req.tools, useThink = !!opts.think, noThink = !!opts.noThink && !opts.think;
   for (let attempt = 0; attempt < 7; attempt++) {
     const body = Object.assign({}, req, { model }, useThink ? thinkParams(p) : noThink ? noThinkParams(p) : {});
     if (!useTools) { delete body.tools; delete body.tool_choice; }
     try {
-      const res = await untilStopped(invoke("ai_chat", { body }));
+      const res = await untilStopped(invoke("ai_chat", { body, provider: p }));
       if (res === STOPPED) throw new Error("cancelled");
       return { res, model, toolsDropped: !!req.tools && !useTools };
     } catch (e) {
@@ -1991,6 +2254,8 @@ async function callModel(req, opts = {}) {
         continue;
       }
       if (useTools && /API 4(00|22)/.test(msg) && /tool|function/i.test(msg)) { useTools = false; continue; }
+      // A model that can't take pictures after all: send the text only.
+      if (hasImages(req) && /image|vision|multimodal|content.*(string|array)|unsupported.*(type|content)/i.test(msg)) { req = stripImages(req); visionNo[model] = true; continue; }
       if (/API 404|not found|does not exist|no such model|unknown model|is not available/i.test(msg)) {
         setHealth(p, model, { ok: false, why: msg.slice(0, 140) });
         // A borrowed fast model that's gone: just use the chat's own model.
@@ -2034,7 +2299,7 @@ function thoughtCard(text, secs) {
   el.querySelector(".th-b").textContent = text;
   el.querySelector(".th-h").onclick = () => el.querySelector(".thought").classList.toggle("open");
   body.appendChild(el);
-  body.scrollTop = body.scrollHeight;
+  stick();
 }
 
 // Race a slow call against Stop: the call may still finish in Studio, but the
@@ -2053,6 +2318,68 @@ function setBusy(b) {
   $("chat-input").disabled = false;
 }
 
+// Agent mode: after a build turn, play the game in Studio for a few seconds and
+// read the Output. New errors go back to the AI to fix (a few rounds at most).
+const AGENT_ROUNDS = 3;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function agentPlaytest(round) {
+  const card = toolCard(`playtest · round ${round}`, { play: "8 seconds", then: "read the Output for new errors" });
+  try {
+    const before = await callTool("get_console_output", {}, 20000).catch(() => "");
+    await callTool("start_stop_play", { is_start: true }, 40000);
+    for (let i = 0; i < 80 && !chat.stop; i++) await sleep(100);
+    const after = await callTool("get_console_output", {}, 20000).catch(() => "");
+    await callTool("start_stop_play", { is_start: false }, 40000).catch(() => {});
+    const fresh = before && after.startsWith(before) ? after.slice(before.length) : after.split("\n").slice(-120).join("\n");
+    const errors = [...new Set(fresh.split("\n").map((l) => l.trim()).filter((l) =>
+      /error|exception|attempt to|is not a valid member|infinite yield|stack begin|failed|nil value/i.test(l) && !/VoidScript|MCP|plugin/i.test(l)))].slice(0, 25);
+    card.set(errors.length ? "err" : "ok", errors.length ? `${errors.length} error${errors.length === 1 ? "" : "s"}` : "no errors", fresh.trim().slice(-4000) || "(the Output stayed quiet)");
+    return errors;
+  } catch (e) {
+    card.set("err", "couldn't playtest", errText(e));
+    callTool("start_stop_play", { is_start: false }, 20000).catch(() => {});
+    return null;
+  }
+}
+
+// Hover actions under a message. data: { text, at (history index to rewind to), node (the user message), meta }
+function msgActions(el, kinds, data) {
+  const bar = document.createElement("div");
+  bar.className = "msg-acts";
+  const tips = { copy: "Copy", retry: "Try again", edit: "Edit and resend", save: "Save as a prompt", speak: "Read aloud", fork: "Branch a new chat from here", mem: "Remember this in the project memory" };
+  const icon = { copy: ICONS.copy, retry: ICONS.retry, edit: ICONS.edit, save: ICONS.star, speak: ICONS.speak, fork: ICONS.fork, mem: ICONS.mem };
+  bar.innerHTML = kinds.map((k) => `<button data-a="${k}" title="${tips[k]}">${icon[k]}</button>`).join("") + (data.meta ? `<span class="msg-meta">${esc(data.meta)}</span>` : "");
+  bar.addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-a]");
+    if (!b) return;
+    const a = b.dataset.a;
+    if (a === "copy") {
+      try { await navigator.clipboard.writeText(data.text); b.classList.add("done"); setTimeout(() => b.classList.remove("done"), 1400); } catch { toast("Couldn't copy."); }
+    } else if (a === "save") {
+      savePrompt(data.text); b.classList.add("done");
+    } else if (a === "mem") {
+      if (chat.busy) { toast("Wait for the reply to finish first."); return; }
+      sendChat("Save the lasting facts from your last answer to the project memory (short, factual, in the right section), then reply with one line saying what you saved:\n\n" + String(data.text).slice(0, 2500));
+    } else if (a === "speak") {
+      speak(data.text, b);
+    } else if (a === "fork") {
+      forkChat(data.upto);
+    } else if (chat.busy) {
+      toast("Wait for the reply to finish, or press Stop.");
+    } else {
+      // Rewind to just before that question, then ask again (or let the user edit it first).
+      chat.messages.length = data.at;
+      const um = data.node;
+      while (um.nextSibling) um.nextSibling.remove();
+      um.remove();
+      if (!chat.messages.length) $("chat-empty").hidden = false;
+      if (a === "retry") sendChat(data.question || data.text);
+      else { input.value = data.text; grow(); input.focus(); }
+    }
+  });
+  el.appendChild(bar);
+}
+
 async function sendChat(text, opts = {}) {
   if (chat.busy) return;
   if (gen.busy) { toast("Wait for the generator to finish first."); return; }
@@ -2065,32 +2392,44 @@ async function sendChat(text, opts = {}) {
     ? text + "\n\n---\nReference files the user attached (use them as context):\n\n" +
       refs.map((a) => `### ${a.name}\n\`\`\`\n${a.content}\n\`\`\``).join("\n\n")
     : text;
+  const at = chat.messages.length;
   chat.messages.push({ role: "user", content: full });
+  if (!chat.title) chat.title = text.replace(/\s+/g, " ").slice(0, 60);
+  stick(true);
   const um = addMsg("user", esc(text));
   if (refs.length) {
     const r = document.createElement("div");
     r.className = "refs";
-    r.innerHTML = refs.map((a) => `<span>📎 ${esc(a.name)}</span>`).join("");
+    r.innerHTML = refs.map((a) => `<span>${esc(a.name)}</span>`).join("");
     um.appendChild(r);
   }
+  msgActions(um, ["copy", "edit", "retry", "save"], { text, at, node: um });
+  bumpStat("messages");
   chat.stop = false;
   setBusy(true);
   const { defs, map } = toolDefs(planning);
   const ef = effort();
+  const steps = mode.agent ? ef.steps * 2 : ef.steps;
   chat.changed = false;
-  let reviewed = false, lastAi = null;
+  let reviewed = false, lastAi = null, rounds = 0, tools = 0, usedModel = "", fellBack = null;
+  const t0 = Date.now();
   try {
     let step = 0;
     let warnedNoTools = false;
-    for (; step < ef.steps && !chat.stop; step++) {
-      const t = liveStart(mode.think ? "Thinking" : planning ? "Planning" : reviewed ? "Checking" : "");
-      const t0 = Date.now();
+    for (; step < steps && !chat.stop; step++) {
+      const t = liveStart(mode.think ? "Thinking" : planning ? "Planning" : reviewed ? "Checking" : rounds ? "Fixing" : "");
+      const s0 = Date.now();
       let r;
       try {
         const req = { messages: [{ role: "system", content: systemPrompt({ plan: planning }) }].concat(chat.messages), temperature: mode.think ? 0.6 : 0.2, max_tokens: mode.think ? Math.max(12000, ef.tokens) : ef.tokens };
         if (defs.length) { req.tools = defs; req.tool_choice = "auto"; }
         r = await callModel(req, { think: mode.think });
       } finally { t.remove(); live = null; }
+      usedModel = r.model;
+      if (r.fellBack && fellBack !== r.fellBack) {
+        fellBack = r.fellBack;
+        addMsg("note", esc(`${PROV_NAME[prov()]} hit its limit, so ${PROV_NAME[r.fellBack]} (${r.model}) answered instead.`));
+      }
       const m = r.res && r.res.choices && r.res.choices[0] && r.res.choices[0].message;
       if (!m) throw new Error("The model returned an empty response. Try again, or pick another model.");
       if (r.toolsDropped && !warnedNoTools) {
@@ -2098,7 +2437,7 @@ async function sendChat(text, opts = {}) {
         addMsg("note", esc(`${r.model} can't use tools, so it can only chat here. Pick a model tagged "tools" in the model menu to build in Studio.`));
       }
       const { content, thought } = splitThinking(m);
-      if (thought) thoughtCard(thought, Math.round((Date.now() - t0) / 1000));
+      if (thought) thoughtCard(thought, Math.round((Date.now() - s0) / 1000));
       // Normalise tool calls: some providers omit ids or send arguments as objects,
       // and the follow-up request is rejected unless both are well-formed.
       const calls = (Array.isArray(m.tool_calls) ? m.tool_calls : []).filter((c) => c && c.function && c.function.name).map((c, i) => ({
@@ -2117,15 +2456,39 @@ async function sendChat(text, opts = {}) {
           chat.messages.push({ role: "user", content: "Self-check: review what you just changed. Re-read the scripts and instances you touched, look for bugs, typos, missing references and anything that would break in play, fix what you find, then sum up in one or two sentences." });
           continue;
         }
+        // Agent: playtest, and hand any new errors back to fix.
+        if (mode.agent && chat.changed && !planning && !chat.stop && rounds < AGENT_ROUNDS && S.state.connected) {
+          rounds++;
+          chat.changed = false;
+          const errors = await agentPlaytest(rounds);
+          if (errors && errors.length && !chat.stop) {
+            chat.messages.push({ role: "user", content: `Agent playtest (round ${rounds} of ${AGENT_ROUNDS}): I played the game in Studio for 8 seconds and the Output showed these new errors:\n${errors.map((e) => "- " + e).join("\n")}\n\nFind the cause of each (script_read the scripts involved) and fix them with surgical edits. Then say in one sentence what you fixed.` });
+            continue;
+          }
+          if (errors && !errors.length) bumpStat("playtests");
+          if (errors && !errors.length) addMsg("note", esc(`Playtest passed: no errors in the Output${rounds > 1 ? ` after ${rounds} rounds` : ""}.`));
+        }
         break;
       }
       for (const c of calls) {
+        tools++;
         const out = chat.stop ? "Stopped by the user." : await runCall(c, map);
         chat.messages.push({ role: "tool", tool_call_id: c.id, content: out });
       }
+      // Screenshots from the tools, shown to models that can see.
+      if (chat.pendingImages && chat.pendingImages.length) {
+        chat.messages.push({ role: "user", content: [{ type: "text", text: SHOT_NOTE }].concat(chat.pendingImages.slice(0, 3).map((i) => ({ type: "image_url", image_url: { url: `data:${i.mimeType || "image/png"};base64,${i.data}` } }))) });
+        chat.pendingImages = [];
+      }
     }
-    if (step >= ef.steps) addMsg("ai", esc(`Paused after ${ef.steps} steps. Say "continue" to keep going.`));
-    else if (!chat.stop) sfx("done");
+    if (step >= steps) {
+      const note = addMsg("ai", esc(`Paused after ${steps} steps.`));
+      const bar = document.createElement("div");
+      bar.className = "plan-actions";
+      bar.innerHTML = '<button class="btn primary sm">Continue</button>';
+      bar.querySelector("button").onclick = () => { bar.remove(); sendChat("Continue where you left off."); };
+      note.appendChild(bar);
+    } else if (!chat.stop) { sfx("done"); attention(Date.now() - t0); }
     if (planning && lastAi && !chat.stop) {
       const bar = document.createElement("div");
       bar.className = "plan-actions";
@@ -2133,15 +2496,189 @@ async function sendChat(text, opts = {}) {
       bar.querySelector("button").onclick = () => { bar.remove(); sendChat("The plan looks good. Build it.", { build: true }); };
       lastAi.appendChild(bar);
     }
+    if (lastAi && !chat.stop) {
+      const secs = Math.round((Date.now() - t0) / 1000);
+      const all = chat.messages.slice(at).filter((x) => x.role === "assistant" && x.content).map((x) => x.content).join("\n\n");
+      msgActions(lastAi, ["copy", "retry", "speak", "fork", "mem"], { text: all, question: text, at, node: um, upto: chat.messages.length, meta: `${usedModel} · ${secs}s${tools ? ` · ${tools} tool${tools === 1 ? "" : "s"}` : ""}` });
+    }
     if (chat.stop) addMsg("ai", esc("Stopped."));
   } catch (e) {
     if (chat.stop) addMsg("ai", esc("Stopped."));
     else { addMsg("err", esc(errText(e))); sfx("error"); }
   } finally {
     setBusy(false);
+    saveChat();
     $("chat-input").focus();
   }
 }
+
+// Read a reply aloud (Windows' own voices, nothing leaves the PC).
+function speak(text, btn) {
+  const synth = window.speechSynthesis;
+  if (!synth) { toast("Reading aloud isn't available here."); return; }
+  if (synth.speaking) { synth.cancel(); if (btn) btn.classList.remove("on"); return; }
+  const plain = String(text).replace(/```[\s\S]*?```/g, " (code) ").replace(/[*_`#>]/g, "").replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+  const u = new SpeechSynthesisUtterance(plain.slice(0, 6000));
+  if (btn) { btn.classList.add("on"); u.onend = u.onerror = () => btn.classList.remove("on"); }
+  synth.speak(u);
+}
+// Branch: a new chat holding everything up to this answer.
+function forkChat(upto) {
+  if (chat.busy) { toast("Wait for the reply to finish first."); return; }
+  const msgs = chat.messages.slice(0, upto);
+  if (!msgs.length) return;
+  saveChat();
+  const id = newId();
+  chats.push({ id, title: "Branch: " + (chat.title || "chat").slice(0, 50), messages: msgs, t: Date.now(), pinned: false });
+  persistChats();
+  openChat(id);
+  toast("Branched into a new chat.");
+}
+
+// Flash the taskbar when a long reply finishes while you're in another window.
+async function attention(ms) {
+  if (ms < 15000 || lsGet("vs-attn") === "off") return;
+  try { if (!(await appWin.isFocused())) await appWin.requestUserAttention(2); } catch {}
+}
+
+// ── chat history (kept on this PC) ──────────────────────────────────────────
+const CHATS_KEY = "vs-chats", CHATS_MAX = 80;
+let chats = [];
+try { chats = JSON.parse(lsGet(CHATS_KEY) || "[]"); } catch { chats = []; }
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+function persistChats() {
+  chats.sort((a, b) => (b.pinned - a.pinned) || (b.t - a.t));
+  if (chats.length > CHATS_MAX) chats = chats.filter((c, i) => c.pinned || i < CHATS_MAX);
+  for (let tries = 0; tries < 6; tries++) {
+    try { localStorage.setItem(CHATS_KEY, JSON.stringify(chats)); break; }
+    catch { const old = chats.filter((c) => !c.pinned && c.id !== chat.id).pop(); if (!old) break; chats = chats.filter((c) => c !== old); }
+  }
+  renderChatList();
+  if (typeof renderHome === "function") renderHome();
+}
+// Tool outputs are trimmed so the history stays small.
+function saveChat() {
+  if (!chat.messages.length) return;
+  if (!chat.id) { chat.id = newId(); bumpStat("chats"); }
+  const slim = chat.messages.slice(-240).map((m) => m.role === "tool" ? Object.assign({}, m, { content: cap(String(m.content || ""), 1500) })
+    : Array.isArray(m.content) ? Object.assign({}, m, { content: SHOT_NOTE + " [screenshot]" }) : m);
+  const rec = chats.find((c) => c.id === chat.id);
+  if (rec) Object.assign(rec, { title: rec.renamed ? rec.title : chat.title || rec.title, messages: slim, t: Date.now() });
+  else chats.push({ id: chat.id, title: chat.title || "New chat", messages: slim, t: Date.now(), pinned: false });
+  persistChats();
+}
+function stripRefs(t) { t = String(t); const i = t.indexOf("\n\n---\nReference files the user attached"); return i >= 0 ? t.slice(0, i) : t; }
+function openChat(id) {
+  if (chat.busy) { toast("Stop the current reply first."); return; }
+  const rec = chats.find((c) => c.id === id);
+  if (!rec) return;
+  saveChat();
+  clearChatView();
+  Object.assign(chat, { id: rec.id, title: rec.title, messages: rec.messages.slice(), memory: null });
+  const results = {};
+  for (const m of chat.messages) if (m.role === "tool") results[m.tool_call_id] = m.content;
+  chat.messages.forEach((m, i) => {
+    if (m.role === "user") {
+      const text = stripRefs(m.content);
+      if (/^(Self-check:|Agent playtest \(round|Here is what the screen_capture)/.test(text)) return;
+      const um = addMsg("user", esc(text));
+      msgActions(um, ["copy", "edit", "retry", "save"], { text, at: i, node: um });
+    } else if (m.role === "assistant") {
+      if (m.content) {
+        const el = addMsg("ai", md(m.content));
+        if (!m.tool_calls || !m.tool_calls.length) msgActions(el, ["copy", "speak", "fork"], { text: m.content, at: i, node: el, upto: i + 1 });
+      }
+      for (const c of m.tool_calls || []) {
+        let args = {};
+        try { args = JSON.parse(c.function.arguments || "{}"); } catch {}
+        const out = results[c.id];
+        toolCard(c.function.name, args).set(out == null ? "deny" : /^ERROR/.test(out) ? "err" : "ok", out == null ? "no result" : /^ERROR/.test(out) ? "error" : "done", out);
+      }
+    }
+  });
+  $("chat-empty").hidden = chat.messages.length > 0;
+  go("chat");
+  stick(true);
+  renderChatList();
+}
+function clearChatView() {
+  body.querySelectorAll(".msg").forEach((m) => m.remove());
+  $("chat-empty").hidden = false;
+}
+function newChat() {
+  if (chat.busy) { toast("Stop the current reply first."); return; }
+  saveChat();
+  Object.assign(chat, { id: null, title: "", messages: [], memory: null });
+  sessionAllow = {}; attachments = []; renderAttachments();
+  clearChatView();
+  renderChatList();
+  go("chat");
+}
+function deleteChat(id) {
+  if (chat.id === id && chat.busy) { toast("Stop the current reply first."); return; }
+  chats = chats.filter((c) => c.id !== id);
+  if (chat.id === id) { Object.assign(chat, { id: null, title: "", messages: [] }); clearChatView(); }
+  persistChats();
+}
+function chatGroup(t) {
+  const day = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const diff = Math.round((day(new Date()) - day(new Date(t))) / 86400000);
+  return diff <= 0 ? "Today" : diff === 1 ? "Yesterday" : diff < 7 ? "Previous 7 days" : diff < 30 ? "Previous 30 days" : "Older";
+}
+function renderChatList() {
+  const q = ($("chats-q").value || "").trim().toLowerCase();
+  const list = chats.filter((c) => !q || c.title.toLowerCase().includes(q) || c.messages.some((m) => m.role === "user" && String(m.content).toLowerCase().includes(q)));
+  if (!list.length) { $("chats-list").innerHTML = `<div class="cl-empty">${q ? "No chats match." : "Your chats show up here."}</div>`; return; }
+  let html = "", group = "";
+  for (const c of list) {
+    const g = c.pinned ? "Pinned" : chatGroup(c.t);
+    if (g !== group) { group = g; html += `<div class="cl-group">${g}</div>`; }
+    html += `<div class="cl-item${c.id === chat.id ? " on" : ""}" data-id="${c.id}" role="button" tabindex="0">
+      <span class="t">${esc(c.title || "New chat")}</span>
+      <span class="cl-acts"><span data-a="pin" title="${c.pinned ? "Unpin" : "Pin"}">${ICONS.pin}</span><span data-a="ren" title="Rename">${ICONS.edit}</span><span data-a="del" title="Delete">${ICONS.trash}</span></span></div>`;
+  }
+  $("chats-list").innerHTML = html;
+}
+$("chats-list").addEventListener("click", (e) => {
+  const item = e.target.closest(".cl-item");
+  if (!item) return;
+  const id = item.dataset.id, rec = chats.find((c) => c.id === id);
+  const a = e.target.closest("[data-a]");
+  if (!a) { if (!e.target.closest("input")) openChat(id); return; }
+  if (a.dataset.a === "del") deleteChat(id);
+  else if (a.dataset.a === "pin") { rec.pinned = !rec.pinned; persistChats(); }
+  else if (a.dataset.a === "ren") {
+    const t = item.querySelector(".t");
+    t.innerHTML = `<input value="${esc(rec.title)}" maxlength="80" />`;
+    const inp = t.querySelector("input");
+    inp.focus(); inp.select();
+    let done = false;
+    const finish = (keep) => {
+      if (done) return;
+      done = true;
+      if (keep && inp.value.trim()) { rec.title = inp.value.trim(); rec.renamed = true; if (chat.id === id) chat.title = rec.title; }
+      persistChats();
+    };
+    inp.onkeydown = (ev) => { if (ev.key === "Enter") finish(true); if (ev.key === "Escape") finish(false); };
+    inp.onblur = () => finish(true);
+  }
+});
+$("chats-q").addEventListener("input", renderChatList);
+
+// Saved prompts (star a message to keep it; they show in the palette and as /p).
+let prompts = [];
+try { prompts = JSON.parse(lsGet("vs-prompts") || "[]"); } catch {}
+function savePrompt(text) {
+  if (prompts.includes(text)) { toast("Already saved."); return; }
+  prompts.unshift(text); prompts = prompts.slice(0, 50);
+  lsSet("vs-prompts", JSON.stringify(prompts));
+  toast("Saved. Find it with Ctrl+K, or type /p in the chat.");
+}
+
+// Little usage counters for the Home page.
+let stats = {};
+try { stats = JSON.parse(lsGet("vs-stats") || "{}"); } catch {}
+function bumpStat(k, n = 1) { stats[k] = (stats[k] || 0) + n; lsSet("vs-stats", JSON.stringify(stats)); }
 
 const input = $("chat-input");
 function grow() { input.style.height = "auto"; input.style.height = Math.min(180, input.scrollHeight) + "px"; }
@@ -2202,12 +2739,8 @@ if (appWin.onDragDropEvent) {
   });
 }
 $("btn-stop-chat").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
-$("btn-new-chat").onclick = () => {
-  if (chat.busy) { toast("Stop the current reply first."); return; }
-  chat.messages = []; chat.memory = null; sessionAllow = {}; attachments = []; renderAttachments();
-  body.querySelectorAll(".msg").forEach((m) => m.remove());
-  $("chat-empty").hidden = false;
-};
+$("btn-new-chat").onclick = newChat;
+renderChatList();
 document.querySelectorAll(".sugg").forEach((b) => b.addEventListener("click", () => { input.value = b.textContent; $("btn-send").click(); }));
 
 // ── SpookyScript: VoidScript's Halloween mode (spooky.js) ────────────────────
@@ -2223,8 +2756,6 @@ const SPOOKY_IDEAS = {
   "#ub-ideas button": ["Trick-or-treat shop", "Candy counter HUD", "Haunted main menu", "Costume picker", "Spooky reward chest", "Ghost radar"],
 };
 const plainIdeas = {};
-const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
-const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
 // [selector, VoidScript text, SpookyScript text]
 const SPOOKY_TEXT = [
   ["#chat-empty h2", "What are we building?", "What are we haunting tonight?"],

@@ -1,6 +1,6 @@
 [package]
 name = "voidscript"
-version = "6.3.0"
+version = "7.0.0"
 description = "VoidScript - AI agent for Roblox Studio"
 edition = "2021"
 license = "GPL-3.0-or-later"
@@ -9,7 +9,7 @@ license = "GPL-3.0-or-later"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri = { version = "2", features = ["tray-icon", "image-png", "unstable"] }
 tauri-plugin-dialog = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-single-instance = "2"

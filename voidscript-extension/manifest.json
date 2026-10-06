@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SpookyScript × Roblox Studio Agent",
-  "version": "6.3.0",
+  "version": "7.0.0",
   "description": "Turn 99 AI sites - DeepSeek, Gemini, Kimi.ai, GLM, Qwen, Arena, Meta AI, ChatGPT, Claude, Grok, Perplexity, Copilot, Mistral, T3 Chat, Poolside, Twinny, Cody, Chatbase and more - into a Roblox Studio agent that drives Studio through a local bridge.",
   "permissions": ["storage", "notifications"],
   "host_permissions": [
@@ -40,6 +40,7 @@
     "https://v0.dev/*",
     "https://www.genspark.ai/*",
     "https://lambda.chat/*",
+    "https://superapp.chat/*",
     "https://yiyan.baidu.com/*",
     "https://chat.minimax.io/*",
     "https://manus.im/*",
@@ -165,6 +166,7 @@
         "https://jupi.io/*",
         "https://kimi.com/*",
         "https://lambda.chat/*",
+        "https://superapp.chat/*",
         "https://leo.brave.com/*",
         "https://levera.ai/*",
         "https://lmarena.ai/*",
@@ -386,6 +388,12 @@
     {
       "matches": ["https://lambda.chat/*"],
       "js": ["core/i18n.js", "core/config.js", "core/parser.js", "providers/_generic.js", "providers/lambda.js", "core/modelkit.js", "core/uikit.js", "core/toolkit.js", "core/spooky.js", "core/main.js"],
+      "css": ["overlay.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://superapp.chat/*"],
+      "js": ["core/i18n.js", "core/config.js", "core/parser.js", "providers/_generic.js", "providers/superapp.js", "core/modelkit.js", "core/uikit.js", "core/toolkit.js", "core/spooky.js", "core/main.js"],
       "css": ["overlay.css"],
       "run_at": "document_idle"
     },

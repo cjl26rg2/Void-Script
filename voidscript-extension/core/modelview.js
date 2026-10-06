@@ -318,6 +318,7 @@ const VSModelView = (() => {
       el.remove();
     }
     return { show, reset, dispose, select, canvas: el, set onPick(f) { onPick = f; },
+      get spin() { return view.spin; }, set spin(v) { view.spin = !!v; },
       snapshot: () => { renderer.render(scene, camera); return el.toDataURL("image/png"); } };
   }
 

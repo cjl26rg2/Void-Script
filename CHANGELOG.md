@@ -2,6 +2,79 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [7.0.0] - 2026-10-06 - A whole new VoidScript
+
+### App: redesigned from top to bottom
+- **A calmer, cleaner look:** graphite surfaces, hairline borders and one accent colour. No more gradients and glow. Pick your accent (Ember, Ocean, Violet, Mint, Rose, Mono), density, chat text size and **how round the corners are** (sharp to round) in Settings.
+- **Icon rail:** the sidebar is now a slim strip of icons that show their name when you hover.
+- **New top bar:** search everything, Studio status (shows your place name), Play/Stop, focus mode and help, plus redrawn bell and window buttons.
+- **Every page redone:** Home dashboard (quick actions, recent chats, your stats, tips), Toolkit in tabs, icon toolbars on Models and the UI builder, Settings with a section list and search, and Terminal with filters.
+- **Drawn icons everywhere** instead of emoji, in both the app and the extension.
+
+### Chat
+- **Chat history:** every chat is saved on your PC, grouped by day, searchable, and can be pinned, renamed or deleted.
+- **Agent mode:** the AI builds, playtests the game in Studio for a few seconds, reads the Output and fixes any new errors itself (up to 3 rounds).
+- **Never run out:** when a provider hits its limit or goes down, the same request goes to the next provider you have a key for. The empty one rests for a bit.
+- **Better replies:** headings, lists and links render properly, and code blocks get syntax highlighting, a Copy button and **Run in Studio** for Luau.
+- **Message actions:** copy, edit and resend, try again, and save a message as a reusable prompt. Each answer shows which model replied, how long it took and how many tools it used.
+- **Slash commands:** type `/` for `/new`, `/agent`, `/plan`, `/export`, `/play`, `/undo`, `/fix`, `/bugs`, `/p` (saved prompts) and more.
+- **A new composer:** one Modes menu holds effort, access and every mode, and chips show what's on. It also has a round send button and a character count.
+- Quick-start templates in an empty chat, a jump-to-latest button, drafts kept per chat, Copy whole chat, Save as Markdown, Play, Stop and Undo in the chat header, and a taskbar flash when a long reply finishes.
+- **Find in chat (Ctrl+F)** with highlighted matches and next/previous.
+- **Ask about this:** select any text in a reply and quote it straight into your next message.
+- **Branch a chat** from any answer, and **Read aloud** with Windows' own voices.
+- **Add as script:** Luau code blocks go into Studio as a real Script, LocalScript or ModuleScript, placed where they belong.
+- **Context meter:** a small ring shows how full the chat is. **/compact** carries a summary into a fresh chat when it gets long.
+- **Studio peek:** a camera button in the top bar shows a live screenshot of Studio.
+- **The AI can see Studio:** with models that understand pictures (Gemini, GPT-4o/4.1, Claude, Llama 4, Qwen-VL…), screenshots it takes are shown to it, so it can check how things look. Models that can't see get the text only.
+- **Easy-to-read tool steps:** "Edited ServerScriptService.Coins", "Read Workspace.Door", "Took a screenshot of Studio" instead of raw tool names. Edits open as a red/green diff, and Luau it runs is syntax-highlighted.
+- **@mentions:** type `@` and part of a name to point the AI at a script, part or folder in your game.
+- **Use my Studio selection:** one click attaches whatever you've selected in Studio, including the code of selected scripts.
+- **Custom instructions** in Settings that every chat follows ("I'm making a horror game, use task.wait…").
+- **Remember this:** saves the lasting facts from an answer to the project memory.
+- **Watch Studio's Output:** tells you about new errors as they happen and puts them in the chat box, ready to fix (Settings, off by default).
+- **Automatic backups** of your place every 15 minutes (Settings, off by default).
+- Press **Up** in an empty chat box to edit your last message, and **Ctrl+M** to change the model.
+- The chat stops scrolling you down while you're reading higher up. The app remembers the last page you were on, and **Import** restores an export.
+
+### Everywhere
+- **Command palette (Ctrl+K):** pages, actions, templates, script tools, the script library, lighting, chats and saved prompts.
+- **Keyboard shortcuts:** Ctrl+N new chat, Ctrl+B chat list, Ctrl+1…9 pages, Ctrl+, settings, Ctrl+Shift+E export, Ctrl+Shift+F focus mode, Ctrl +/− zoom, and Ctrl+/ to list them all.
+- **Interface zoom** (90-125%) and **focus mode**.
+- What's new screen after an update, mute sounds from the bell, an offline notice, and message times on hover.
+
+### Browser (coming soon)
+- The Browser page shows a preview of what's coming: ChatGPT, Gemini and more inside VoidScript, with the extension already on them.
+
+### Explorer (new page)
+- **Your game, live from Studio:** browse every service as a tree with icons for scripts, folders, models, parts, GUIs, sounds, remotes and lights.
+- **Inspector:** properties, attributes and tags for anything you click. You can select it in Studio, rename it or delete it, and Ctrl+Z in Studio undoes any of these.
+- **Script viewer and editor:** syntax-highlighted source. Edit it right in the app and save to Studio (Ctrl+S), or hand it to the AI with Explain, Find bugs or Ask about it.
+- **Find anything** in the game by name.
+- **New…** adds a Script, LocalScript, ModuleScript, Folder, Part, Model or RemoteEvent inside whatever you've picked.
+
+### Achievements
+- Little milestones on Home as you build: First words, Model maker, Hands-free (pass an Agent playtest), Never ran out, Night owl and more.
+
+### Toolkit
+- **Script library:** 16 ready-made systems that go straight in as real scripts with no AI needed: saving leaderstats, kill bricks, coins, prompt doors, jump pads, moving platforms, spinners, checkpoints, sprint + stamina, double jump, day/night, fall damage, anti speed-hack, remote rate limiter, camera shake and admin commands. Parts opt in by name (KillBrick, Coin, JumpPad…). **Customise with AI** fits one to your game.
+- **4 new terrain biomes:** Volcano (with a lava crater), Canyon river, Swamp and Graveyard hills.
+
+### Models and UI builder
+- Surprise me (random ideas), Ctrl+Enter to generate, and a turntable toggle for the 3D preview.
+
+### Extension
+- **Cleaner look:** a flatter bar, menus and panels in the same style as the app.
+- **Command palette on every AI site (Alt+Shift+K)** for every template, system, lighting mood, terrain preset, your saved prompts and actions, with recently used items first. It's also in the bar's menu. Type `>` to run a line of Luau in Studio.
+- **Alt+Shift+S** starts or stops VoidScript.
+- Switch to another AI site from the palette.
+- **SuperApp** (superapp.chat) is supported (beta). If it misbehaves, Toolkit, Site check tunes it.
+- **Script library** tab in the Toolkit, plus the new biomes and drawn icons.
+- **Popup:** a cleaner look, "Open on this page" buttons (search, Toolkit, models, UI builder, library, health check) and more AI sites.
+
+### Website
+- A new website you can host yourself (on Wispbyte or any Node host), in the `website` folder. `/download` always points at the newest release. From 1 October to 1 November it turns into SpookyScript with the pumpkin logo, a night sky, bats, a ghost and a dangling spider.
+
 ## [6.3.0] - 2026-10-05 - SpookyScript
 
 ### 🎃 SpookyScript - Halloween mode (all October)

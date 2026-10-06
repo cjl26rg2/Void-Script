@@ -220,6 +220,19 @@
   html[data-theme="or"] .btn.primary, html[data-theme="or"] .seg button.on{color:#141414; box-shadow:none}
   html[data-theme="or"] .sw input:checked ~ .knob{background:#141414}
   html[data-theme="or"] .stat .v.ok{color:var(--fg); -webkit-text-fill-color:var(--fg); background:none}
+
+  /* 7.0: flat graphite, one accent */
+  :root{ --bg:#0e0f12; --bg2:#121317; --card:#16171c; --card2:#1a1b20; --line:rgba(255,255,255,.07); --line2:rgba(255,255,255,.11);
+    --fg:#ececef; --muted:#a3a4ae; --dim:#6c6d78; --acc:#ff7a3d; --acc2:#ff7a3d; --acc-txt:#ffcfb6; --grad:linear-gradient(#ff7a3d,#ff7a3d); }
+  body{ background:var(--bg); }
+  header .mark{ filter:none; }
+  .title{ font-weight:700; }
+  .title .s{ color:var(--acc); }
+  #provider-tag{ background:rgba(255,122,61,.1); border-color:rgba(255,122,61,.25); }
+  .acts{ display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:10px 0 4px; }
+  .acts button{ display:flex; align-items:center; gap:7px; height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--muted); font:600 12px "Segoe UI",system-ui,sans-serif; cursor:pointer; }
+  .acts button:hover{ color:var(--fg); border-color:var(--line2); background:var(--card2); }
+  .acts svg{ width:14px; height:14px; flex:none; color:var(--acc); }
 </style>
 </head>
 <body>
@@ -287,6 +300,17 @@
 
   <span id="test-result"></span>
 
+  <div class="sec-h">Open on this page</div>
+  <div class="acts">
+    <button data-act="palette"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>Search everything</button>
+    <button data-act="kit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.25 13.5v7.5M13.5 17.25H21"/></svg>Toolkit</button>
+    <button data-act="model"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg>Model generator</button>
+    <button data-act="ui"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7"/></svg>UI builder</button>
+    <button data-act="lib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>Script library</button>
+    <button data-act="health"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg>Health check</button>
+  </div>
+
+
   <!-- ── Session stats ──────────────────────────────── -->
   <div class="stats">
     <div class="stat"><span class="v" id="st-sessions">0</span><span class="k" data-i18n="sessions">Sessions</span></div>
@@ -302,6 +326,9 @@
     <button class="chip" data-open="https://gemini.google.com/app"><span class="d o"></span>Gemini</button>
     <button class="chip" data-open="https://chat.z.ai/"><span class="d o"></span>GLM</button>
     <button class="chip" data-open="https://claude.ai/"><span class="d o"></span>Claude</button>
+    <button class="chip" data-open="https://chat.qwen.ai/"><span class="d o"></span>Qwen</button>
+    <button class="chip" data-open="https://www.kimi.com/"><span class="d o"></span>Kimi</button>
+    <button class="chip" data-open="https://grok.com/"><span class="d o"></span>Grok</button>
   </div>
 
   <!-- ── Quick settings ─────────────────────────────── -->
@@ -317,7 +344,7 @@
     <label class="sw"><input type="checkbox" data-cfg="vsBackground" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="setrow"><span class="lbl">Sound effects</span>
     <label class="sw"><input type="checkbox" data-cfg="vsSounds" /><span class="track"></span><span class="knob"></span></label></div>
-  <div class="setrow"><span class="lbl">🎃 SpookyScript every October</span>
+  <div class="setrow"><span class="lbl">SpookyScript every October</span>
     <label class="sw"><input type="checkbox" data-cfg="vsHalloween" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="setrow"><span class="lbl">SpookyScript music</span>
     <label class="sw"><input type="checkbox" data-cfg="vsSpookyMusic" /><span class="track"></span><span class="knob"></span></label></div>
