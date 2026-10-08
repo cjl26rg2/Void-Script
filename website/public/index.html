@@ -10,7 +10,7 @@
 <meta property="og:image" content="/logo.png" />
 <meta name="theme-color" content="#0e0f12" />
 <link rel="icon" href="/logo.png" />
-<link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="/style.css?v=5" />
 <script>
   // SpookyScript: 1 October to 1 November (or ?spooky to preview it any time).
   (function () {
@@ -24,11 +24,16 @@
   <div class="wrap nav-in">
     <a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b></span></a>
     <nav class="links">
-      <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#faq">FAQ</a>
+      <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#browser">Browser</a><a href="#faq">FAQ</a>
+      <a href="/team">Team</a>
       <a href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub</a>
     </nav>
     <a class="btn sm primary" href="/download">Download</a>
+    <button class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </div>
+  <nav class="mobile-nav" id="mobile-nav" hidden>
+    <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#browser">Browser</a><a href="#new">What's new</a><a href="#faq">FAQ</a><a href="/github">GitHub</a><a href="/discord">Discord</a>
+  </nav>
 </header>
 
 <main>
@@ -41,6 +46,12 @@
       <a class="btn" href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>View the source</a>
     </div>
     <p class="fine">Free and open source · Windows, Linux (Wine) and macOS · <span id="rel-ver">latest release</span></p>
+    <div class="stats-row" id="stats" hidden>
+      <div><b id="st-dl">-</b><span>downloads</span></div>
+      <div><b id="st-stars">-</b><span>GitHub stars</span></div>
+      <div><b id="st-rel">-</b><span>releases</span></div>
+      <div><b>50</b><span>AI providers</span></div>
+    </div>
 
     <div class="shot" aria-hidden="true">
       <div class="shot-bar"><i></i><i></i><i></i><span>VoidScript</span></div>
@@ -62,8 +73,8 @@
   </section>
 
   <section class="strip wrap">
-    <span>Works with</span>
-    <b>ChatGPT</b><b>Gemini</b><b>DeepSeek</b><b>Claude</b><b>Grok</b><b>Qwen</b><b>Kimi</b><b>NVIDIA</b><b>Groq</b><b>OpenRouter</b><b>Ollama</b>
+    <span>Works with every AI you use</span>
+    <div class="marq"><div class="marq-track"><span><img src="/ai/chatgpt.png" alt="" loading="lazy" />ChatGPT</span><span><img src="/ai/gemini.png" alt="" loading="lazy" />Gemini</span><span><img src="/ai/deepseek.png" alt="" loading="lazy" />DeepSeek</span><span><img src="/ai/claude.png" alt="" loading="lazy" />Claude</span><span><img src="/ai/grok.png" alt="" loading="lazy" />Grok</span><span><img src="/ai/qwen.png" alt="" loading="lazy" />Qwen</span><span><img src="/ai/copilot.png" alt="" loading="lazy" />Copilot</span><span><img src="/ai/perplexity.png" alt="" loading="lazy" />Perplexity</span><span><img src="/ai/mistral.png" alt="" loading="lazy" />Le Chat</span><span><img src="/ai/meta.png" alt="" loading="lazy" />Meta AI</span><span><img src="/ai/kimi.png" alt="" loading="lazy" />Kimi</span><span><img src="/ai/zai.png" alt="" loading="lazy" />GLM</span><span><img src="/ai/minimax.png" alt="" loading="lazy" />MiniMax</span><span><img src="/ai/poe.png" alt="" loading="lazy" />Poe</span><span><img src="/ai/huggingchat.png" alt="" loading="lazy" />HuggingChat</span><span><img src="/ai/duck.png" alt="" loading="lazy" />Duck.ai</span><span><img src="/ai/pi.png" alt="" loading="lazy" />Pi</span><span><img src="/ai/chatgpt.png" alt="" loading="lazy" />ChatGPT</span><span><img src="/ai/gemini.png" alt="" loading="lazy" />Gemini</span><span><img src="/ai/deepseek.png" alt="" loading="lazy" />DeepSeek</span><span><img src="/ai/claude.png" alt="" loading="lazy" />Claude</span><span><img src="/ai/grok.png" alt="" loading="lazy" />Grok</span><span><img src="/ai/qwen.png" alt="" loading="lazy" />Qwen</span><span><img src="/ai/copilot.png" alt="" loading="lazy" />Copilot</span><span><img src="/ai/perplexity.png" alt="" loading="lazy" />Perplexity</span><span><img src="/ai/mistral.png" alt="" loading="lazy" />Le Chat</span><span><img src="/ai/meta.png" alt="" loading="lazy" />Meta AI</span><span><img src="/ai/kimi.png" alt="" loading="lazy" />Kimi</span><span><img src="/ai/zai.png" alt="" loading="lazy" />GLM</span><span><img src="/ai/minimax.png" alt="" loading="lazy" />MiniMax</span><span><img src="/ai/poe.png" alt="" loading="lazy" />Poe</span><span><img src="/ai/huggingchat.png" alt="" loading="lazy" />HuggingChat</span><span><img src="/ai/duck.png" alt="" loading="lazy" />Duck.ai</span><span><img src="/ai/pi.png" alt="" loading="lazy" />Pi</span></div></div>
   </section>
 
   <section class="wrap sec" id="features">
@@ -73,7 +84,7 @@
       <div class="feat"><i><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="12" rx="3"/><path d="M12 3.5V7M9.5 12v1.5M14.5 12v1.5"/></svg></i><h3>Agent mode</h3><p>It builds, playtests the game in Studio, reads the Output and fixes its own errors until it works.</p></div>
       <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg></i><h3>Model generator</h3><p>Describe a model, preview it in 3D with real textures, tweak it, then drop it in or export .rbxmx.</p></div>
       <div class="feat"><i><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7M8.5 16.5h4"/></svg></i><h3>UI builder</h3><p>Shops, HUDs and menus that look good on phone, tablet and PC, with animations and their LocalScript.</p></div>
-      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M17 3.5 20.5 7 17 10.5"/><path d="M20.5 7H9a5.5 5.5 0 0 0 0 11h1.5"/><path d="M7 20.5 3.5 17 7 13.5"/></svg></i><h3>Never run out</h3><p>35 AI providers, most with free tiers. When one hits its limit, the next one you have takes over.</p></div>
+      <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M17 3.5 20.5 7 17 10.5"/><path d="M20.5 7H9a5.5 5.5 0 0 0 0 11h1.5"/><path d="M7 20.5 3.5 17 7 13.5"/></svg></i><h3>Never run out</h3><p>50 AI providers, most with free tiers. When one hits its limit, the next one you have takes over.</p></div>
       <div class="feat"><i><svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg></i><h3>Script library</h3><p>Saving, coins, doors, jump pads, checkpoints, admin commands and more. One click, no AI needed.</p></div>
       <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M2.5 20 9 8.5l4 6.5 2.7-4L21.5 20z"/></svg></i><h3>Terrain and lighting</h3><p>Islands, volcanoes, canyons and swamps from a seed, plus one-click lighting moods.</p></div>
       <div class="feat"><i><svg viewBox="0 0 24 24"><path d="M12 2.5l7.5 3v5.3c0 4.7-3.2 8.6-7.5 10.2-4.3-1.6-7.5-5.5-7.5-10.2V5.5z"/><path d="M9 12l2.2 2.2L15.5 9.8"/></svg></i><h3>Health check</h3><p>Finds free-model backdoors, lag, loose parts and outdated code, then fixes them with you.</p></div>
@@ -97,7 +108,7 @@
       <div>
         <p class="eyebrow">Your choice of AI</p>
         <h2>Free models that actually build.</h2>
-        <p class="muted">Use a free key from NVIDIA, Groq, Gemini, Cerebras, Mistral, GitHub Models or 30 others, run models on your own PC with Ollama, or skip keys entirely and use the AI websites you already have.</p>
+        <p class="muted">Use a free key from NVIDIA, Groq, Gemini, Cerebras, Mistral, GitHub Models or 40 others, run models on your own PC with Ollama, or skip keys entirely and use the AI websites you already have.</p>
         <ul class="ticks">
           <li>Keys stay on your PC and only go to their own provider</li>
           <li>Test which models work with one click</li>
@@ -105,7 +116,29 @@
         </ul>
       </div>
       <div class="provs">
-        <span>NVIDIA</span><span>Groq</span><span>Gemini</span><span>Cerebras</span><span>Mistral</span><span>OpenRouter</span><span>GitHub Models</span><span>Hugging Face</span><span>Together</span><span>Z.ai</span><span>SambaNova</span><span>DeepSeek</span><span>Ollama</span><span>LM Studio</span><span>+ 21 more</span>
+        <span>NVIDIA</span><span>Groq</span><span>Gemini</span><span>Cerebras</span><span>Mistral</span><span>OpenRouter</span><span>GitHub Models</span><span>Hugging Face</span><span>Together</span><span>Z.ai</span><span>SambaNova</span><span>DeepSeek</span><span>Ollama</span><span>LM Studio</span><span>+ 36 more</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap sec" id="browser">
+    <div class="split">
+      <div>
+        <p class="eyebrow">New in 7.1</p>
+        <h2>A browser, built in.</h2>
+        <p class="muted">ChatGPT, Gemini, Claude, DeepSeek and 15 more AIs open right inside VoidScript, with VoidScript already on every one. No extension to install, and you stay signed in.</p>
+        <ul class="ticks">
+          <li>Tabs down the side, like the browsers you already use</li>
+          <li>Pin your favourite AIs and add your own shortcuts</li>
+          <li>Separate from your normal browser, so nothing gets mixed up</li>
+        </ul>
+      </div>
+      <div class="bw" aria-hidden="true">
+        <div class="bw-bar"><i></i><i></i><i></i></div>
+        <div class="bw-body">
+          <div class="bw-side"><span class="bw-url"></span><div class="bw-pins"><i><img src="/ai/chatgpt.png" alt="" loading="lazy" /></i><i><img src="/ai/gemini.png" alt="" loading="lazy" /></i><i><img src="/ai/deepseek.png" alt="" loading="lazy" /></i><i><img src="/ai/claude.png" alt="" loading="lazy" /></i><i><img src="/ai/grok.png" alt="" loading="lazy" /></i><i><img src="/ai/qwen.png" alt="" loading="lazy" /></i><i><img src="/ai/copilot.png" alt="" loading="lazy" /></i><i><img src="/ai/perplexity.png" alt="" loading="lazy" /></i><i><img src="/ai/mistral.png" alt="" loading="lazy" /></i></div><span class="bw-tab on"></span><span class="bw-tab"></span><span class="bw-tab"></span></div>
+          <div class="bw-main"><b class="bw-h">Where to?</b><span class="bw-search"></span><div class="bw-grid"><span class="bw-t"><i><img src="/ai/chatgpt.png" alt="" loading="lazy" /></i><b>ChatGPT</b></span><span class="bw-t"><i><img src="/ai/gemini.png" alt="" loading="lazy" /></i><b>Gemini</b></span><span class="bw-t"><i><img src="/ai/deepseek.png" alt="" loading="lazy" /></i><b>DeepSeek</b></span><span class="bw-t"><i><img src="/ai/claude.png" alt="" loading="lazy" /></i><b>Claude</b></span><span class="bw-t"><i><img src="/ai/grok.png" alt="" loading="lazy" /></i><b>Grok</b></span><span class="bw-t"><i><img src="/ai/qwen.png" alt="" loading="lazy" /></i><b>Qwen</b></span><span class="bw-t"><i><img src="/ai/copilot.png" alt="" loading="lazy" /></i><b>Copilot</b></span><span class="bw-t"><i><img src="/ai/perplexity.png" alt="" loading="lazy" /></i><b>Perplexity</b></span><span class="bw-t"><i><img src="/ai/mistral.png" alt="" loading="lazy" /></i><b>Le Chat</b></span><span class="bw-t"><i><img src="/ai/meta.png" alt="" loading="lazy" /></i><b>Meta AI</b></span><span class="bw-t"><i><img src="/ai/kimi.png" alt="" loading="lazy" /></i><b>Kimi</b></span><span class="bw-t"><i><img src="/ai/zai.png" alt="" loading="lazy" /></i><b>GLM</b></span></div></div>
+        </div>
       </div>
     </div>
   </section>
@@ -117,8 +150,13 @@
       <div class="feat flat"><h3>Redesigned app</h3><p>A calmer look, chat history, icon rail, command palette and focus mode.</p></div>
       <div class="feat flat"><h3>Agent playtesting</h3><p>It plays your game for you and fixes the errors it finds.</p></div>
       <div class="feat flat"><h3>Never run out</h3><p>Automatic fallback between your free providers.</p></div>
-      <div class="feat flat"><h3>Script library</h3><p>16 ready-made systems you add in one click.</p></div>
+      <div class="feat flat"><h3>Script library</h3><p>21 ready-made systems you add in one click.</p></div>
     </div>
+    <details class="notes" id="rel-box" hidden>
+      <summary><span id="rel-title">Full release notes</span><span class="notes-date" id="rel-date"></span></summary>
+      <div class="notes-body" id="rel-notes"></div>
+      <a class="btn sm" id="rel-link" href="/github" target="_blank" rel="noopener">See it on GitHub</a>
+    </details>
   </section>
 
   <section class="wrap sec" id="faq">
@@ -131,6 +169,12 @@
       <details><summary>Is this an exploit?</summary><p>No. It only works inside Roblox Studio, on places you own, through Roblox's own Studio MCP server. It never touches live games.</p></details>
       <details><summary>Is it made by Roblox?</summary><p>No. VoidScript is an independent project and isn't affiliated with Roblox Corporation.</p></details>
     </div>
+  </section>
+
+  <section class="wrap sec" id="made" hidden>
+    <p class="eyebrow">The team</p>
+    <h2>Made by people who build on Roblox too.</h2>
+    <div class="made" id="made-list"></div>
   </section>
 
   <section class="wrap final">
@@ -148,11 +192,78 @@
   <a href="https://github.com/cjl26rg2/Void-Script/releases" target="_blank" rel="noopener">Releases</a>
 </footer>
 <script>
-fetch("/api/release").then((r) => r.ok ? r.json() : null).then((d) => {
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const spooky = document.documentElement.classList.contains("spooky");
+// Release notes are markdown on GitHub: headings, lists, bold, code and links.
+function mdLite(src) {
+  const inline = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  let html = "", list = false;
+  for (const raw of String(src).replace(/\r/g, "").split("\n")) {
+    const line = raw.trimEnd();
+    const h = line.match(/^#{1,4}\s+(.*)/), li = line.match(/^\s*[-*]\s+(.*)/);
+    if (!li && list) { html += "</ul>"; list = false; }
+    if (h) html += `<h4>${inline(h[1])}</h4>`;
+    else if (li) { if (!list) { html += "<ul>"; list = true; } html += `<li>${inline(li[1])}</li>`; }
+    else if (line.trim() && !/^```/.test(line)) html += `<p>${inline(line)}</p>`;
+  }
+  return html + (list ? "</ul>" : "");
+}
+// The server caches GitHub's answers; if it can't reach GitHub (shared hosts hit
+// GitHub's rate limit), the browser asks GitHub itself.
+const GH = "https://api.github.com/repos/cjl26rg2/Void-Script";
+const getJSON = (u) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+async function releaseInfo() {
+  const d = await getJSON("/api/release");
+  if (d && d.version) return d;
+  const r = await getJSON(GH + "/releases/latest");
+  return r && { version: r.tag_name, name: r.name, url: r.html_url, published: r.published_at, notes: r.body || "" };
+}
+async function statsInfo() {
+  const d = await getJSON("/api/stats");
+  if (d && d.downloads != null) return d;
+  const [repo, rels] = await Promise.all([getJSON(GH), getJSON(GH + "/releases?per_page=100")]);
+  if (!Array.isArray(rels)) return null;
+  return { stars: repo ? repo.stargazers_count : 0, releases: rels.length,
+    downloads: rels.reduce((n, r) => n + (r.assets || []).reduce((m, a) => m + (a.download_count || 0), 0), 0) };
+}
+releaseInfo().then((d) => {
   if (!d || !d.version) return;
-  document.getElementById("rel-ver").textContent = "latest: " + d.version;
-  document.getElementById("rel-tag").textContent = (d.name || "VoidScript " + d.version).replace(/^V(?=\d)/, "v") + " is out";
+  const name = (d.name || "VoidScript " + d.version).replace(/^V(?=\d)/, "v");
+  $("rel-ver").textContent = "latest: " + d.version;
+  $("rel-tag").textContent = name + " is out";
+  if (d.notes) {
+    $("rel-title").textContent = name + ": full release notes";
+    $("rel-date").textContent = d.published ? new Date(d.published).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) : "";
+    $("rel-notes").innerHTML = mdLite(spooky ? d.notes : d.notes.replace(/SpookyScript/g, "VoidScript"));
+    $("rel-link").href = d.url;
+    $("rel-box").hidden = false;
+  }
 }).catch(() => {});
+statsInfo().then((d) => {
+  if (!d || d.downloads == null) return;
+  const n = (x) => x >= 1000 ? (x / 1000).toFixed(x >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k" : String(x);
+  $("st-dl").textContent = n(d.downloads);
+  $("st-stars").textContent = n(d.stars || 0);
+  $("st-rel").textContent = n(d.releases || 0);
+  $("stats").hidden = false;
+}).catch(() => {});
+// The team, from the admin panel.
+getJSON("/api/team").then((t) => {
+  if (!Array.isArray(t) || !t.length) return;
+  $("made-list").innerHTML = t.map((m) => `<a href="${esc(m.url)}" style="--tm:${esc(m.color)}"><img src="${esc(m.avatar)}" alt="" referrerpolicy="no-referrer" /><span><b>${esc(m.name)}</b><i>${esc(m.role || "Team")}</i></span></a>`).join("");
+  $("made").hidden = false;
+});
+// A soft spotlight follows the mouse over the feature cards.
+document.querySelectorAll(".feat").forEach((c) => c.addEventListener("pointermove", (e) => {
+  const r = c.getBoundingClientRect();
+  c.style.setProperty("--mx", e.clientX - r.left + "px");
+  c.style.setProperty("--my", e.clientY - r.top + "px");
+}));
+// Phone menu.
+$("menu-btn").onclick = () => { const open = $("mobile-nav").hidden; $("mobile-nav").hidden = !open; $("menu-btn").setAttribute("aria-expanded", String(open)); };
+$("mobile-nav").addEventListener("click", (e) => { if (e.target.closest("a")) $("mobile-nav").hidden = true; });
 </script>
 <div class="spooky-deco" aria-hidden="true"><i class="web l"></i><i class="web r"></i><i class="moon"></i><i class="bat b1"></i><i class="bat b2"></i><i class="bat b3"></i><i class="ghost"></i><i class="spider"></i></div>
 <script>

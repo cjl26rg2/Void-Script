@@ -233,6 +233,14 @@
   .acts button{ display:flex; align-items:center; gap:7px; height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--muted); font:600 12px "Segoe UI",system-ui,sans-serif; cursor:pointer; }
   .acts button:hover{ color:var(--fg); border-color:var(--line2); background:var(--card2); }
   .acts svg{ width:14px; height:14px; flex:none; color:var(--acc); }
+  .files-mode{ display:flex; margin-top:8px; }
+  .files-mode button{ flex:1; font-size:11px !important; padding:6px 4px !important; }
+  .files-row{ display:flex; gap:6px; margin:8px 0 4px; }
+  .files-row input{ flex:1; min-width:0; height:30px; padding:0 9px; border-radius:8px; border:1px solid var(--line2); background:var(--card); color:var(--fg); font:12px "Cascadia Mono",Consolas,monospace; outline:none; }
+  .files-row input:focus{ border-color:var(--acc); }
+  .files-row button{ height:30px; padding:0 12px; border-radius:8px; border:0; background:var(--acc); color:#fff; font:600 12px "Segoe UI",sans-serif; cursor:pointer; }
+  .files-note{ font-size:11px; color:var(--dim); line-height:1.45; margin-bottom:6px; }
+  .files-note.ok{ color:var(--ok); } .files-note.bad{ color:#ff9aa8; }
 </style>
 </head>
 <body>
@@ -330,6 +338,19 @@
     <button class="chip" data-open="https://www.kimi.com/"><span class="d o"></span>Kimi</button>
     <button class="chip" data-open="https://grok.com/"><span class="d o"></span>Grok</button>
   </div>
+
+  <!-- ── Files on this PC: what the AI may create and edit ── -->
+  <div class="sec-h">Files on this PC</div>
+  <div class="seg files-mode" id="files-mode">
+    <button data-m="off">Off</button>
+    <button data-m="anywhere">Any folder I name</button>
+    <button data-m="folder">One folder</button>
+  </div>
+  <div class="files-row" id="files-folder-row" hidden>
+    <input id="files-dir" placeholder="Paste a folder path, e.g. C:\Users\you\Documents\my-site" spellcheck="false" />
+    <button id="files-save">Use</button>
+  </div>
+  <div class="files-note" id="files-note">Let the AI on any site create, edit and open files - like a website it builds for you. It never deletes or runs anything, and keeps a copy of anything it changes.</div>
 
   <!-- ── Quick settings ─────────────────────────────── -->
   <div class="sec-h" data-i18n="quick">Quick settings</div>

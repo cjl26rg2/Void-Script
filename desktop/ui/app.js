@@ -77,12 +77,27 @@ const MORE_PROVIDERS = [
   ["moonshot", "Moonshot (Kimi)", "credits", "https://platform.moonshot.ai/", "", "Free credits to start."],
   ["xai", "xAI (Grok)", "credits", "https://console.x.ai/", "", "Credits to start."],
   ["deepseek", "DeepSeek", "other", "https://platform.deepseek.com/", "deepseek-chat", "Not free, but very cheap."],
+  ["zhipu", "Zhipu GLM (BigModel)", "free", "https://open.bigmodel.cn/", "glm-4.5-flash", "GLM's own platform. Flash models are free."],
+  ["ovhcloud", "OVHcloud AI Endpoints", "free", "https://endpoints.ai.cloud.ovh.net/", "", "Works without a key (rate-limited); add one for more."],
+  ["minimax", "MiniMax", "credits", "https://www.minimax.io/platform", "", "Free credits to start. Strong at coding."],
+  ["stepfun", "StepFun", "credits", "https://platform.stepfun.com/", "", "Free credits to start."],
+  ["nscale", "Nscale", "credits", "https://console.nscale.com/", "", "Free credits to start. Hosted in Europe."],
+  ["inception", "Inception (Mercury)", "credits", "https://platform.inceptionlabs.ai/", "mercury-coder", "Diffusion models - extremely fast replies."],
+  ["requesty", "Requesty", "credits", "https://app.requesty.ai/", "", "One key for hundreds of models, with fallbacks."],
+  ["vercel", "Vercel AI Gateway", "credits", "https://vercel.com/ai-gateway", "", "One key for most models, with free monthly credit."],
+  ["baseten", "Baseten", "credits", "https://app.baseten.co/", "", "Free credits to start."],
+  ["openai", "OpenAI", "other", "https://platform.openai.com/api-keys", "gpt-4.1-mini", "Paid, but the mini models are cheap."],
+  ["anthropic", "Anthropic (Claude)", "other", "https://console.anthropic.com/", "", "Paid. Pick or type a Claude model ID."],
+  ["perplexity", "Perplexity", "other", "https://www.perplexity.ai/account/api", "sonar", "Paid. Answers with live web search."],
+  ["featherless", "Featherless", "other", "https://featherless.ai/", "", "A flat monthly price for thousands of open models."],
   ["ollama", "Ollama (on this PC)", "local", "https://ollama.com/download", "", "Runs models on your own PC - no key, no limits. Start Ollama first."],
+  ["llamacpp", "llama.cpp (on this PC)", "local", "https://github.com/ggml-org/llama.cpp", "", "llama.cpp's server on port 8080 - no key, no limits."],
+  ["jan", "Jan (on this PC)", "local", "https://jan.ai/", "", "Jan's local server on port 1337 - no key, no limits."],
   ["lmstudio", "LM Studio (on this PC)", "local", "https://lmstudio.ai/", "", "Runs models on your own PC. Start LM Studio's local server first."],
   ["custom", "Custom", "other", "", "", "Any OpenAI-compatible API - set its base URL below."],
 ];
 // No key needed (custom may or may not want one).
-const KEYLESS = new Set(["llm7", "pollinations", "ollama", "lmstudio", "custom"]);
+const KEYLESS = new Set(["llm7", "pollinations", "ollama", "lmstudio", "llamacpp", "jan", "ovhcloud", "custom"]);
 for (const [id, name, , url] of MORE_PROVIDERS) { PROV_NAME[id] = name; PROV_KEY_URL[id] = url; }
 const PROV_KIND = { free: "Free", credits: "Free credits", local: "On this PC", other: "Other" };
 function provOptions() {
@@ -1814,6 +1829,7 @@ function toolDefs(readOnly) {
   const defs = [], map = {};
   for (const t of (S.state.tools || [])) {
     if (readOnly && !isReadOnly(t.name)) continue;
+    if (/^files_/.test(t.name)) continue; // the app has its own workspace_* tools, with approvals
     let safe = String(t.name).replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64) || "tool";
     while (map[safe]) safe = safe.slice(0, 58) + "_" + Object.keys(map).length;
     map[safe] = { kind: "bridge", name: t.name };
@@ -2201,7 +2217,7 @@ const FALLBACK_ERR = /API (40[123]|408|429|5\d\d)|rate.?limit|quota|exceeded|cre
 const providerRest = {}; // provider -> resting until (ms)
 function nroOn() { return lsGet("vs-nro") !== "off"; }
 function fallbackChain(first) {
-  const local = new Set(["ollama", "lmstudio"]);
+  const local = new Set(["ollama", "lmstudio", "llamacpp", "jan"]);
   const all = ["nvidia", "google", "openrouter"].concat(MORE_PROVIDERS.map((x) => x[0]));
   const rest = all.filter((p) => p !== first && !local.has(p) && keySet(p));
   // Keyless public ones last: they work, but they're the weakest.

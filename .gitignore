@@ -27,3 +27,7 @@ SpookyScript.exe
 VoidScriptDev.exe
 SpookyScriptDev.exe
 *.old
+
+# Team profiles live on the website server
+website/data/
+website/.env

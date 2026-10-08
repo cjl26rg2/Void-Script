@@ -2,6 +2,65 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [7.1.0] - 2026-10-08 - WAVE : 2
+
+### Fewer antivirus false alarms
+- **No more shortcut rewriting.** The app no longer edits your Desktop, Start menu or taskbar shortcuts. Security tools see that as suspicious, and it was only needed for the 6.3 rename.
+- **No more hidden helper commands.** Checking whether Studio is open and stopping the bridge now use Windows' own process functions, instead of running `tasklist` and `taskkill` in hidden windows.
+- **Clear app details:** the exe now says who made it, that it's open source, and where the source lives.
+
+### Browser - now open for everyone
+- **A built-in browser for AI sites, with VoidScript already on every one.** You don't need to install anything in Chrome, and you stay signed in.
+- **A new look:** the page floats as a card next to a sidebar with the address bar, pinned AIs and your tabs, each with its site's real icon.
+- **19 AIs:** ChatGPT, Gemini, DeepSeek, Claude, Grok, Qwen, Copilot, Perplexity, Le Chat, Meta AI, Kimi, GLM, MiniMax, Poe, HuggingChat, LMArena, Duck.ai, Pi and SuperApp.
+- **Ask box:** pick an AI, type what you want, and it opens with your prompt already filled in. AIs that can't take a prompt in the link get it on your clipboard instead.
+- Add your own shortcuts, and see recently visited sites.
+- **Tabs like a real browser:** Ctrl+T, Ctrl+W, **Ctrl+Shift+T to reopen a closed tab**, Ctrl+Tab to switch, Alt+Left/Right, middle-click to close, Ctrl-click to open in the background, and a right-click menu (duplicate, close others, open in my browser).
+- Lighter and faster: it only re-checks its position when a menu or dialog opens or closes.
+
+### Quality of life
+- **Undo:** deleting a chat shows an Undo button. Notifications now stack instead of replacing each other.
+- **Right-click a chat** to open, rename, pin, duplicate, save or delete it.
+- **Recent models** sit at the top of the model menu, one click to switch back.
+- **Favourite templates:** star them and they come first, in the Toolkit and in Ctrl+K.
+- **Setup checklist** on Home until you're ready to build: bridge, Studio, AI key, first build.
+- **Keep chats** for 30 days, 90 days or forever (Settings → Your data). Pinned chats are always kept.
+- **Paste a picture** (Ctrl+V) straight in as the reference on the Models and UI builder pages.
+- **The "working" bubble counts up** (12s, 1m 4s…), so a slow model never looks frozen.
+- **Closing the app while the AI is working asks first.**
+- **Picks up where you left off:** your last chat is open again when you start the app.
+- **The chat's name sits in the header**: double-click it to rename.
+- **Just start typing** on the Chat page, and it goes into the chat box.
+- **Ctrl+Shift+C** copies the AI's last answer.
+- **Long messages you send fold up**, with Show more.
+- **Click a code block's header** to switch long lines between wrapping and scrolling. The app remembers your choice.
+- Hover a chat in the list to see when it was last used and how many messages it has.
+- **Reset look & layout** (Settings → Your data) puts the appearance back to default without touching your chats, keys or saved work.
+
+### Files on your PC, from any AI site
+- **Every AI can now work with files on your PC:** the AI on DeepSeek, ChatGPT or any site can **list, read, create, edit, rename and search files**, and **open web pages it makes** in your browser. Ask DeepSeek to "build a site in C:\Users\you\Documents\my-site" or "fix the CSS in my website folder" and it works right there.
+- **Choose how much in the extension popup (Files on this PC):** *Off*, *Any folder I name* (it works in whatever folder you mention), or *One folder*. The app's Workspace folder counts too.
+- **Safe by design:** it never deletes and never runs programs, and it can only open safe file types. Windows, Program Files, ProgramData, AppData, whole drives and private key folders are always off limits.
+- **Nothing is lost:** before it changes or overwrites a file, the old version is saved to `%LOCALAPPDATA%\VoidScript\file-history`.
+- New **Build a web page** job in the Toolkit.
+
+### 15 more AI providers (50 in all)
+- **OpenAI**, **Anthropic (Claude)** and **Perplexity** (with live web search).
+- Free or free credits: **Zhipu GLM**, **MiniMax**, **StepFun**, **Inception** (very fast), **Nscale**, **OVHcloud** (works with no key), **Requesty**, **Vercel AI Gateway**, **Baseten**, **Featherless**.
+- On your PC: **llama.cpp** and **Jan**.
+
+### Explorer
+- **Edit properties in place:** click a true/false to flip it, or click a number or text to change it.
+- **Duplicate** anything.
+
+### Script library
+- 5 more systems (21 in all): **Teleport pads**, **Speed pads**, **Healing pads**, **Tool givers** and **Auto teams**.
+
+### Website
+- A new **Browser** section showing the new look with all the AIs.
+- **Team pages:** voidscript.dev/team, plus a page per person (like voidscript.dev/callum) with their live Discord picture, name, banner and online status, a role badge and a description. Managed from a password-protected admin panel at voidscript.dev/admin. Capitals work in links (voidscript.dev/Callum). Each role gets its own colour, descriptions are written for you if you leave them empty, and profiles show a glowing ring, badges (including how long they have been on Discord), live status, a copy-link button and the rest of the team.
+- **Homepage:** a scrolling strip of every AI logo, a glowing grid behind the hero, a spotlight that follows your mouse over the features, and a Made by section with the team.
+
 ## [7.0.0] - 2026-10-06 - A whole new VoidScript
 
 ### App: redesigned from top to bottom

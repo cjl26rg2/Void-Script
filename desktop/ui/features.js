@@ -445,12 +445,12 @@ showTip();
 
 // ── what's new (once per version) ───────────────────────────────────────────
 const WHATS_NEW = [
-  [ICONS.chat, "Brand new app", "A cleaner look everywhere, chat history, hover labels and a command palette."],
-  [ICONS.agent, "Agent mode", "Builds, playtests in Studio, reads the Output and fixes its own errors."],
-  [ICONS.retry, "Never run out", "When a free provider hits its limit, the next one takes over."],
-  [ICONS.code, "Script library", "16 ready-made systems: saving, coins, doors, checkpoints and more."],
-  [ICONS.mountain, "More terrain", "Volcano, canyon river, swamp and graveyard biomes."],
-  [ICONS.bolt, "Faster everywhere", "Slash commands, shortcuts, drafts, zoom and focus mode."],
+  [ICONS.find, "The Browser is here", "19 AIs inside the app with VoidScript built in, an Ask box and real browser tabs."],
+  [ICONS.retry, "Undo and more", "Undo deleted chats, recent models, favourite templates and a right-click menu for chats."],
+  [ICONS.code, "Explorer edits", "Flip, type or duplicate right in the Explorer."],
+  [ICONS.bolt, "21 ready-made systems", "Teleport pads, speed pads, healing pads, tool givers and auto teams join the library."],
+  [ICONS.gear, "Fewer false alarms", "No shortcut rewriting and no hidden helper commands, so antivirus tools stay calm."],
+  [ICONS.agent, "Little things", "A setup checklist, paste-in pictures, a working timer and a confirm before closing mid-build."],
 ];
 function showWhatsNew() {
   $("wn-list").innerHTML = WHATS_NEW.map(([i, t, d]) => `<div><i>${i}</i><span><b>${esc(t)}</b>${esc(d)}</span></div>`).join("");

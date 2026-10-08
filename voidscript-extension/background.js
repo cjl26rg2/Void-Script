@@ -464,6 +464,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         else sendResponse({ ok: false, error: r.error });
         break;
       }
+      case "files_folder": {
+        const r = await send(Object.assign({ type: "files_folder" }, "dir" in msg ? { dir: msg.dir } : {}, msg.mode ? { mode: msg.mode } : {}), 10000);
+        sendResponse(r);
+        break;
+      }
       case "backup_place": {
         const r = await send({ type: "backup_place" }, 45000);
         sendResponse({ ok: !!r.ok, error: r.error || null, path: r.path || null });

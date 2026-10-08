@@ -1,6 +1,6 @@
 [package]
 name = "voidscript"
-version = "7.0.0"
+version = "7.1.0"
 description = "VoidScript - AI agent for Roblox Studio"
 edition = "2021"
 license = "GPL-3.0-or-later"
@@ -23,7 +23,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 # Shortcut fixing (SpookyScript.exe <-> VoidScript.exe) through Windows' own
 # IShellLink - the same windows crate version Tauri already pulls in.
 [target.'cfg(windows)'.dependencies]
-windows = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Com", "Win32_System_Com_StructuredStorage", "Win32_UI_Shell", "Win32_Storage_FileSystem"] }
+windows = { version = "0.61", features = ["Win32_Foundation", "Win32_System_Diagnostics_ToolHelp", "Win32_System_Threading"] }
 
 [profile.release]
 opt-level = "s"

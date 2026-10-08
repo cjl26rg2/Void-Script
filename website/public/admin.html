@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex" />
+<title>Admin · VoidScript</title>
+<link rel="icon" href="/logo.png" />
+<link rel="stylesheet" href="/style.css?v=5" />
+</head>
+<body class="adm">
+<header class="nav"><div class="wrap nav-in">
+  <a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b> <em class="adm-tag">admin</em></span></a>
+  <nav class="links"><a href="/team" target="_blank">View team page</a></nav>
+  <button class="btn sm" id="logout" hidden>Log out</button>
+</div></header>
+
+<main class="wrap adm-main">
+  <!-- log in -->
+  <section class="adm-login" id="login">
+    <h2>Admin</h2>
+    <p class="muted">Manage the team pages (voidscript.dev/callum, /axol…).</p>
+    <form id="login-form"><input class="adm-in" id="pw" type="password" placeholder="Admin password" autocomplete="current-password" /><button class="btn primary">Log in</button></form>
+    <p class="adm-err" id="login-err"></p>
+  </section>
+
+  <!-- the panel -->
+  <section id="panel" hidden>
+    <div class="adm-cols">
+      <div>
+        <div class="adm-h"><h2>Team</h2><button class="btn sm" id="new">+ Add person</button></div>
+        <p class="adm-warn" id="no-token" hidden>No <code>DISCORD_BOT_TOKEN</code> on the server, so profile pictures come from Lanyard only (people who joined its Discord) or the picture link you paste.</p>
+        <div class="adm-list" id="list"></div>
+      </div>
+      <form class="adm-form" id="form">
+        <h3 id="form-title">Add a person</h3>
+        <label>Page name <span>voidscript.dev/<b id="slug-prev">Name</b> - capitals show in the link and as their name</span><input class="adm-in" id="f-slug" placeholder="Callum" maxlength="24" required /></label>
+        <label>Discord ID <span>right-click them in Discord → Copy User ID (turn on Developer Mode first)</span>
+          <div class="adm-row"><input class="adm-in" id="f-id" placeholder="123456789012345678" inputmode="numeric" /><button type="button" class="btn sm" id="lookup">Look up</button></div></label>
+        <div class="adm-preview" id="preview" hidden></div>
+        <label>Role <span>shown as a badge</span><input class="adm-in" id="f-role" placeholder="Owner · Main developer · Developer" maxlength="40" list="roles" /></label>
+        <datalist id="roles"><option>Owner</option><option>Main developer</option><option>Developer</option><option>Designer</option><option>Moderator</option><option>Tester</option></datalist>
+        <label>Description <span>leave it empty and one is written from their name and role</span><textarea class="adm-in" id="f-desc" rows="5" maxlength="1200" placeholder="What they do on VoidScript…"></textarea>
+          <button type="button" class="btn sm" id="auto-desc" style="align-self:flex-start">Write one for me</button></label>
+        <div class="adm-grid2">
+          <label>Display name <span>optional - otherwise the page name</span><input class="adm-in" id="f-display" maxlength="40" placeholder="Callum" /></label>
+          <label>Accent colour <span>optional</span><input class="adm-in" id="f-color" placeholder="#ff7a3d" maxlength="7" /></label>
+        </div>
+        <label>Picture link override <span>optional, https only</span><input class="adm-in" id="f-avatar" placeholder="https://…" /></label>
+        <div class="adm-grid2">
+          <label>Link 1 <span>label + https link</span><div class="adm-row"><input class="adm-in" id="l1-label" placeholder="GitHub" style="max-width:110px" /><input class="adm-in" id="l1-url" placeholder="https://github.com/…" /></div></label>
+          <label>Link 2<div class="adm-row"><input class="adm-in" id="l2-label" placeholder="YouTube" style="max-width:110px" /><input class="adm-in" id="l2-url" placeholder="https://…" /></div></label>
+        </div>
+        <label>Order <span>lower comes first on /team</span><input class="adm-in" id="f-order" type="number" value="0" style="max-width:120px" /></label>
+        <div class="adm-row adm-actions"><button class="btn primary">Save</button><a class="btn sm" id="open" target="_blank" hidden>Open page</a><span class="grow"></span><button type="button" class="btn sm adm-del" id="del" hidden>Remove</button></div>
+        <p class="adm-err" id="form-err"></p>
+      </form>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const api = async (path, opts) => {
+  const r = await fetch("/api/admin/" + path, Object.assign({ credentials: "same-origin", headers: { "Content-Type": "application/json" } }, opts || {}));
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || "Something went wrong."), { status: r.status });
+  return d;
+};
+let team = [], editing = null;
+
+async function boot() {
+  try { const d = await api("team"); show(d); } catch (e) { $("login").hidden = false; $("panel").hidden = true; $("logout").hidden = true; }
+}
+function show(d) {
+  team = d.team || [];
+  $("login").hidden = true; $("panel").hidden = false; $("logout").hidden = false;
+  $("no-token").hidden = !!d.discord;
+  renderList();
+}
+function renderList() {
+  const list = team.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
+  $("list").innerHTML = list.length ? list.map((p) => `<button class="adm-item${editing === p.slug ? " on" : ""}" data-slug="${esc(p.slug)}"><b>/${esc(p.label || p.slug)}</b><span>${esc(p.role || "No role")}</span></button>`).join("")
+    : '<p class="muted">Nobody yet - press Add person.</p>';
+}
+function fill(p) {
+  editing = p ? p.slug : null;
+  $("form-title").textContent = p ? `Edit /${p.slug}` : "Add a person";
+  $("f-slug").value = p ? (p.label || p.slug) : ""; $("f-id").value = p ? p.discord_id : ""; $("f-role").value = p ? p.role : "";
+  $("f-desc").value = p ? p.description : ""; $("f-display").value = p ? p.display : ""; $("f-color").value = p ? p.color : "";
+  $("f-avatar").value = p ? p.avatar : ""; $("f-order").value = p ? p.order || 0 : team.length;
+  const L = (p && p.links) || [];
+  $("l1-label").value = (L[0] || {}).label || ""; $("l1-url").value = (L[0] || {}).url || "";
+  $("l2-label").value = (L[1] || {}).label || ""; $("l2-url").value = (L[1] || {}).url || "";
+  $("del").hidden = !p; $("open").hidden = !p; if (p) $("open").href = "/" + (p.label || p.slug);
+  $("slug-prev").textContent = $("f-slug").value || "Name";
+  $("preview").hidden = true; $("form-err").textContent = "";
+  renderList();
+  if (p && p.discord_id) lookup();
+}
+async function lookup() {
+  const id = $("f-id").value.trim();
+  if (!id) return;
+  $("preview").hidden = false;
+  $("preview").innerHTML = '<span class="muted">Looking up…</span>';
+  try {
+    const { user } = await api("discord?id=" + encodeURIComponent(id));
+    $("preview").innerHTML = user ? `<img src="${esc(user.avatar)}" alt="" width="44" height="44" /><div><b>${esc(user.name)}</b><span>@${esc(user.username)}${user.status ? " · " + esc(user.status) : ""}</span></div>`
+      : '<span class="adm-err">Couldn\'t find that Discord user. Check the ID (and the bot token on the server).</span>';
+  } catch (e) { $("preview").innerHTML = `<span class="adm-err">${esc(e.message)}</span>`; }
+}
+
+$("login-form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("login-err").textContent = "";
+  try { await api("login", { method: "POST", body: JSON.stringify({ password: $("pw").value }) }); $("pw").value = ""; boot(); }
+  catch (err) { $("login-err").textContent = err.message; }
+};
+$("logout").onclick = async () => { await api("logout", { method: "POST" }).catch(() => {}); location.reload(); };
+$("new").onclick = () => fill(null);
+$("list").onclick = (e) => { const b = e.target.closest("[data-slug]"); if (b) fill(team.find((p) => p.slug === b.dataset.slug)); };
+$("lookup").onclick = lookup;
+$("f-id").addEventListener("change", lookup);
+$("f-slug").addEventListener("input", () => { $("f-slug").value = $("f-slug").value.replace(/[^A-Za-z0-9-]/g, ""); $("slug-prev").textContent = $("f-slug").value || "Name"; });
+// Write the description for them, from their name and role.
+$("auto-desc").onclick = async () => {
+  const name = $("f-display").value.trim() || ($("f-slug").value.trim().replace(/^./, (c) => c.toUpperCase())) || "They";
+  try { const d = await api("about?role=" + encodeURIComponent($("f-role").value) + "&name=" + encodeURIComponent(name)); $("f-desc").value = d.about; } catch (e) { $("form-err").textContent = e.message; }
+};
+$("form").onsubmit = async (e) => {
+  e.preventDefault();
+  $("form-err").textContent = "";
+  const links = [[$("l1-label").value, $("l1-url").value], [$("l2-label").value, $("l2-url").value]].filter(([, u]) => u.trim()).map(([label, url]) => ({ label: label.trim() || "Link", url: url.trim() }));
+  const body = { old_slug: editing, slug: $("f-slug").value.trim(), discord_id: $("f-id").value.trim(), role: $("f-role").value.trim(), description: $("f-desc").value,
+    display: $("f-display").value.trim(), color: $("f-color").value.trim(), avatar: $("f-avatar").value.trim(), links, order: Number($("f-order").value) || 0 };
+  try {
+    const d = await api("team", { method: "POST", body: JSON.stringify(body) });
+    team = d.team;
+    fill(team.find((p) => p.slug === body.slug.toLowerCase()));
+  } catch (err) { $("form-err").textContent = err.message; if (err.status === 401) boot(); }
+};
+$("del").onclick = async () => {
+  if (!editing || !confirm(`Remove /${editing}?`)) return;
+  try { const d = await api("team?slug=" + encodeURIComponent(editing), { method: "DELETE" }); team = d.team; fill(null); }
+  catch (err) { $("form-err").textContent = err.message; }
+};
+boot();
+</script>
+</body>
+</html>

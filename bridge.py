@@ -32,6 +32,10 @@ import sys
 import threading
 import time
 import urllib.parse
+try:
+    import filetools  # files on the user's PC, inside their chosen workspace folder
+except Exception:  # noqa: BLE001 - the bridge works without it
+    filetools = None
 
 try:
     # Sibling script (same folder as bridge.py, which Python puts on sys.path
@@ -92,7 +96,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "7.0.0"
+BRIDGE_VERSION = "7.1.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -1525,9 +1529,15 @@ class MCPManager:
                     tt["inputSchema"] = schema
                 out.append(tt)
         out.extend(self._creative_tool_defs())
+        if filetools is not None:
+            for t in filetools.tool_defs():
+                out.append(dict(t, server="files", embedded=True))
         return out
 
     def call(self, name, arguments, timeout):
+        # Files on the user's PC (only inside their workspace folder, only while on).
+        if filetools is not None and name in filetools.NAMES:
+            return {"text": filetools.call(name, arguments), "images": []}
         # Embedded creative tools (vs_*): compile the Luau here, validate it,
         # then run it through the PRIMARY Roblox server's execute_luau tool.
         creative = creatives is not None and name in self._creative_tool_names()
@@ -1588,8 +1598,12 @@ class MCPManager:
         self.rebuild_index()
 
     def health(self):
-        return [{"id": sid, "alive": c.is_alive(), "tools": len(c.tools_cache)}
-                for sid, c in self.clients.items()]
+        out = [{"id": sid, "alive": c.is_alive(), "tools": len(c.tools_cache)}
+               for sid, c in self.clients.items()]
+        # Files on the user's PC show up as their own "server" while a workspace is on.
+        if filetools is not None and filetools.mode() != "off":
+            out.append({"id": "files", "alive": True, "tools": len(filetools.NAMES)})
+        return out
 
     def any_alive(self):
         return any(c.is_alive() for c in self.clients.values())
@@ -2128,6 +2142,37 @@ async def handler(ws):
                     "type": "backup_place", "id": rid,
                     "ok": ok, "error": None if ok else res, "path": res if ok else None,
                 }))
+
+            elif mtype == "files_folder":
+                # The extension popup's Files setting: off / any folder the user
+                # names / one folder. Read it, or change it (mode and/or dir).
+                res = {"type": "files_folder", "id": rid, "ok": True}
+                if filetools is None:
+                    res.update(ok=False, error="This bridge doesn't have file tools.")
+                else:
+                    cfg = _read_config()
+                    changed = False
+                    if "dir" in msg:
+                        want = str(msg.get("dir") or "").strip()
+                        if want:
+                            d, why = filetools.check_folder(want)
+                            if why:
+                                res.update(ok=False, error=why)
+                            else:
+                                cfg["files_dir"] = d
+                                changed = True
+                        else:
+                            cfg.pop("files_dir", None)
+                            changed = True
+                    if res["ok"] and msg.get("mode") in ("off", "anywhere", "folder"):
+                        cfg["files_mode"] = msg["mode"]
+                        changed = True
+                    if changed and res["ok"]:
+                        _write_config(cfg)
+                        log(f"Files: {cfg.get('files_mode', 'folder')}" + (f" ({cfg['files_dir']})" if cfg.get("files_dir") else ""), "gr")
+                if res["ok"] and filetools is not None:
+                    res.update(mode=filetools.mode(), dir=filetools.workspace() or "", picked=filetools.picked_folder())
+                await ws.send(json.dumps(res))
 
             elif mtype == "list_backups":
                 await ws.send(json.dumps({

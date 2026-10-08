@@ -100,7 +100,22 @@ const CATALOG: &[(&str, &str, &str, bool)] = &[
     ("moonshot", "Moonshot (Kimi)", "https://api.moonshot.ai/v1", true),
     ("xai", "xAI (Grok)", "https://api.x.ai/v1", true),
     ("deepseek", "DeepSeek", "https://api.deepseek.com/v1", true),
+    ("openai", "OpenAI", "https://api.openai.com/v1", true),
+    ("anthropic", "Anthropic (Claude)", "https://api.anthropic.com/v1", true),
+    ("perplexity", "Perplexity", "https://api.perplexity.ai", true),
+    ("minimax", "MiniMax", "https://api.minimax.io/v1", true),
+    ("zhipu", "Zhipu GLM (BigModel)", "https://open.bigmodel.cn/api/paas/v4", true),
+    ("stepfun", "StepFun", "https://api.stepfun.com/v1", true),
+    ("nscale", "Nscale", "https://inference.api.nscale.com/v1", true),
+    ("inception", "Inception (Mercury)", "https://api.inceptionlabs.ai/v1", true),
+    ("featherless", "Featherless", "https://api.featherless.ai/v1", true),
+    ("ovhcloud", "OVHcloud AI Endpoints", "https://oai.endpoints.kepler.ai.cloud.ovh.net/v1", false),
+    ("requesty", "Requesty", "https://router.requesty.ai/v1", true),
+    ("vercel", "Vercel AI Gateway", "https://ai-gateway.vercel.sh/v1", true),
+    ("baseten", "Baseten", "https://inference.baseten.co/v1", true),
     ("ollama", "Ollama (on this PC)", "http://localhost:11434/v1", false),
+    ("llamacpp", "llama.cpp (on this PC)", "http://localhost:8080/v1", false),
+    ("jan", "Jan (on this PC)", "http://localhost:1337/v1", false),
     ("lmstudio", "LM Studio (on this PC)", "http://localhost:1234/v1", false),
     ("custom", "Custom", "", false),
 ];
@@ -357,12 +372,46 @@ fn save_settings_file(path: &Path, s: &Settings) -> Result<(), String> {
 
 // ── bridge process ──────────────────────────────────────────────────────────
 
+// Stops the bridge and everything it started (Python, Studio's MCP server) with
+// Windows' own process API, children first, instead of running taskkill.
+#[cfg(windows)]
 fn kill_tree(pid: u32) {
-    let mut c = Command::new("taskkill");
-    c.args(["/PID", &pid.to_string(), "/T", "/F"]).stdout(Stdio::null()).stderr(Stdio::null());
-    #[cfg(windows)]
-    c.creation_flags(CREATE_NO_WINDOW);
-    let _ = c.status();
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+    use windows::Win32::System::Threading::{OpenProcess, TerminateProcess, PROCESS_TERMINATE};
+    // Every (pid, parent) pair right now.
+    let mut pairs: Vec<(u32, u32)> = Vec::new();
+    unsafe {
+        if let Ok(snap) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) {
+            let mut e = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+            let mut ok = Process32FirstW(snap, &mut e).is_ok();
+            while ok {
+                pairs.push((e.th32ProcessID, e.th32ParentProcessID));
+                ok = Process32NextW(snap, &mut e).is_ok();
+            }
+            let _ = CloseHandle(snap);
+        }
+    }
+    // The bridge's whole family, deepest first.
+    let mut order = vec![pid];
+    let mut i = 0;
+    while i < order.len() {
+        let parent = order[i];
+        for (p, pp) in &pairs { if *pp == parent && *p != parent && !order.contains(p) { order.push(*p); } }
+        i += 1;
+    }
+    for p in order.into_iter().rev() {
+        unsafe {
+            if let Ok(h) = OpenProcess(PROCESS_TERMINATE, false, p) {
+                let _ = TerminateProcess(h, 1);
+                let _ = CloseHandle(h);
+            }
+        }
+    }
+}
+#[cfg(not(windows))]
+fn kill_tree(pid: u32) {
+    let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
 }
 
 fn start_bridge_proc(app: &AppHandle, args: &str) -> Result<(), String> {
@@ -935,16 +984,32 @@ fn rpc_set(details: String, state: String, spooky: Option<bool>) {
 }
 
 // Is Roblox Studio open? (For "In Roblox Studio" even when the bridge isn't running.)
+// Reads Windows' process list directly instead of starting a helper program.
 #[tauri::command]
 async fn studio_running() -> bool {
-    tauri::async_runtime::spawn_blocking(|| {
-        let mut c = Command::new("tasklist");
-        c.args(["/FI", "IMAGENAME eq RobloxStudioBeta.exe", "/NH"]).stdin(Stdio::null()).stderr(Stdio::null());
-        #[cfg(windows)]
-        c.creation_flags(CREATE_NO_WINDOW);
-        c.output().map(|o| String::from_utf8_lossy(&o.stdout).to_ascii_lowercase().contains("robloxstudiobeta.exe")).unwrap_or(false)
-    }).await.unwrap_or(false)
+    tauri::async_runtime::spawn_blocking(|| process_running("robloxstudiobeta.exe")).await.unwrap_or(false)
 }
+
+#[cfg(windows)]
+fn process_running(name: &str) -> bool {
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Diagnostics::ToolHelp::{CreateToolhelp32Snapshot, Process32FirstW, Process32NextW, PROCESSENTRY32W, TH32CS_SNAPPROCESS};
+    unsafe {
+        let Ok(snap) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else { return false };
+        let mut e = PROCESSENTRY32W { dwSize: std::mem::size_of::<PROCESSENTRY32W>() as u32, ..Default::default() };
+        let mut found = false;
+        let mut ok = Process32FirstW(snap, &mut e).is_ok();
+        while ok {
+            let len = e.szExeFile.iter().position(|c| *c == 0).unwrap_or(e.szExeFile.len());
+            if String::from_utf16_lossy(&e.szExeFile[..len]).eq_ignore_ascii_case(name) { found = true; break; }
+            ok = Process32NextW(snap, &mut e).is_ok();
+        }
+        let _ = CloseHandle(snap);
+        found
+    }
+}
+#[cfg(not(windows))]
+fn process_running(_name: &str) -> bool { false }
 
 #[tauri::command]
 fn is_dev() -> bool { rpc_is_dev() }
@@ -1105,6 +1170,9 @@ async fn browser_open(app: AppHandle, st: State<'_, AppState>, id: String, url: 
             let loading = matches!(p.event(), tauri::webview::PageLoadEvent::Started);
             let _ = wv.app_handle().emit("browser-page", json!({ "id": id, "url": p.url().as_str(), "loading": loading }));
         })
+        // Sign-in pop-ups (Google, Apple, Microsoft...) must open as real windows that
+        // keep their link to the page - without this every pop-up is silently blocked.
+        .on_new_window(|_url, _features| tauri::webview::NewWindowResponse::Allow)
         .on_document_title_changed(|wv, title| {
             let id = wv.label().trim_start_matches(BROWSER_PREFIX).to_string();
             let _ = wv.app_handle().emit("browser-title", json!({ "id": id, "title": title }));
@@ -1507,115 +1575,6 @@ async fn run_update(app: AppHandle) -> Result<String, String> {
 // VoidScript.exe the rest of the year). Every name it has ever had:
 const APP_EXE_NAMES: [&str; 2] = ["SpookyScript.exe", "VoidScript.exe"];
 
-// Shortcuts follow the app: Desktop, Start menu and pinned-taskbar shortcuts
-// that point at this folder's app under any of its names are pointed at the
-// exe that is running now (and renamed to match). Done with Windows' own
-// shortcut API (IShellLink) in the background at start - no scripts, no shell.
-// The dev build never touches the user's shortcuts.
-fn fix_shortcuts(root: PathBuf) {
-    #[cfg(windows)]
-    std::thread::spawn(move || {
-        let Ok(exe) = std::env::current_exe() else { return };
-        let stem = exe.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-        if stem.to_lowercase().contains("dev") { return; }
-        let old: Vec<String> = APP_EXE_NAMES.iter().map(|n| root.join(n).to_string_lossy().to_lowercase()).collect();
-        let _ = shortcuts::retarget(&exe, &stem, &old);
-    });
-    #[cfg(not(windows))]
-    let _ = root;
-}
-
-#[cfg(windows)]
-mod shortcuts {
-    use std::path::{Path, PathBuf};
-    use windows::core::{Interface, HSTRING, PCWSTR};
-    use windows::Win32::Storage::FileSystem::WIN32_FIND_DATAW;
-    use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CoTaskMemFree, CoUninitialize, IPersistFile, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, STGM_READWRITE};
-    use windows::Win32::UI::Shell::{FOLDERID_Desktop, FOLDERID_Programs, FOLDERID_PublicDesktop, IShellLinkW, SHGetKnownFolderPath, ShellLink, KF_FLAG_DEFAULT};
-
-    fn known(id: &windows::core::GUID) -> Option<PathBuf> {
-        unsafe {
-            let p = SHGetKnownFolderPath(id, KF_FLAG_DEFAULT, None).ok()?;
-            let out = p.to_string().ok().map(PathBuf::from);
-            CoTaskMemFree(Some(p.0 as *const _));
-            out
-        }
-    }
-
-    // Every .lnk in a folder and up to two levels below (Start menu sub-folders).
-    fn links(dir: &Path, depth: u32, out: &mut Vec<PathBuf>) {
-        let Ok(rd) = std::fs::read_dir(dir) else { return };
-        for e in rd.flatten() {
-            let p = e.path();
-            if p.is_dir() { if depth > 0 { links(&p, depth - 1, out); } }
-            else if p.extension().map(|x| x.eq_ignore_ascii_case("lnk")).unwrap_or(false) { out.push(p); }
-        }
-    }
-
-    pub fn retarget(exe: &Path, stem: &str, old: &[String]) -> windows::core::Result<()> {
-        unsafe { let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED); }
-        let mut dirs: Vec<PathBuf> = [&FOLDERID_Desktop, &FOLDERID_PublicDesktop, &FOLDERID_Programs].iter().filter_map(|id| known(id)).collect();
-        if let Ok(a) = std::env::var("APPDATA") {
-            dirs.push(PathBuf::from(a).join(r"Microsoft\Internet Explorer\Quick Launch\User Pinned\TaskBar"));
-        }
-        let r = retarget_in(&dirs, exe, stem, old);
-        unsafe { CoUninitialize(); }
-        r
-    }
-
-    // The work itself, on any folders (COM must already be initialised).
-    pub fn retarget_in(dirs: &[PathBuf], exe: &Path, stem: &str, old: &[String]) -> windows::core::Result<()> {
-        unsafe {
-            let mut all = Vec::new();
-            for d in dirs { links(d, 2, &mut all); }
-            let new_target = exe.to_string_lossy().to_string();
-            for lnk in all {
-                let Ok(link) = CoCreateInstance::<_, IShellLinkW>(&ShellLink, None, CLSCTX_INPROC_SERVER) else { continue };
-                let Ok(file) = link.cast::<IPersistFile>() else { continue };
-                let path = HSTRING::from(lnk.as_os_str());
-                if file.Load(PCWSTR(path.as_ptr()), STGM_READWRITE).is_err() { continue; }
-                let mut buf = [0u16; 1024];
-                let mut fd = WIN32_FIND_DATAW::default();
-                if link.GetPath(&mut buf, &mut fd, 0).is_err() { continue; }
-                let len = buf.iter().position(|c| *c == 0).unwrap_or(buf.len());
-                let target = String::from_utf16_lossy(&buf[..len]);
-                if !old.contains(&target.to_lowercase()) || target.eq_ignore_ascii_case(&new_target) { continue; }
-                let t = HSTRING::from(new_target.as_str());
-                let wd = HSTRING::from(exe.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default());
-                let _ = link.SetPath(PCWSTR(t.as_ptr()));
-                let _ = link.SetWorkingDirectory(PCWSTR(wd.as_ptr()));
-                let _ = link.SetIconLocation(PCWSTR(t.as_ptr()), 0);
-                if file.Save(PCWSTR(path.as_ptr()), true).is_err() { continue; }
-                // "VoidScript.lnk" -> "SpookyScript.lnk" (and back), unless that name is taken.
-                if let Some(name) = lnk.file_name().map(|n| n.to_string_lossy().to_string()) {
-                    let renamed = name.replace("VoidScript", stem).replace("SpookyScript", stem);
-                    let dest = lnk.with_file_name(&renamed);
-                    if renamed != name && !dest.exists() { let _ = std::fs::rename(&lnk, &dest); }
-                }
-            }
-        }
-        Ok(())
-    }
-
-    #[cfg(test)]
-    mod tests {
-        // VS_LNK_TEST=<folder> holding VoidScript.lnk -> <folder>\app\VoidScript.exe and an
-        // unrelated Other.lnk. Afterwards the first points at app\SpookyScript.exe, renamed.
-        #[test]
-        fn retargets_and_renames() {
-            let Ok(dir) = std::env::var("VS_LNK_TEST") else { return };
-            let dir = std::path::PathBuf::from(dir);
-            let root = dir.join("app");
-            let old: Vec<String> = super::super::APP_EXE_NAMES.iter().map(|n| root.join(n).to_string_lossy().to_lowercase()).collect();
-            unsafe { let _ = windows::Win32::System::Com::CoInitializeEx(None, windows::Win32::System::Com::COINIT_APARTMENTTHREADED); }
-            super::retarget_in(&[dir.clone()], &root.join("SpookyScript.exe"), "SpookyScript", &old).unwrap();
-            assert!(dir.join("SpookyScript.lnk").exists(), "renamed");
-            assert!(!dir.join("VoidScript.lnk").exists(), "old name gone");
-            assert!(dir.join("Other.lnk").exists(), "unrelated shortcut untouched");
-        }
-    }
-}
-
 // Reopen on the (new) exe. A short delay lets this instance - and its
 // single-instance lock - go away first, or the new one would just focus us.
 fn relaunch_proc(app: &AppHandle, root: &Path) -> Result<(), String> {
@@ -1625,13 +1584,9 @@ fn relaunch_proc(app: &AppHandle, root: &Path) -> Result<(), String> {
     let exe = std::env::current_exe().ok().filter(|p| p.is_file())
         .or_else(|| APP_EXE_NAMES.iter().map(|n| root.join(n)).find(|p| p.is_file()))
         .ok_or("cannot find the app (SpookyScript.exe / VoidScript.exe)")?;
-    let mut c = Command::new("cmd.exe");
-    c.arg("/d").arg("/c");
-    #[cfg(windows)]
-    c.raw_arg(format!("ping -n 3 127.0.0.1 >nul & start \"\" \"{}\"", display_path(&exe)));
-    c.current_dir(root).stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
-    #[cfg(windows)]
-    c.creation_flags(CREATE_NO_WINDOW | 0x0000_0008); // DETACHED_PROCESS
+    let mut c = Command::new(&exe);
+    c.current_dir(root).env("VS_WAIT_PID", std::process::id().to_string())
+        .stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
     c.spawn().map_err(|e| format!("Updated, but could not reopen VoidScript: {e}"))?;
     quit(app);
     Ok(())
@@ -1650,7 +1605,26 @@ fn quit(app: &AppHandle) {
     app.exit(0);
 }
 
+// After an update the new app is started by the old one; it waits here (up to 10 s)
+// for the old one to close, so the single-instance check doesn't hand it back.
+fn wait_for_previous() {
+    let Some(pid) = std::env::var("VS_WAIT_PID").ok().and_then(|v| v.parse::<u32>().ok()) else { return };
+    std::env::remove_var("VS_WAIT_PID");
+    #[cfg(windows)]
+    unsafe {
+        use windows::Win32::Foundation::CloseHandle;
+        use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
+        if let Ok(h) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
+            let _ = WaitForSingleObject(h, 10_000);
+            let _ = CloseHandle(h);
+        }
+    }
+    #[cfg(not(windows))]
+    std::thread::sleep(Duration::from_secs(2));
+}
+
 fn main() {
+    wait_for_previous();
     let root = find_root();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| { show_main(app); }))
@@ -1663,7 +1637,6 @@ fn main() {
             let auto = settings.auto_start_bridge && settings.accepted_disclaimer;
             RPC_ON.store(settings.discord_rpc, Ordering::Relaxed);
             rpc_start();
-            if let Some(r) = root.clone() { fix_shortcuts(r); }
             let bstate = BridgeState {
                 process: if root.is_some() { "stopped".into() } else { "missing".into() },
                 root: root.as_ref().map(|r| display_path(r)).unwrap_or_default(),

@@ -62,7 +62,7 @@
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.25 13.5v7.5M13.5 17.25H21"/></svg><span>Toolkit</span></button>
     <button class="nav-item" data-view="explorer" data-tip="Explorer">
       <svg viewBox="0 0 24 24"><rect x="3" y="3.5" width="7" height="5" rx="1.5"/><rect x="13" y="9.5" width="8" height="5" rx="1.5"/><rect x="13" y="16" width="8" height="5" rx="1.5"/><path d="M6.5 8.5v10H13M6.5 12H13"/></svg><span>Explorer</span></button>
-    <button class="nav-item" data-view="browser" data-tip="Browser · soon">
+    <button class="nav-item" data-view="browser" data-tip="Browser">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.5 3.8 5.5 3.8 9s-1.2 6.5-3.8 9c-2.6-2.5-3.8-5.5-3.8-9S9.4 5.5 12 3z"/></svg><span>Browser</span><i class="nav-soon"></i></button>
     <div class="side-sep"></div>
     <button class="nav-item" data-view="tools" data-tip="Tools">
@@ -162,7 +162,7 @@
         </div>
         <div class="card">
           <div class="card-t">In-app chat <span class="tag">your API key</span></div>
-          <p class="muted">Paste a free key from any of 35 providers in Settings. With <b>Never run out</b> on, the chat moves to your next provider whenever one hits its limit.</p>
+          <p class="muted">Paste a free key from any of 50 providers in Settings. With <b>Never run out</b> on, the chat moves to your next provider whenever one hits its limit.</p>
           <div class="row"><button class="btn primary sm" id="btn-go-chat">Open Chat</button>
             <button class="btn sm ghost" data-url="https://build.nvidia.com/">Free NVIDIA key</button>
             <button class="btn sm ghost" data-url="https://console.groq.com/keys">Free Groq key</button></div>
@@ -554,26 +554,46 @@
 
     <!-- ── BROWSER: AI sites with VoidScript built in ─────────────────────── -->
     <section class="view" id="view-browser">
-      <div class="br-top">
-        <div class="br-tabs" id="br-tabs"></div>
-        <button class="ibtn br-newtab" id="br-new" title="New tab (Ctrl+T)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
-      </div>
-      <div class="br-bar">
-        <button class="ibtn" id="br-back" title="Back"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-        <button class="ibtn" id="br-fwd" title="Forward"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
-        <button class="ibtn" id="br-reload" title="Reload"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/></svg></button>
-        <div class="br-url"><span class="br-lock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><input id="br-url" placeholder="Pick an AI below, or type an address" spellcheck="false" autocomplete="off" /></div>
-        <div class="br-quick" id="br-quick"></div>
-        <button class="ibtn" id="br-ext" title="Open the address in your normal browser"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg></button>
-      </div>
-      <div class="br-view" id="br-view">
-        <div class="br-start" id="br-start">
-          <h2>Open an AI</h2>
-          <p class="muted">VoidScript is already on every page here. Sign in once and you stay signed in.</p>
-          <div class="br-grid" id="br-grid"></div>
-          <p class="br-note">Google sign-in blocked? Sign in with email instead, or use the AI's own login.</p>
+      <div class="br-shell">
+        <aside class="br-side">
+          <div class="br-nav">
+            <button class="ibtn" id="br-back" title="Back (Alt+Left)"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+            <button class="ibtn" id="br-fwd" title="Forward (Alt+Right)"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
+            <button class="ibtn" id="br-reload" title="Reload (Ctrl+R)"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/></svg></button>
+            <span class="grow"></span>
+            <button class="ibtn" id="br-ext" title="Open in your normal browser"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg></button>
+          </div>
+          <label class="br-url"><span class="br-lock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><input id="br-url" placeholder="Search or type an address" spellcheck="false" autocomplete="off" /></label>
+          <div class="br-quick" id="br-quick"></div>
+          <div class="br-sep"><span>Tabs</span><span class="br-count" id="br-count"></span><button class="br-plus" id="br-new" title="New tab (Ctrl+T)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+          <div class="br-tabs" id="br-tabs"></div>
+          <div class="br-foot"><i></i>VoidScript is on every AI here</div>
+        </aside>
+        <div class="br-stage">
+          <div class="br-view" id="br-view">
+            <div class="br-start" id="br-start">
+              <p class="br-greet" id="br-greet"></p>
+              <h2 class="br-hello">What are we building?</h2>
+              <div class="br-ask">
+                <button class="br-ask-ai" id="br-ask-ai" title="Choose which AI to ask"></button>
+                <input id="br-search-q" placeholder="Ask anything, or type an address" spellcheck="false" autocomplete="off" />
+                <button class="br-ask-go" id="br-ask-go" title="Go (Enter)"><svg viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
+                <div class="br-ask-menu" id="br-ask-menu" hidden></div>
+              </div>
+              <div class="br-chips" id="br-chips"></div>
+              <div class="br-sec-h">Your AIs</div>
+              <div class="br-grid" id="br-grid"></div>
+              <div class="br-add" id="br-add" hidden>
+                <input class="input" id="br-add-name" placeholder="Name" maxlength="24" />
+                <input class="input" id="br-add-url" placeholder="https://…" spellcheck="false" />
+                <button class="btn sm primary" id="br-add-ok">Add</button><button class="btn sm ghost" id="br-add-x">Cancel</button>
+              </div>
+              <div class="br-recent-wrap" id="br-recent-wrap" hidden><div class="br-sec-h">Recently visited</div><div class="br-recent" id="br-recent"></div></div>
+              <p class="br-note">Sign in once and you stay signed in. Google sign-in blocked? Use email instead.</p>
+            </div>
+            <div class="br-loading" id="br-loading" hidden><span class="spin"></span>Opening…</div>
+          </div>
         </div>
-        <div class="br-loading" id="br-loading" hidden><span class="spin"></span>Opening…</div>
       </div>
       <div class="br-soon" id="br-soon">
         <div class="br-soon-card">
@@ -753,6 +773,7 @@
       <div class="card" data-sec="ws">
         <div class="card-t">Workspace access <span class="chip">off by default</span></div>
         <p class="muted">Lets the built-in Chat read and write files and run commands — <b>only inside one folder you choose</b> (for example your Roblox project or Rojo folder). Paths outside it are blocked. How much it asks first depends on <b>Access</b> in the chat's mode menu: <b>Ask</b> approves every write and command, <b>Sandbox</b> only asks before deleting, and <b>Full PC</b> lifts the folder limit (deletes still ask).</p>
+        <p class="hint" style="margin:-4px 0 10px">This also lets the AI in the <b>browser extension</b> (DeepSeek, ChatGPT…) create and read files in this folder and open web pages it makes. It can't delete anything or run programs.</p>
         <label class="switch-row"><span>Allow workspace access</span><span class="switch"><input type="checkbox" id="set-ws-on" /><span class="track"></span></span></label>
         <div class="field">
           <label>Workspace folder</label>
@@ -855,8 +876,8 @@
 
 <div class="modal-wrap" id="whatsnew" hidden>
   <div class="modal wide">
-    <span class="soon-tag">VoidScript 7.0</span>
-    <h2>A whole new VoidScript</h2>
+    <span class="soon-tag">VoidScript 7.1</span>
+    <h2>What's new</h2>
     <div class="wn" id="wn-list"></div>
     <div class="row end"><button class="btn primary" id="btn-wn-close">Let's build</button></div>
   </div>
@@ -896,5 +917,6 @@
 <script src="features.js"></script>
 <script src="explorer.js"></script>
 <script src="browser.js"></script>
+<script src="extras.js"></script>
 </body>
 </html>

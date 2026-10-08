@@ -118,7 +118,9 @@ if node:IsA("LuaSourceContainer") then d.source = node.Source end
 return HS:JSONEncode(d)`);
   } catch (e) { box.innerHTML = `<p class="muted">${esc(errText(e))}</p>`; return; }
   if (d.gone) { box.innerHTML = '<p class="muted">It moved or was deleted. Press Refresh.</p>'; return; }
-  const props = Object.entries(d.props).map(([k, v]) => `<span>${esc(k)}</span><b>${esc(v.replace(/^Enum\.\w+\./, ""))}</b>`).join("")
+  // true/false, numbers and text can be edited in place (click the value).
+  const editable = (k, v) => v === "true" || v === "false" || (/^-?\d+(\.\d+)?$/.test(v) && k !== "Size") || k === "Text" || k === "SoundId";
+  const props = Object.entries(d.props).map(([k, v]) => `<span>${esc(k)}</span><b${editable(k, v) ? ` class="ex-ed" data-prop="${esc(k)}" data-val="${esc(v)}" title="Click to change"` : ""}>${esc(v.replace(/^Enum\.\w+\./, ""))}</b>`).join("")
     + Object.entries(d.attrs).map(([k, v]) => `<span>@${esc(k)}</span><b>${esc(v)}</b>`).join("");
   const isScript = d.source != null;
   box.innerHTML = `
@@ -129,6 +131,7 @@ return HS:JSONEncode(d)`);
       ${isScript ? '<button class="btn sm" data-x="explain">Explain</button><button class="btn sm" data-x="bugs">Find bugs</button>' : ""}
       <span class="grow"></span>
       ${d.class !== "Script" && d.class !== "LocalScript" && d.class !== "ModuleScript" ? `<select class="input sm ex-new" title="Add something inside it"><option value="">New…</option><option>Script</option><option>LocalScript</option><option>ModuleScript</option><option>Folder</option><option>Part</option><option>Model</option><option>RemoteEvent</option></select>` : ""}
+      <button class="btn sm ghost" data-x="dupe">Duplicate</button>
       <button class="btn sm ghost" data-x="rename">Rename</button>
       <button class="btn sm ghost" data-x="delete">Delete</button>
     </div>
@@ -173,6 +176,22 @@ return "[]"`);
       toast("Saved to Studio."); sfx("done");
       exSelect(path);
     } catch (e) { toast(errText(e), 5000); }
+  } else if (x === "dupe") {
+    try {
+      const r = await exLuau(EX_RESOLVE + `local n = resolve(${exPath(path)})
+if not n then error("it moved or was deleted - press Refresh") end
+local CH = game:GetService("ChangeHistoryService")
+CH:SetWaypoint("Before duplicate")
+local c = n:Clone()
+if not c then error("this can't be copied") end
+c.Parent = n.Parent
+CH:SetWaypoint("Duplicated")
+return HS:JSONEncode({ i = table.find(n.Parent:GetChildren(), c) })`);
+      const parent = path.slice(0, -1);
+      if (parent.length) { delete ex.kids[exKey(parent)]; delete ex.open[exKey(parent)]; await exToggle(parent); }
+      if (r && r.i) exSelect(parent.concat(r.i));
+      toast("Duplicated.");
+    } catch (err) { toast(errText(err)); }
   } else if (x === "rename") {
     const t = box.querySelector(".lib-head b");
     t.innerHTML = `<input class="input" value="${esc(d.name)}" maxlength="100" style="padding:3px 8px" />`;
@@ -282,4 +301,37 @@ return HS:JSONEncode({ i = table.find(n:GetChildren(), x) })`);
     if (r && r.i) exSelect(path.concat(r.i));
     toast(`Added a ${cls}.`);
   } catch (err) { toast(errText(err)); }
+});
+
+// Edit a property: true/false flips, numbers and text get a little box.
+async function exSetProp(prop, raw) {
+  const path = JSON.parse($("ex-detail").dataset.path || "[]");
+  const val = raw === "true" || raw === "false" ? raw : /^-?\d+(\.\d+)?$/.test(raw) ? raw : `HS:JSONDecode([==[${JSON.stringify(raw)}]==])`;
+  try {
+    await exLuau(EX_RESOLVE + `local n = resolve(${exPath(path)})
+if not n then error("it moved or was deleted - press Refresh") end
+local CH = game:GetService("ChangeHistoryService")
+CH:SetWaypoint("Before edit")
+n[${JSON.stringify(prop)}] = ${val}
+CH:SetWaypoint("Changed ${prop.replace(/[^\w]/g, "")}")
+return "[]"`);
+    exSelect(path);
+  } catch (e) { toast(errText(e), 5000); }
+}
+$("ex-detail").addEventListener("click", (e) => {
+  const b = e.target.closest(".ex-ed");
+  if (!b || b.querySelector("input")) return;
+  const prop = b.dataset.prop, v = b.dataset.val;
+  if (v === "true" || v === "false") { exSetProp(prop, v === "true" ? "false" : "true"); return; }
+  b.innerHTML = `<input class="input" value="${esc(v)}" style="padding:2px 6px;width:100%" />`;
+  const inp = b.querySelector("input");
+  inp.focus(); inp.select();
+  inp.onkeydown = (ev) => {
+    if (ev.key === "Escape") { b.textContent = v; return; }
+    if (ev.key !== "Enter") return;
+    const nv = inp.value;
+    if (/^-?\d+(\.\d+)?$/.test(v) && !/^-?\d+(\.\d+)?$/.test(nv.trim())) { toast("That needs to be a number."); return; }
+    exSetProp(prop, /^-?\d+(\.\d+)?$/.test(v) ? nv.trim() : nv);
+  };
+  inp.onblur = () => { if (b.contains(inp)) b.textContent = v; };
 });

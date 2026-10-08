@@ -94,6 +94,8 @@ const VSKit = (() => {
       brief: "Audit this game's security: every RemoteEvent/RemoteFunction handler must validate its arguments and never trust the client for currency, damage, ownership or teleporting. Also look for backdoors in free-model scripts (require(<asset id>), getfenv, setfenv, loadstring, obfuscated code). Fix the issues and list what you found." },
     { id: "explain", name: "Explain this game", icon: ICON.explain, desc: "how it works, in plain words",
       brief: "Explain how this game works for someone new to the project: the main systems, which scripts run them and where they live, how data flows between server and client, and anything fragile. Don't change anything. Save the key facts to the project memory too." },
+    { id: "website", name: "Build a web page", icon: ICON.explain, desc: "HTML/CSS/JS on your PC, opened in your browser",
+      brief: "Build a polished, responsive single-page website with the files tools (they save into the user's workspace folder on their PC): write site/index.html, site/style.css and site/script.js with clean, modern design, then files_open site/index.html so the user sees it. If the files tools aren't available, tell the user to switch on Workspace access in the VoidScript app (Settings) and choose a folder. Ask me what the page should be about if I haven't said." },
     { id: "mobile", name: "Make it mobile-friendly", icon: ICON.mobile, desc: "touch buttons and scaled UI",
       brief: "Make this game mobile-friendly: GUIs that use Scale and don't overlap the default touch controls, on-screen buttons for any keyboard-only actions (ContextActionService), and text that stays readable on small screens." },
   ];
@@ -594,6 +596,89 @@ Players.PlayerAdded:Connect(function(player)
 		local cmd, a = msg:match("^:(%w+)%s*(%S*)")
 		if cmd and CMDS[cmd:lower()] then CMDS[cmd:lower()](player, a ~= "" and a or nil) end
 	end)
+end)` },
+    { id: "teleport", name: "Teleport pads", icon: ICON.sprint, where: "ServerScriptService", kind: "Script", desc: "parts named TeleportA / TeleportB swap you between them",
+      code: `local Players = game:GetService("Players")
+-- Pads come in pairs by name: TeleportA <-> TeleportB, TeleportA2 <-> TeleportB2, ...
+local pads = {}
+for _, d in workspace:GetDescendants() do
+	local side, tag = d:IsA("BasePart") and d.Name:match("^Teleport([AB])(%w*)$")
+	if side then pads[d.Name] = d end
+end
+local cooldown = {}
+for name, pad in pads do
+	local other = pads[name:gsub("^TeleportA", "TeleportX"):gsub("^TeleportB", "TeleportA"):gsub("^TeleportX", "TeleportB")]
+	if other then
+		pad.Touched:Connect(function(hit)
+			local player = Players:GetPlayerFromCharacter(hit.Parent)
+			if not player or (cooldown[player] and os.clock() - cooldown[player] < 2) then return end
+			cooldown[player] = os.clock()
+			player.Character:PivotTo(other.CFrame + Vector3.new(0, 4, 0))
+		end)
+	end
+end
+Players.PlayerRemoving:Connect(function(p) cooldown[p] = nil end)` },
+    { id: "speedpad", name: "Speed pads", icon: ICON.sim, where: "ServerScriptService", kind: "Script", desc: "parts named SpeedPad give a short speed boost",
+      code: EACH + `local BOOST, TIME = 50, 3
+each("SpeedPad", function(pad)
+	local boosted = {}
+	pad.Touched:Connect(function(hit)
+		local hum = hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
+		if not hum or boosted[hum] then return end
+		boosted[hum] = true
+		local normal = hum.WalkSpeed
+		hum.WalkSpeed = pad:GetAttribute("Speed") or BOOST
+		task.wait(pad:GetAttribute("Time") or TIME)
+		if hum.Parent then hum.WalkSpeed = normal end
+		boosted[hum] = nil
+	end)
+end)` },
+    { id: "heal", name: "Healing pads", icon: ICON.fix, where: "ServerScriptService", kind: "Script", desc: "parts named HealPad heal you while you stand on them",
+      code: EACH + `local PER_SECOND = 15
+each("HealPad", function(pad)
+	local standing = {}
+	pad.Touched:Connect(function(hit)
+		local hum = hit.Parent and hit.Parent:FindFirstChildOfClass("Humanoid")
+		if hum then standing[hum] = os.clock() end
+	end)
+	task.spawn(function()
+		while pad.Parent do
+			for hum, t in standing do
+				if os.clock() - t > 0.6 or not hum.Parent then standing[hum] = nil
+				elseif hum.Health > 0 then hum.Health = math.min(hum.MaxHealth, hum.Health + PER_SECOND * 0.25) end
+			end
+			task.wait(0.25)
+		end
+	end)
+end)` },
+    { id: "toolgiver", name: "Tool givers", icon: ICON.shop, where: "ServerScriptService", kind: "Script", desc: "parts named ToolGiver give the tool named in their Tool attribute",
+      code: EACH + `local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+-- Put tools in ServerStorage; set the pad's "Tool" attribute to a tool's name.
+each("ToolGiver", function(pad)
+	local prompt = Instance.new("ProximityPrompt")
+	prompt.ActionText, prompt.ObjectText = "Take", pad:GetAttribute("Tool") or "Tool"
+	prompt.Parent = pad
+	prompt.Triggered:Connect(function(player)
+		local tool = ServerStorage:FindFirstChild(pad:GetAttribute("Tool") or "")
+		if not tool or not tool:IsA("Tool") then return end
+		local backpack = player:FindFirstChildOfClass("Backpack")
+		local has = (backpack and backpack:FindFirstChild(tool.Name)) or (player.Character and player.Character:FindFirstChild(tool.Name))
+		if backpack and not has then tool:Clone().Parent = backpack end
+	end)
+end)` },
+    { id: "teams", name: "Auto teams", icon: ICON.rounds, where: "ServerScriptService", kind: "Script", desc: "Red and Blue teams, players split evenly",
+      code: `local Players = game:GetService("Players")
+local Teams = game:GetService("Teams")
+local function team(name, color)
+	local t = Teams:FindFirstChild(name) or Instance.new("Team")
+	t.Name, t.TeamColor, t.AutoAssignable = name, BrickColor.new(color), false
+	t.Parent = Teams
+	return t
+end
+local red, blue = team("Red", "Bright red"), team("Blue", "Bright blue")
+Players.PlayerAdded:Connect(function(player)
+	player.Team = #red:GetPlayers() <= #blue:GetPlayers() and red or blue
 end)` },
   ];
   function snippetLuau(s) {

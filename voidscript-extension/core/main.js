@@ -1593,7 +1593,7 @@
       const servers = (A.bridge && A.bridge.servers) || [];
       const lines = servers.length
         ? servers.map((sv) => {
-            const label = sv.id === "roblox" ? "Roblox Studio (primary)" : `${sv.id} (addon)`;
+            const label = sv.id === "roblox" ? "Roblox Studio (primary)" : sv.id === "files" ? "Files on the user's PC (their workspace folder: make websites, HTML, CSS, JS, notes - and open them)" : `${sv.id} (addon)`;
             return `- ${sv.id}: ${label} - ${sv.alive ? `${sv.tools || 0} commands available` : "offline (no tools)"}`;
           })
         : ["- roblox: Roblox Studio (primary) - unknown (bridge did not report server health)"];

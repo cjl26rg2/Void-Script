@@ -206,6 +206,29 @@ document.querySelectorAll("[data-open]").forEach((el) => {
   });
 });
 
+// Files folder: where the AI may create and edit files (kept by the bridge).
+let filesMode = "off";
+function showFiles(r) {
+  const note = $("files-note");
+  if (!r || !r.ok) { note.className = "files-note bad"; note.textContent = (r && r.error) || "Start VoidScript (the bridge) to change this."; return; }
+  filesMode = r.mode || "off";
+  if (r.picked) $("files-dir").value = r.picked;
+  $("files-mode").querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.m === filesMode));
+  $("files-folder-row").hidden = filesMode !== "folder";
+  note.className = "files-note" + (filesMode === "off" ? "" : " ok");
+  note.textContent = filesMode === "anywhere"
+    ? "Tell the AI a folder in your message (like C:\\Users\\you\\Documents\\my-site) and it works there. Windows, Program Files and AppData stay off limits."
+    : filesMode === "folder" ? (r.dir ? `The AI can only work in: ${r.dir}` : "Paste the one folder the AI may use.")
+    : "Let the AI on any site create, edit and open files - like a website it builds for you. It never deletes or runs anything, and keeps a copy of anything it changes.";
+}
+send({ type: "files_folder" }, showFiles);
+$("files-mode").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-m]");
+  if (b) send({ type: "files_folder", mode: b.dataset.m }, showFiles);
+});
+$("files-save").onclick = () => send({ type: "files_folder", dir: $("files-dir").value.trim(), mode: "folder" }, showFiles);
+$("files-dir").addEventListener("keydown", (e) => { if (e.key === "Enter") $("files-save").click(); });
+
 // "Open on this page": opens a VoidScript panel on the AI site in this tab.
 document.querySelectorAll("[data-act]").forEach((el) => {
   el.addEventListener("click", async () => {
