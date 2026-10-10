@@ -2,6 +2,94 @@
 
 All notable changes to VoidScript Free are documented here.
 
+## [Unreleased] - VoidScript²
+
+VoidScript is now **VoidScript²** (SpookyScript² in October, JingleScript² in December). A "What's new" screen shows the new pages the first time you open it.
+
+### New pages
+- **Selection** (replaces Models): select anything in Studio and see what it is - parts, size, how much is anchored, meshes, scripts, and how far apart two things are. One click to anchor, weld, group, turn collisions off, move the pivot to the bottom, drop it onto the ground, snap to the grid, clear out empty folders, set material or colour, rename in order, or add a tag. "Change it with AI" writes the Luau, shows it to you, and only runs it when you press Run. Every change is one Ctrl+Z in Studio.
+- **UI Check** (replaces the UI builder): pick a ScreenGui and see it on a phone, a tablet and a PC at once. It points out what goes off the screen, text too small to read on phones, buttons too small to tap, buttons on top of each other, buttons hidden under Roblox's own top-bar buttons, and frames sized in pixels - with a one-click fix for most of them.
+- **Explorer: Scripts map** - every script, what it requires and what requires it, modules nothing uses, requires that point at nothing, and a search through the text of every script.
+- **Explorer: Remotes** - every RemoteEvent and RemoteFunction with the scripts that fire it and the ones that listen, and a warning when one side is missing.
+- **Chat commands:** `/selection` adds what's selected in Studio, `/errors` adds Studio's latest errors, and `/test` plays the game and adds anything that broke.
+- **Playtest** (replaces the Browser): Studio's Output live in the app - errors, warnings and prints with filters, search and repeats folded into one line - plus Play, Stop and timed test runs with a history. Any error goes to the AI in one click, and "Open script" finds the script it came from.
+- **Workshop** - thirty-four tools that build and check things in your place, each one Ctrl+Z in Studio (and all of them in the Ctrl+K palette):
+  - **Interactions:** make the selected door, chest, button or NPC usable - prompt text, hold time, cooldown, reach and sound, plus swing/slide doors, chest rewards, button events and NPC lines.
+  - **Sequencer:** line up GUI slides and fades, moving parts, camera shots and effects on a timeline, and get the script that plays it (at start, on an event, or on a loop).
+  - **Scatter:** fill an area with trees, rocks and props - how many, spacing, steepest slope, size range, random turn, lean with the slope.
+  - **Lighting:** day, sunset, night, horror, winter and overcast (and your own saved looks), previewed here, tried in Studio, then kept or put back.
+  - **NPC routes:** drop waypoints where the camera looks or at selected parts, see the route as a line, and get a patrol script (loop or back and forth, pathfinding on or off).
+  - **Sound zones:** ambient sound for areas, with volume, fade distance and fade speed.
+  - **Collisions:** highlights invisible walls, tiny parts players snag on, and floors they fall through.
+  - **Asset check:** every image, sound, mesh and animation in the place, which ones Roblox can't load, and exactly where each is used.
+  - **Translations:** finds the text players see and turns it into a translation table (or a CSV).
+  - **Economy:** tune prices and rewards and see how long each upgrade takes, then save it as a config module.
+  - **Shelf:** keep your own doors, shops, NPCs and GUI pieces and drop them into any place, with their Attributes as settings.
+  - **Handoff report:** a readable guide to the game's folders, scripts, settings, remotes and TODOs.
+  - **Changes:** take a snapshot of the place, then see what was added, deleted and edited since - every edited script line by line - and put any script back how it was.
+  - **Find & replace:** across every script, with match case and whole word, a preview of each line, and only in the scripts you tick.
+  - **Script lint:** finds wait/spawn/delay/:connect/:remove, scripts sitting where they never run, LocalPlayer on the server, old body movers, modules loaded by id and loops with no wait - and fixes the safe ones in one click.
+  - **Arrange:** align low edges, centres or high edges, space evenly, put in a row, stack, lay out in a grid or a circle.
+  - **Randomize:** random turn, tilt, size, colour and position for natural-looking copies.
+  - **Bulk edit:** set, add to or multiply one property on everything selected.
+  - **Tags:** every CollectionService tag with how many things have it - select, rename, remove, or tag the selection.
+  - **Cleanup:** duplicate parts, blank or "Hello world!" scripts, parts below the kill height and empty folders.
+  - **GUI kit:** buttons, toggle switches, sliders, progress and health bars, notifications, popups and tabs - real, editable GUI instances sized for phones, styled with your colour, corners and font, with the behaviour in its own LocalScript.
+  - **Physics check:** everything that isn't anchored or attached to something anchored, so it falls or flies apart when you press Play - select them or anchor them all.
+  - **Bookmarks:** save the Studio camera view or a selection and jump straight back to it.
+  - **Performance:** counts parts, loose physics, shadow lights, particles, NPCs and sounds, says which numbers are fine and which to fix, and spots when StreamingEnabled should be on.
+  - **Organize:** sorts a messy folder into sub-folders by name (Tree1, Tree2… into Trees) or by type, and numbers things in order. Scripts stay put.
+  - **Swap looks:** every part of one material or colour becomes another - in the selection or the whole map.
+  - **Test run:** plays the game for a few seconds, stops, and lists every new error and warning, with a button to hand them to the AI.
+  - **Parts → Terrain:** turns blocks, balls, cylinders and wedges into smooth terrain, or carves them out for caves and rivers.
+  - **Monetization:** gamepasses and dev products - 2× coins, speed, jump, a tool or a VIP tag for passes, currency for products - given on join and on purchase, dev products never granted twice, plus a Shop module your buttons can call.
+  - **Badges:** award badges when a player joins, touches a part, plays for a while or reaches a stat.
+  - **Codes:** the "Enter a code" box - your codes, rewards and expiry dates, one use per player, checked and saved on the server, with a ready-made Codes button and panel.
+  - **Daily rewards:** a 7-day login streak (it starts again if a day is missed) with a popup showing the week and a Claim button.
+  - **Quests:** a saved quest line - reach a stat, reach a part, or have an event fire - with rewards and a tracker in the corner.
+  - **Luau console:** run your own Luau in Studio, with history and saved snippets.
+- **UI Check** also finds text that gets cut off and buttons a controller can't reach, and links buttons for controllers in one click.
+- **Remotes** also warns when a server handler doesn't seem to check what the client sends.
+- **Connection check on Home** - Bridge, Studio, Link, Place, Tools: it says which one is the problem in plain words, with a button that fixes it when one can.
+
+### A new look
+- **VoidScript² look:** glass panels, a faint grid, a soft accent glow, glowing primary buttons with a light sweep, a lit active page in the sidebar, glowing focus rings and pages that fade in. It follows your accent colour and the seasonal looks, keeps still for "reduce motion", and Settings › **Classic look** turns it off.
+
+### Extension
+- **Studio section in the menu:**
+  - **Use my Studio selection** adds what you've selected (path, type, parts, scripts, size) to your message, so the AI works on exactly that (Alt+Shift+E).
+  - **Add Studio's latest errors** puts the newest errors from Studio's Output into your message (Alt+Shift+R).
+  - **Test & report errors** plays the game for 8 seconds and puts any new errors into your message, ready to send.
+  - **Quick actions** - Anchor, Weld, Group, Drop to the ground and Snap to grid on the selection (each one Ctrl+Z in Studio), plus Play and Stop.
+- **Add to my message:** one-click add-ons - Mobile-friendly, Server checks, Don't touch the rest, Use tags, Comment it, Plan first.
+- The bar shows which Studio place it's connected to.
+- The "Session done" summary now also says which scripts were edited.
+- **The bar never covers the site any more.** When a site opens a menu, tooltip or dialog where the VoidScript bar is - a model picker over the chat box, an upload menu - the bar steps aside until it closes, on every AI site.
+
+### JingleScript
+- All December VoidScript becomes **JingleScript**: evergreen and cranberry colours, a string of lights along the top, gentle snow, and a new bauble logo (with a hammer on the dev build) on the app, the taskbar, the extension and your Discord status. Want it early? Settings › **Preview JingleScript² now** (app) or the popup's **Preview JingleScript² now** switch (extension). On AI websites it snows, with holly in the corners, a swinging bauble, a snowman, a candy cane and the odd shooting star - none of it takes clicks, and the popup's **JingleScript snow & decorations** switch turns it off. It plays Jingle Bells (Kevin MacLeod, CC BY 4.0) with a mute button in the app's top bar and on the extension's bar. The look, the music, the snow and the lights each have a switch, and nothing moves when Windows asks for less motion.
+
+### Safer, and fewer antivirus false alarms
+- The bridge no longer runs `tasklist`, `taskkill`, `netstat` or PowerShell in hidden windows - it asks Windows directly.
+- The bridge no longer closes other apps on its own. If another app holds Studio's port, it tells you which one.
+- start.bat never installs anything by itself any more - no Python installer, no winget. If Python is missing it says how to get it, and the app's connection check shows a **Get Python** button.
+- start.bat no longer updates silently. Run from the app, the app's Updates page asks you; run by hand, it asks "Install it now?" and does nothing if nobody answers.
+- The Discord status only looks for Discord when Discord is actually running.
+- Updates are checked against GitHub's own checksum before they're installed, and only ever come from GitHub.
+- Commands the AI wants to run on your PC always ask first, whatever the access level.
+
+### Fixes
+- **New-look start.bat:** a VoidScript² logo (SpookyScript² in the Halloween release), clear step lines with a progress bar, a READY panel with the version and what to do next, and red PROBLEM panels that say how to fix things.
+- start.bat now ends with the right exit code. Before, a normal stop looked like an error to the app, and "Python isn't installed" carried on as if nothing had happened instead of showing the app's Get Python help.
+- Tested every new tool in real Roblox Studio before release: every scan, fix and generator compiles and runs, and the game systems they write work in a playtest.
+- Scans that read the whole place (Asset check, Lint, Scripts map, Remotes, Find & replace, Handoff and others) no longer look inside Studio's own plugins.
+- Tags only lists tags on things in your game, not Studio's own.
+- The quest tracker shows the first quest straight away, instead of waiting up to 30 seconds when the game has no leaderboard yet.
+- Performance no longer counts a standard 2048-stud Baseplate as a "huge part".
+- A command can no longer run twice in Studio after a page refresh, a reconnect, or with the same chat open in two tabs - the bridge answers the repeat with the first result.
+- Example commands the AI writes while explaining (like `{"command":"command_name"}`) are no longer treated as real commands.
+- Saving a script from the Explorer no longer overwrites changes you made in Studio meanwhile, and scripts that start with a blank line now save exactly.
+
 ## [7.1.0] - 2026-10-08 - WAVE : 2
 
 ### Fewer antivirus false alarms

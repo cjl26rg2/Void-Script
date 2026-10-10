@@ -973,14 +973,15 @@ async fn ai_models(st: State<'_, AppState>, provider: Option<String>) -> Result<
 // The bridge skips its own copy when the app started it (VS_GUI=1).
 const DISCORD_APP_ID: &str = "1555948768900288663"; // "VOIDSCRIPT"
 const DISCORD_DEV_APP_ID: &str = "1555949065210962000"; // "VOIDSCRIPT (DEVELOPMENT)"
-// (details, state, SpookyScript on)
-static RPC_WANT: Mutex<Option<(String, String, bool)>> = Mutex::new(None);
+// (details, state, seasonal look: 0 none, 1 SpookyScript, 2 JingleScript)
+static RPC_WANT: Mutex<Option<(String, String, u8)>> = Mutex::new(None);
 static RPC_ON: AtomicBool = AtomicBool::new(true);
 
 // The UI reports what you're doing; the thread below sends it when it changes.
 #[tauri::command]
-fn rpc_set(details: String, state: String, spooky: Option<bool>) {
-    *RPC_WANT.lock().unwrap() = Some((details.chars().take(120).collect(), state.chars().take(120).collect(), spooky.unwrap_or(false)));
+fn rpc_set(details: String, state: String, spooky: Option<bool>, jingle: Option<bool>) {
+    let look = if spooky.unwrap_or(false) { 1 } else if jingle.unwrap_or(false) { 2 } else { 0 };
+    *RPC_WANT.lock().unwrap() = Some((details.chars().take(120).collect(), state.chars().take(120).collect(), look));
 }
 
 // Is Roblox Studio open? (For "In Roblox Studio" even when the bridge isn't running.)
@@ -1014,12 +1015,20 @@ fn process_running(_name: &str) -> bool { false }
 #[tauri::command]
 fn is_dev() -> bool { rpc_is_dev() }
 
-// SpookyScript: the window/taskbar icon becomes the pumpkin (the dev build gets
-// the pumpkin with the hammer), and goes back to the normal icon after October.
+// Seasonal looks: the window/taskbar icon becomes the pumpkin in October and
+// the bauble in December (the dev build gets each with the hammer), and goes
+// back to the normal icon after. `jingle` picks the bauble; old callers that
+// only pass `on` get the pumpkin.
 #[tauri::command]
-fn set_spooky_icon(app: AppHandle, window: tauri::WebviewWindow, on: bool) -> Result<(), String> {
+fn set_spooky_icon(app: AppHandle, window: tauri::WebviewWindow, on: bool, jingle: Option<bool>) -> Result<(), String> {
     let img = if on {
-        let bytes: &[u8] = if rpc_is_dev() { include_bytes!("../../ui/assets/logo-spooky-dev.png") } else { include_bytes!("../../ui/assets/logo-spooky.png") };
+        let dev = rpc_is_dev();
+        let bytes: &[u8] = match (jingle.unwrap_or(false), dev) {
+            (true, true) => include_bytes!("../../ui/assets/logo-jingle-dev.png"),
+            (true, false) => include_bytes!("../../ui/assets/logo-jingle.png"),
+            (false, true) => include_bytes!("../../ui/assets/logo-spooky-dev.png"),
+            (false, false) => include_bytes!("../../ui/assets/logo-spooky.png"),
+        };
         tauri::image::Image::from_bytes(bytes).map_err(|e| e.to_string())?
     } else {
         app.default_window_icon().cloned().ok_or("no default icon")?
@@ -1070,29 +1079,39 @@ fn rpc_start() {
         let dev = rpc_is_dev();
         let app_id = if dev { DISCORD_DEV_APP_ID } else { DISCORD_APP_ID };
         let started = SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
-        let (mut pipe, mut sent): (Option<std::fs::File>, Option<Option<(String, String, bool)>>) = (None, None);
+        let (mut pipe, mut sent): (Option<std::fs::File>, Option<Option<(String, String, u8)>>) = (None, None);
         let (mut last, mut retry_at) = (Instant::now() - Duration::from_secs(60), Instant::now());
         loop {
             std::thread::sleep(Duration::from_millis(1500));
             let want = if RPC_ON.load(Ordering::Relaxed) { RPC_WANT.lock().unwrap().clone() } else { None };
             if pipe.is_none() {
                 if want.is_none() || Instant::now() < retry_at { continue; }
+                // Only try Discord's pipes when Discord is actually open: probing
+                // \\.\pipe\discord-ipc-0..9 every 30s with nothing there looks like
+                // network discovery to malware sandboxes.
+                if !(process_running("Discord.exe") || process_running("DiscordPTB.exe") || process_running("DiscordCanary.exe")) {
+                    retry_at = Instant::now() + Duration::from_secs(30);
+                    continue;
+                }
                 match rpc_connect(app_id) { Ok(f) => { pipe = Some(f); sent = None; } Err(_) => { retry_at = Instant::now() + Duration::from_secs(30); continue; } }
             }
             // Discord allows about 5 updates per 20s - stay well under it.
             if sent.as_ref() == Some(&want) || last.elapsed() < Duration::from_secs(15) { continue; }
             let activity = match &want {
                 None => Value::Null, // turned off: clear it
-                Some((details, state, spooky)) => {
-                    // SpookyScript wears the pumpkin (the dev build: the pumpkin with the hammer).
+                Some((details, state, look)) => {
+                    // SpookyScript wears the pumpkin, JingleScript the bauble (the dev
+                    // build: each with the hammer).
                     let gh = "https://raw.githubusercontent.com/cjl26rg2/Void-Script/master/assets/";
-                    let image = match (*spooky, dev) {
-                        (true, true) => format!("{gh}spooky-dev.png"),
-                        (true, false) => format!("{gh}spooky.png"),
-                        (false, true) => "logo".to_string(), // the dev Art Asset on the DEVELOPMENT app
-                        (false, false) => format!("{gh}icon.png"),
+                    let image = match (*look, dev) {
+                        (1, true) => format!("{gh}spooky-dev.png"),
+                        (1, false) => format!("{gh}spooky.png"),
+                        (2, true) => format!("{gh}jingle-dev.png"),
+                        (2, false) => format!("{gh}jingle.png"),
+                        (_, true) => "logo".to_string(), // the dev Art Asset on the DEVELOPMENT app
+                        (_, false) => format!("{gh}icon.png"),
                     };
-                    let name = if *spooky { "SpookyScript" } else { "VoidScript" };
+                    let name = match *look { 1 => "SpookyScript", 2 => "JingleScript", _ => "VoidScript" };
                     let mut a = json!({
                         "details": details, "state": state, "timestamps": { "start": started },
                         "assets": {

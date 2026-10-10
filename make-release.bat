@@ -32,7 +32,7 @@ echo Packing %APP% %VER%...
 rem Only this release's exe goes in - never an old-named or dev one.
 robocopy "%~dp0." "%STAGE%" /E /NFL /NDL /NJH /NJS /NP ^
   /XD .git .kilo desktop website target node_modules gen logs backups __pycache__ ^
-  /XF check_update.json config.json *.old *.zip *.pyc *.exe make-release.bat make-release-dev.bat >nul
+  /XF check_update.json config.json *.old *.zip *.pyc *.exe make-release.bat make-release-dev.bat dev-build.txt _preview.html test_*.py test-*.js >nul
 if errorlevel 8 (
   echo Copy failed.
   pause

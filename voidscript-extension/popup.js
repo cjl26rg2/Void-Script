@@ -247,7 +247,7 @@ document.querySelectorAll("[data-act]").forEach((el) => {
 // engine live-syncs them via its storage.onChanged listener (no reload needed).
 const CFG_DEFAULTS = {
   vsCowork: false, vsAutoVerify: true, vsGuardDestructive: true, vsBackground: true, vsSounds: false, vsTheme: "system", vsLang: "en",
-  vsHalloween: true, vsSpookyMusic: true,
+  vsHalloween: true, vsSpookyMusic: true, vsJingle: true, vsJingleMusic: true, vsJinglePreview: false, vsJingleDeco: true,
 };
 // SpookyScript (all October): the popup wears the pumpkin and the name too.
 // Every "VoidScript" in the popup (button labels are written in after load,
@@ -275,13 +275,29 @@ function applySpooky(on) {
   if (on && !deco) { deco = document.createElement("div"); deco.id = "spooky-deco"; deco.innerHTML = "<i class='web'></i><i class='bat'></i><i class='ghost'></i>"; document.body.appendChild(deco); }
   if (!on && deco) deco.remove();
   const title = document.querySelector(".title");
-  if (title) title.innerHTML = on ? 'Spooky<span class="s">Script</span>' : 'Void<span class="s">Script</span>';
+  if (title) title.innerHTML = on ? 'Spooky<span class="s">Script</span><sup class="sq">2</sup>' : 'Void<span class="s">Script</span><sup class="sq">2</sup>';
   const mark = document.querySelector("header svg");
   let pk = document.getElementById("spooky-mark");
   if (on && !pk && mark) { pk = document.createElement("img"); pk.id = "spooky-mark"; pk.src = "spooky/icon-48.png"; pk.alt = ""; mark.after(pk); }
   if (mark) mark.style.display = on ? "none" : "";
   if (!on && pk) pk.remove();
 }
+// JingleScript (all December): the popup wears it too, with the dev bauble in the dev copy.
+let jingleDev = false;
+fetch("dev-build.txt").then((r) => { jingleDev = r.ok; const jm = document.getElementById("jingle-mark"); if (jm && jingleDev) jm.src = "jingle/dev-48.png"; }).catch(() => {});
+function applyJingle(on) {
+  on = on && !spookyOn;
+  document.documentElement.classList.toggle("jingle", on);
+  const title = document.querySelector(".title");
+  if (title && !spookyOn) title.innerHTML = on ? 'Jingle<span class="s">Script</span><sup class="sq">2</sup>' : 'Void<span class="s">Script</span><sup class="sq">2</sup>';
+  const mark = document.querySelector("header svg");
+  let jm = document.getElementById("jingle-mark");
+  if (on && !jm && mark) { jm = document.createElement("img"); jm.id = "jingle-mark"; jm.alt = ""; mark.after(jm); }
+  if (jm) jm.src = jingleDev ? "jingle/dev-48.png" : "jingle/icon-48.png";
+  if (mark && !spookyOn) mark.style.display = on ? "none" : "";
+  if (!on && jm) jm.remove();
+}
+const jingleSeason = () => new Date().getMonth() === 11;
 chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   const cfg = { ...CFG_DEFAULTS, ...(r || {}) };
   // Language picker: native names, English default. Changing it re-translates the
@@ -301,13 +317,19 @@ chrome.storage.local.get(Object.keys(CFG_DEFAULTS), (r) => {
   // helpers below (esc, tlList…) are consts, and a storage callback that fires early
   // would hit them before initialisation and abort the rest of the popup.
   setTimeout(() => { applyI18n(); poll(); renderStats(); renderLeaderboard(); renderTimeline(); }, 0);
-  applySpooky(cfg.vsHalloween !== false && typeof VSSpooky !== "undefined" && VSSpooky.inSeason());
+  const seasons = () => {
+    applySpooky(cfg.vsHalloween !== false && typeof VSSpooky !== "undefined" && VSSpooky.inSeason() && cfg.vsJinglePreview !== true);
+    setTimeout(() => applyJingle(cfg.vsJingle !== false && (jingleSeason() || cfg.vsJinglePreview === true)), 30);
+  };
+  seasons();
   document.querySelectorAll("input[data-cfg]").forEach((box) => {
     const k = box.dataset.cfg;
     box.checked = cfg[k] !== false;
     box.addEventListener("change", () => {
       try { chrome.storage.local.set({ [k]: box.checked }); } catch {}
       if (k === "vsHalloween") applySpooky(box.checked && typeof VSSpooky !== "undefined" && VSSpooky.inSeason());
+      cfg[k] = box.checked;
+      if (k === "vsJingle" || k === "vsJinglePreview") seasons();
     });
   });
   const seg = $("theme-seg");

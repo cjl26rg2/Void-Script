@@ -76,14 +76,14 @@ const VSSpooky = (() => {
   // The SpookyScript track (an mp3 that ships with the app/extension), looped.
   // Falls back to the built-in synth below if the file can't play.
   let track = null;
-  function startTrack(src, volume) {
+  function startTrack(src, volume, noSynth) {
     playing = true;
     track = new Audio(src);
     track.loop = true;
     track.volume = 0;
     const target = Math.min(1, volume == null ? 0.5 : volume);
     const fadeIn = () => { const f = setInterval(() => { if (!track || !playing) return clearInterval(f); track.volume = Math.min(target, track.volume + target / 30); if (track.volume >= target) clearInterval(f); }, 100); };
-    track.addEventListener("error", () => { if (playing && track) { track = null; playing = false; start(volume); } }, { once: true });
+    track.addEventListener("error", () => { if (playing && track) { track = null; playing = false; if (!noSynth) start(volume); } }, { once: true });
     track.play().then(fadeIn).catch(() => {
       // Browsers only let sound start after a click or key press - wait for one.
       const go = () => { window.removeEventListener("pointerdown", go, true); window.removeEventListener("keydown", go, true); if (track && playing) track.play().then(fadeIn).catch(() => {}); };
@@ -92,9 +92,11 @@ const VSSpooky = (() => {
     });
   }
 
-  function start(volume, src) {
+  // noSynth: if the file can't play, stay quiet instead of falling back to the
+  // spooky synth (JingleScript's track uses this).
+  function start(volume, src, noSynth) {
     if (playing) return;
-    if (src) return startTrack(src, volume);
+    if (src) return startTrack(src, volume, noSynth);
     const C = window.AudioContext || window.webkitAudioContext;
     if (!C) return;
     ctx = ctx || new C();

@@ -75,6 +75,10 @@
     vsSounds: false,            // short sound cues (ready / done / error / needs you) - opt-in
     vsHalloween: true,          // SpookyScript all October (core/spooky.js)
     vsSpookyMusic: true,        // the SpookyScript track while it's on
+    vsJingle: true,             // JingleScript all December
+    vsJingleMusic: true,        // Jingle Bells (Kevin MacLeod, CC BY 4.0) while it's on
+    vsJinglePreview: false,     // popup switch: JingleScript² right now, any month
+    vsJingleDeco: true,         // snow and decorations around the page while it's on
   };
   let VS_CFG = { ...VS_CFG_DEFAULTS };
   try {
@@ -1925,10 +1929,19 @@
     const stopWatch = new Promise((res) => {
       stopTimer = setInterval(() => { if (A.stop) res({ ok: false, kind: "stopped" }); }, 150);
     });
-    let r = await Promise.race([bg({ type: "call_tool", name, arguments: args, timeout }), hardCap, stopWatch]);
+    let r = await Promise.race([bg({ type: "call_tool", name, arguments: args, timeout, request_id: call.rid }), hardCap, stopWatch]);
     clearInterval(stopTimer);
     if (r && r.kind === "stopped") return "(stopped by user)";
     if (!r) return VS.FEEDBACK.bridgeOffline;
+    // Remember the scripts this session edited, for the "Session done" summary.
+    try {
+      const file = args.target_file || args.file_path || args.path;
+      if (r.ok && A.runScripts && typeof file === "string" && /multi_edit|write|edit|create_script|set_source/i.test(bareName)) A.runScripts.add(file.split(".").pop());
+    } catch {}
+    if (r.duplicate) {
+      diag("tool.duplicate", { name });
+      ui.toast("That command already ran - it was not run again.");
+    }
     // The MCP server answers SUCCESSFULLY (ok:true) when no Studio is attached
     // (Studio closed / no place / MCP option disabled) - with an explanatory
     // text instead of a result. Surface it as a proper environment ERROR so the
@@ -2145,7 +2158,7 @@
                         // Stop click that landed before this loop actually started
     A.loopKey = null; // pinned by syncSessionState once this chat has an id + content
     timeline("session_start", {});
-    A.runOk = 0; A.runErr = 0; A.shotCount = 0;
+    A.runOk = 0; A.runErr = 0; A.shotCount = 0; A.runScripts = new Set();
     A.startedAt = Date.now();
     A.undoSessionStart = _undoStack.length; // revert_session restores state to this boundary
     let truncCount = 0;
@@ -2276,6 +2289,7 @@
 
         if (res.kind === "tool") {
           const calls = res.calls;
+          stampCalls(res.item, calls);
           if (calls.length > MAX_BATCH) {
             base = await submitAndGetBase(VS.FEEDBACK.multiTool(calls.map((c) => c.tool || "?")));
             continue;
@@ -2514,6 +2528,10 @@
         parts.push(`${A.runOk || 0} commands ok`);
         if (A.runErr) parts.push(`${A.runErr} errors`);
         if (A.shotCount) parts.push(`${A.shotCount} screenshots`);
+        if (A.runScripts && A.runScripts.size) {
+          const names = [...A.runScripts];
+          parts.push(`edited ${names.slice(0, 3).join(", ")}${names.length > 3 ? ` +${names.length - 3} more` : ""}`);
+        }
         parts.push(`in ${dur}`);
         ui.toast("Session done · " + parts.join(" · "));
         playChime(!!A.runErr);
@@ -2610,6 +2628,21 @@
   // the "already ran this" memory survives node recreation. This makes
   // re-execution IDEMPOTENT regardless of any isGenerating/lastGenAt heuristic
   // misfire - the hard part (is this a live turn?) can be wrong without harm.
+  // A request id for each command in a reply: the chat, which reply, which
+  // command in it, and the command itself. The bridge keeps the ids it has run,
+  // so the same command arriving twice (refresh, a second tab on this chat, a
+  // reconnect) gets the earlier result back instead of running in Studio again.
+  function stampCalls(item, calls) {
+    let conv = "", turn = "";
+    try { conv = P.conversationKey() || ""; turn = item ? turnKey(item) : ""; } catch {}
+    if (!conv || !turn || turn === "-1") return; // can't tell turns apart: no dedupe
+    calls.forEach((c, i) => {
+      let h = 0x811c9dc5;
+      const key = `${P.id}|${conv}|${turn}|${i}|${c.tool}|${JSON.stringify(c.arguments || {})}`;
+      for (let j = 0; j < key.length; j++) { h ^= key.charCodeAt(j); h = Math.imul(h, 0x01000193) >>> 0; }
+      c.rid = `${P.id}:${turn}:${i}:${h.toString(36)}:${key.length.toString(36)}`;
+    });
+  }
   const executed = new Map(); // "conv|turnKey" → text prefix at dispatch time
   function rememberExecuted(item) {
     if (!item) return;
@@ -3485,7 +3518,7 @@
         <div id="vs-bar">
           <svg id="vs-mark" width="20" height="20" viewBox="0 0 128 128" aria-hidden="true" style="flex:0 0 auto;filter:drop-shadow(0 0 4px rgba(255,138,61,.55))"><defs><linearGradient id="vsmr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffd9c0"/><stop offset=".5" stop-color="#ff8a3d"/><stop offset="1" stop-color="#ff5c8a"/></linearGradient><radialGradient id="vsmv" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0b0d13"/><stop offset=".7" stop-color="#131420"/><stop offset="1" stop-color="#241a28"/></radialGradient></defs><circle cx="64" cy="64" r="54" fill="url(#vsmv)"/><circle cx="64" cy="64" r="54" fill="none" stroke="url(#vsmr)" stroke-width="9"/><g stroke="url(#vsmr)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"><polyline points="49,44 30,64 49,84"/><polyline points="79,44 98,64 79,84"/><line x1="71" y1="40" x2="57" y2="88"/></g></svg>
           <span id="vs-dot" class="off" title=""></span>
-          <span id="vs-brand">VoidScript <span class="vs-free">v${EXT_VERSION}</span></span>
+          <span id="vs-brand">VoidScript² <span class="vs-free">v${EXT_VERSION}</span></span>
           <span id="vs-state"></span>
            <span id="vs-live"></span>
            <button id="vs-quick-shot" hidden aria-label="Screenshot Studio" title="Take a screenshot of Studio and inspect it"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 14a4.5 4.5 0 1 1 0-9 4.5 4.5 0 0 1 0 9z"/></svg></button>
@@ -3775,11 +3808,11 @@
         for (const t of hits) t.nodeValue = t.nodeValue.replace(from, to);
       }
       function applySpooky() {
-        const on = VS_CFG.vsHalloween !== false && typeof VSSpooky !== "undefined" && VSSpooky.inSeason();
+        const on = VS_CFG.vsHalloween !== false && typeof VSSpooky !== "undefined" && VSSpooky.inSeason() && VS_CFG.vsJinglePreview !== true;
         const html = document.documentElement, bar = root.querySelector("#vs-bar");
         if (on) html.setAttribute("data-vs-spooky", "1"); else html.removeAttribute("data-vs-spooky");
         const brand = root.querySelector("#vs-brand");
-        if (brand && brand.firstChild && brand.firstChild.nodeType === 3) brand.firstChild.nodeValue = on ? "SpookyScript " : "VoidScript ";
+        if (brand && brand.firstChild && brand.firstChild.nodeType === 3) brand.firstChild.nodeValue = on ? "SpookyScript² " : "VoidScript² ";
         let pk = root.querySelector("#vs-mark-spooky");
         if (on && !pk && bar) {
           pk = document.createElement("img");
@@ -3833,10 +3866,97 @@
       whenSettled.then(() => { try { applySpooky(); } catch {} });
       try {
         chrome.storage.onChanged.addListener((ch, area) => {
-          if (area === "local" && (ch.vsHalloween || ch.vsSpookyMusic)) {
+          if (area === "local" && (ch.vsHalloween || ch.vsSpookyMusic || ch.vsJinglePreview)) {
+            if (ch.vsJinglePreview) VS_CFG.vsJinglePreview = ch.vsJinglePreview.newValue;
             if (ch.vsHalloween) VS_CFG.vsHalloween = ch.vsHalloween.newValue;
             if (ch.vsSpookyMusic) VS_CFG.vsSpookyMusic = ch.vsSpookyMusic.newValue;
             try { applySpooky(); } catch {}
+          }
+        });
+      } catch {}
+      // JingleScript: all December the bar becomes JingleScript - the bauble logo,
+      // evergreen-and-cranberry look and a string of lights along the bar's top.
+      // Halloween wins if both were ever on (they never share a month).
+      let jingleWatch = null;
+      function renameBarTo(name) {
+        const from = /VoidScript|SpookyScript|JingleScript/g;
+        const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+          acceptNode: (n) => (n.nodeValue.search(from) >= 0 && n.nodeValue.replace(from, name) !== n.nodeValue && !n.parentElement.closest("pre, code, textarea, .vs-chip-body, .vs-kit-pre") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+        });
+        const hits = [];
+        let n;
+        while ((n = w.nextNode())) hits.push(n);
+        for (const t of hits) t.nodeValue = t.nodeValue.replace(from, name);
+      }
+      function applyJingle(dev) {
+        const html = document.documentElement;
+        const on = VS_CFG.vsJingle !== false && (new Date().getMonth() === 11 || VS_CFG.vsJinglePreview === true) && !html.hasAttribute("data-vs-spooky");
+        const was = html.hasAttribute("data-vs-jingle");
+        if (on) html.setAttribute("data-vs-jingle", "1"); else html.removeAttribute("data-vs-jingle");
+        const brand = root.querySelector("#vs-brand");
+        if (brand && brand.firstChild && brand.firstChild.nodeType === 3 && (on || was)) brand.firstChild.nodeValue = on ? "JingleScript² " : "VoidScript² ";
+        let mark = root.querySelector("#vs-mark-jingle");
+        if (on && !mark && root.querySelector("#vs-mark")) {
+          mark = document.createElement("img");
+          mark.id = "vs-mark-jingle"; mark.alt = ""; mark.width = mark.height = 20;
+          root.querySelector("#vs-mark").after(mark);
+        }
+        if (mark) mark.src = chrome.runtime.getURL(dev ? "jingle/dev-48.png" : "jingle/icon-48.png");
+        if (!on && mark) mark.remove();
+        if (on || was) renameBarTo(on ? "JingleScript" : "VoidScript");
+        if (on && !jingleWatch) {
+          let queued = false;
+          jingleWatch = new MutationObserver(() => {
+            if (queued || !document.documentElement.hasAttribute("data-vs-jingle")) return;
+            queued = true;
+            setTimeout(() => { queued = false; renameBarTo("JingleScript"); }, 120);
+          });
+          jingleWatch.observe(root, { childList: true, subtree: true, characterData: true });
+        }
+        if (!on && jingleWatch) { jingleWatch.disconnect(); jingleWatch = null; }
+        // Snow and decorations around the page (like SpookyScript's frame).
+        let jf = document.getElementById("vs-jingle-frame");
+        const deco = on && VS_CFG.vsJingleDeco !== false;
+        if (deco && !jf) {
+          jf = document.createElement("div");
+          jf.id = "vs-jingle-frame";
+          jf.setAttribute("aria-hidden", "true");
+          jf.innerHTML = '<i class="snow"></i><i class="snow s2"></i><i class="holly l"></i><i class="holly r"></i><i class="bauble"></i><i class="snowman"></i><i class="cane"></i><i class="star"></i>';
+          document.documentElement.appendChild(jf);
+        }
+        if (!deco && jf) jf.remove();
+        // Music, with a mute button next to the name (same look as SpookyScript's).
+        let mb = root.querySelector("#vs-jingle-music");
+        if (on && !mb && brand) {
+          mb = document.createElement("button");
+          mb.id = "vs-jingle-music";
+          mb.className = "vs-season-music";
+          mb.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path class="vs-sp-wave" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="vs-sp-mute" d="m16 9 6 6m0-6-6 6"/></svg>`;
+          mb.onclick = (e) => {
+            e.stopPropagation();
+            VS_CFG.vsJingleMusic = VS_CFG.vsJingleMusic === false;
+            try { chrome.storage.local.set({ vsJingleMusic: VS_CFG.vsJingleMusic }); } catch {}
+            jingleNow();
+          };
+          brand.after(mb);
+        }
+        if (!on && mb) mb.remove();
+        const music = on && VS_CFG.vsJingleMusic !== false;
+        if (mb) { mb.classList.toggle("off", !music); mb.title = music ? "Mute the JingleScript music" : "Play the JingleScript music"; mb.setAttribute("aria-label", mb.title); }
+        if (typeof VSSpooky === "undefined") return;
+        if (music) VSSpooky.start(0.25, chrome.runtime.getURL("jingle/music.mp3"), true);
+        else if (on || was) VSSpooky.stop();
+      }
+      const jingleNow = () => { try { chrome.storage.local.get("vsDevBuild", (o) => { try { applyJingle(!!(o && o.vsDevBuild)); } catch {} }); } catch {} };
+      whenSettled.then(() => setTimeout(jingleNow, 50));
+      try {
+        chrome.storage.onChanged.addListener((ch, area) => {
+          if (area === "local" && (ch.vsJingle || ch.vsJingleMusic || ch.vsJinglePreview || ch.vsJingleDeco || ch.vsDevBuild || ch.vsHalloween)) {
+            if (ch.vsJingleDeco) VS_CFG.vsJingleDeco = ch.vsJingleDeco.newValue;
+            if (ch.vsJinglePreview) VS_CFG.vsJinglePreview = ch.vsJinglePreview.newValue;
+            if (ch.vsJingle) VS_CFG.vsJingle = ch.vsJingle.newValue;
+            if (ch.vsJingleMusic) VS_CFG.vsJingleMusic = ch.vsJingleMusic.newValue;
+            setTimeout(jingleNow, 60); // after the Halloween listener has run
           }
         });
       } catch {}
@@ -4192,6 +4312,26 @@
            <button class="vs-tip-opt" id="vs-open-pal"><span>Search everything</span><span class="vs-tip-sub">every template, system and action - Alt+Shift+K</span></button>
          </section>
          <section class="vs-menu-sec">
+           <div class="vs-sec-label"><span>Studio</span></div>
+           <button class="vs-tip-opt" id="vs-sel-ctx"><span>Use my Studio selection</span><span class="vs-tip-sub">adds what you selected to your message, so the AI works on exactly that · Alt+Shift+E</span></button>
+           <button class="vs-tip-opt" id="vs-out-errs"><span>Add Studio's latest errors</span><span class="vs-tip-sub">the newest errors from Studio's Output, ready for the AI to fix · Alt+Shift+R</span></button>
+           <button class="vs-tip-opt" id="vs-test-run"><span>Test &amp; report errors</span><span class="vs-tip-sub">plays for 8 seconds, then puts any new errors in your message</span></button>
+           <div class="vs-quick-row" id="vs-quick-acts">
+             <button data-q="anchor" title="Anchor every part in the selection">Anchor</button><button data-q="weld" title="Weld the selection into one piece">Weld</button><button data-q="group" title="Group the selection into a Model">Group</button><button data-q="ground" title="Drop the selection onto what's below it">Drop</button><button data-q="snap" title="Snap the selection to the half-stud grid">Snap</button><button data-p="1" title="Play the game in Studio">▶ Play</button><button data-p="0" title="Stop playing in Studio">■ Stop</button>
+           </div>
+         </section>
+         <section class="vs-menu-sec">
+           <div class="vs-sec-label"><span>Add to my message</span></div>
+           <div class="vs-chips" id="vs-boosters">
+             <button data-b="Make it work well on phones and tablets too (touch-friendly sizes, Scale not Offset).">Mobile-friendly</button>
+             <button data-b="Keep it server-authoritative: the server checks everything a client sends through remotes.">Server checks</button>
+             <button data-b="Only change what I asked for - don't edit or delete other scripts or objects.">Don't touch the rest</button>
+             <button data-b="Use CollectionService tags and one script instead of a copy of the script in every part.">Use tags</button>
+             <button data-b="Comment the tricky parts so I can follow it.">Comment it</button>
+             <button data-b="Before changing anything, tell me your plan in a few bullet points and wait for my OK.">Plan first</button>
+           </div>
+         </section>
+         <section class="vs-menu-sec">
            <div class="vs-sec-label"><span>Switch AI</span></div>
            ${sites}
          </section>
@@ -4452,6 +4592,136 @@
       if (mgOpen) mgOpen.addEventListener("click", () => { menuEl.hidden = true; openModels(); });
       const uiOpen = menuEl.querySelector("#vs-open-ui");
       if (uiOpen) uiOpen.addEventListener("click", () => { menuEl.hidden = true; openGen("ui"); });
+      // ── Studio section (VoidScript²) ──────────────────────────────────────
+      // Adds text to the end of whatever is in the AI's box (never replaces it).
+      const addToBox = (text) => {
+        const ed = P.getEditor && P.getEditor();
+        if (!ed) { ui.toast("No message box found on this page."); return false; }
+        const cur = (ed.value != null ? ed.value : ed.innerText || "").trim();
+        const next = cur ? cur + "\n\n" + text : text;
+        if (P.setEditorValue) P.setEditorValue(ed, next);
+        else if (ed.value != null) { ed.value = next; ed.dispatchEvent(new Event("input", { bubbles: true })); }
+        else ed.textContent = next;
+        try { ed.focus(); } catch {}
+        return true;
+      };
+      const studio = async (name, args, ms) => {
+        const r = await bg({ type: "call_tool", name, arguments: args, timeout: ms || 30000 });
+        if (!r || !r.ok) throw new Error((r && (r.error || r.text)) || "Studio didn't answer - is the bridge running and Studio open?");
+        const t = String(r.text || "").trim();
+        if (/^ERR:/.test(t)) throw new Error(t.slice(4));
+        return t;
+      };
+      const luau = (code, ms) => studio("execute_luau", { code, datamodel_type: "Edit" }, ms);
+      const selCtx = menuEl.querySelector("#vs-sel-ctx");
+      if (selCtx) selCtx.addEventListener("click", async () => {
+        menuEl.hidden = true;
+        try {
+          const t = await luau(`local sel = game:GetService("Selection"):Get()
+if #sel == 0 then return "ERR:Select something in Studio first." end
+local out = {}
+for i, o in sel do
+	if i > 8 then table.insert(out, "...and " .. (#sel - 8) .. " more") break end
+	local parts, scripts = 0, 0
+	local list = o:GetDescendants()
+	table.insert(list, o)
+	for _, d in list do if d:IsA("BasePart") then parts += 1 elseif d:IsA("LuaSourceContainer") then scripts += 1 end end
+	local size = ""
+	if o:IsA("Model") then local s = o:GetExtentsSize() size = string.format(", %.0f x %.0f x %.0f studs", s.X, s.Y, s.Z)
+	elseif o:IsA("BasePart") then size = string.format(", %.1f x %.1f x %.1f studs", o.Size.X, o.Size.Y, o.Size.Z) end
+	table.insert(out, "- " .. o:GetFullName() .. " (" .. o.ClassName .. (parts > 1 and (", " .. parts .. " parts") or "") .. (scripts > 0 and (", " .. scripts .. " scripts") or "") .. size .. ")")
+end
+return table.concat(out, "\\n")`);
+          if (addToBox("Work on what I have selected in Roblox Studio:\n" + t)) ui.toast("Your selection is in the message.");
+        } catch (e) { ui.toast(String(e.message || e)); }
+      });
+      const outErrs = menuEl.querySelector("#vs-out-errs");
+      if (outErrs) outErrs.addEventListener("click", async () => {
+        menuEl.hidden = true;
+        try {
+          const out = await studio("get_console_output", {}, 20000);
+          const lines = String(out).split("\n").map((l) => l.trim()).filter(Boolean);
+          const errs = [...new Set(lines.filter((l) => /error|exception|attempt to|is not a valid member|infinite yield|nil value|failed/i.test(l) && !/VoidScript|MCP|plugin/i.test(l)))].slice(-15);
+          if (!errs.length) { ui.toast("No errors in Studio's Output."); return; }
+          if (addToBox("These errors are in Roblox Studio's Output. Find the cause and fix them:\n" + errs.join("\n"))) ui.toast(`${errs.length} error${errs.length === 1 ? "" : "s"} added to your message.`);
+        } catch (e) { ui.toast(String(e.message || e)); }
+      });
+      const testRun = menuEl.querySelector("#vs-test-run");
+      if (testRun) testRun.addEventListener("click", async () => {
+        menuEl.hidden = true;
+        if (A.running || A.toolRunning) { ui.toast("Wait for the AI to finish first."); return; }
+        try {
+          ui.toast("Playing for 8 seconds…");
+          const before = await studio("get_console_output", {}, 20000).catch(() => "");
+          await studio("start_stop_play", { is_start: true }, 60000);
+          await new Promise((res) => setTimeout(res, 8000));
+          const after = await studio("get_console_output", {}, 20000).catch(() => "");
+          await studio("start_stop_play", { is_start: false }, 60000).catch(() => {});
+          const fresh = before && after.startsWith(before) ? after.slice(before.length) : after.split("\n").slice(-150).join("\n");
+          const errs = [...new Set(fresh.split("\n").map((l) => l.trim()).filter((l) => /error|exception|attempt to|is not a valid member|infinite yield|nil value|failed/i.test(l) && !/VoidScript|MCP|plugin/i.test(l)))].slice(0, 25);
+          if (!errs.length) { ui.toast("Played for 8 seconds - no errors."); return; }
+          if (addToBox("I played the game for 8 seconds and got these errors. Find the cause and fix them:\n" + errs.join("\n"))) ui.toast(`${errs.length} error${errs.length === 1 ? "" : "s"} added to your message.`);
+        } catch (e) {
+          studio("start_stop_play", { is_start: false }, 20000).catch(() => {});
+          ui.toast(String(e.message || e));
+        }
+      });
+      const QUICK = {
+        anchor: 'for _, p in parts do p.Anchored = true end return "Anchored " .. #parts .. " parts"',
+        snap: 'for _, p in parts do local c = p.CFrame p.CFrame = CFrame.new(math.round(c.X * 2) / 2, math.round(c.Y * 2) / 2, math.round(c.Z * 2) / 2) * c.Rotation end return "Snapped " .. #parts .. " parts"',
+        group: 'if #sel == 0 then return "ERR:Select something first." end local m = Instance.new("Model") m.Name = "Group" m.Parent = sel[1].Parent for _, o in sel do if not o:IsA("Terrain") then o.Parent = m end end game:GetService("Selection"):Set({ m }) return "Grouped " .. #sel .. " things"',
+        weld: `if #parts < 2 then return "ERR:Select at least two parts." end
+local root = parts[1]
+for _, p in parts do if p.Size.Magnitude > root.Size.Magnitude then root = p end end
+for _, p in parts do if p ~= root then local w = Instance.new("WeldConstraint") w.Part0 = root w.Part1 = p w.Parent = p end end
+return "Welded " .. (#parts - 1) .. " parts to " .. root.Name`,
+        ground: `local params = RaycastParams.new()
+params.FilterType = Enum.RaycastFilterType.Exclude
+params.FilterDescendantsInstances = sel
+local n = 0
+for _, o in sel do
+	if o:IsA("Model") or o:IsA("BasePart") then
+		local cf, size = (function() if o:IsA("Model") then return o:GetBoundingBox() end return o.CFrame, o.Size end)()
+		local bottom = cf.Position - Vector3.new(0, size.Y / 2, 0)
+		local hit = workspace:Raycast(bottom + Vector3.new(0, 0.05, 0), Vector3.new(0, -2000, 0), params)
+		if hit then o:PivotTo(o:GetPivot() + Vector3.new(0, hit.Position.Y - bottom.Y, 0)) n += 1 end
+	end
+end
+if n == 0 then return "ERR:Nothing below the selection to land on." end
+return "Dropped " .. n .. " thing(s)"`,
+      };
+      const quickRow = menuEl.querySelector("#vs-quick-acts");
+      if (quickRow) quickRow.addEventListener("click", async (e) => {
+        const p = e.target.closest("[data-p]");
+        if (p) {
+          try { await studio("start_stop_play", { is_start: p.dataset.p === "1" }, 60000); ui.toast(p.dataset.p === "1" ? "Playing in Studio." : "Stopped."); }
+          catch (err) { ui.toast(String(err.message || err)); }
+          return;
+        }
+        const b = e.target.closest("[data-q]");
+        if (!b) return;
+        try {
+          ui.toast(await luau(`local CH = game:GetService("ChangeHistoryService")
+CH:SetWaypoint("Before VoidScript quick action")
+local sel = game:GetService("Selection"):Get()
+local parts = {}
+for _, o in sel do
+	if o:IsA("BasePart") then table.insert(parts, o) end
+	for _, d in o:GetDescendants() do if d:IsA("BasePart") then table.insert(parts, d) end end
+end
+local function edit()
+${QUICK[b.dataset.q]}
+end
+local result = edit()
+CH:SetWaypoint("VoidScript quick action")
+return result`) + " · Ctrl+Z in Studio undoes it");
+        } catch (err) { ui.toast(String(err.message || err)); }
+      });
+      const boosters = menuEl.querySelector("#vs-boosters");
+      if (boosters) boosters.addEventListener("click", (e) => {
+        const b = e.target.closest("[data-b]");
+        if (b && addToBox(b.dataset.b)) ui.toast("Added to your message.");
+      });
       const palOpen = menuEl.querySelector("#vs-open-pal");
       if (palOpen) palOpen.addEventListener("click", () => { menuEl.hidden = true; openPalette(); });
       const kitOpen = menuEl.querySelector("#vs-open-kit");
@@ -5140,7 +5410,8 @@
           // No inline dot here: the leading status dot already shows green, two
           // dots side by side looked cluttered. The green "Agent active" text
           // carries it.
-          msg = `<b>Connected</b>${tools ? ` · ${tools} tools` : ""}`;
+          const pl = (activePlaceName || "").length > 28 ? activePlaceName.slice(0, 27) + "…" : activePlaceName;
+          msg = `<b>Connected</b>${pl ? ` · ${pl.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]))}` : ""}${tools ? ` · ${tools} tools` : ""}`;
         }
       } else if (P.isFreshChat() || P.chatIsEmpty()) {
         // Treat ANY empty chat (no turns yet) as the standby/start case - not just
@@ -5583,6 +5854,54 @@
       u.style.top = Math.round(Math.max(4, br.top - uh - 5)) + "px";
     }
 
+    // Step aside for the site. The bar sits on the top layer, so a menu, tooltip
+    // or dialog the site opens where the bar is (a model picker over the chat box,
+    // an upload menu…) would end up underneath it. A few times a second we look at
+    // what the site itself draws under the bar: if it's anything other than the
+    // chat box the bar is pinned to, the site is showing something there, so the
+    // bar fades out and lets clicks through until it's gone.
+    let _yieldAt = 0, _yielding = false;
+    const LAYER_ROLES = /^(menu|listbox|dialog|alertdialog|tooltip|combobox|tree|grid)$/;
+    function isLayer(el) {
+      for (let n = el, i = 0; n && n !== document.body && i < 12; n = n.parentElement, i++) {
+        const role = n.getAttribute && n.getAttribute("role");
+        if ((role && LAYER_ROLES.test(role)) || (n.getAttribute && n.getAttribute("aria-modal") === "true")) return true;
+        const cs = getComputedStyle(n);
+        if ((cs.position === "fixed" || cs.position === "absolute") && cs.zIndex !== "auto" && Number(cs.zIndex) > 0) return true;
+      }
+      return false;
+    }
+    function siteCovers(anchorEl) {
+      const r = bar.getBoundingClientRect();
+      if (!r.width || !r.height) return false;
+      const ys = [r.top + 3, r.top + r.height / 2, r.bottom - 3];
+      for (let k = 0; k < 7; k++) {
+        const x = r.left + 6 + (r.width - 12) * (k / 6);
+        for (const y of ys) {
+          if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+          const first = document.elementsFromPoint(x, y).find((el) => !root.contains(el) && el !== document.documentElement && el !== document.body);
+          if (!first) continue;
+          // the chat box the bar is pinned to (and its containers) is what we expect
+          if (anchorEl && (anchorEl.contains(first) || first.contains(anchorEl))) continue;
+          // pinned to the chat box: anything else drawn there belongs to the site
+          if (anchorEl) return true;
+          // floating: only menus, dialogs and other raised layers count
+          if (isLayer(first)) return true;
+        }
+      }
+      return false;
+    }
+    function stepAside(anchorEl) {
+      if (menuEl && !menuEl.hidden) { if (_yielding) { _yielding = false; bar.classList.remove("vs-yield"); } return; }
+      const now = performance.now();
+      if (now - _yieldAt < 120) return;
+      _yieldAt = now;
+      let cover = false;
+      try { cover = siteCovers(anchorEl); } catch {}
+      if (cover !== _yielding) { _yielding = cover; bar.classList.toggle("vs-yield", cover); }
+    }
+    function unYield() { if (_yielding) { _yielding = false; bar.classList.remove("vs-yield"); } }
+
     function placeBar() {
       barRaf = requestAnimationFrame(placeBar);
       if (!bar || !pageSettled) return;
@@ -5647,6 +5966,7 @@
         // when mounted ABOVE it. The provider's barMount() signals which via .inside.
         bar.classList.toggle("vs-bar-inside", !!mount.inside);
         show(bar);
+        unYield();
         if (menuEl && !menuEl.hidden) {
           const br = bar.getBoundingClientRect();
           menuEl.style.right = Math.round(window.innerWidth - br.right) + "px";
@@ -5684,6 +6004,7 @@
         setPx(bar, "left", Math.round(r.left));
         setPx(bar, "top", Math.round(r.top));
         setPx(bar, "width", Math.round(r.width));
+        stepAside(anchorEl);
         if (menuEl && !menuEl.hidden) {
           bar.classList.remove("vs-bar-inline"); // ensure fixed geometry for menu math
           menuEl.style.right = Math.round(window.innerWidth - (r.left + r.width)) + "px";
@@ -5713,6 +6034,7 @@
       setPx(bar, "width", w);
       setPx(bar, "left", left);
       setPx(bar, "top", top);
+      stepAside(null);
       // Keep the open "more" menu anchored to the bar, opening upward.
       if (menuEl && !menuEl.hidden) {
         const br = bar.getBoundingClientRect();
@@ -6576,6 +6898,11 @@
       else if (k === "u") { e.preventDefault(); openGen("ui"); }
       else if (k === "k") { e.preventDefault(); openPalette(); }
       else if (k === "s") { e.preventDefault(); if (actionBtn && !actionBtn.disabled) actionBtn.click(); }
+      else if (k === "e" || k === "r") {
+        // the menu's buttons are built at load, so these work with it closed
+        const b = document.getElementById(k === "e" ? "vs-sel-ctx" : "vs-out-errs");
+        if (b) { e.preventDefault(); b.click(); }
+      }
     }, true);
 
     // ── Command palette (Alt+Shift+K): everything VoidScript can do, one search away.

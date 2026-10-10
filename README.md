@@ -101,3 +101,7 @@ Go to a supported AI and open a new chat. The VoidScript bar appears above the i
 ## Third-party
 
 - [three.js](https://threejs.org) r149 (MIT) - the 3D preview in the model generator. Bundled as `vendor/three.min.js` in the app and the extension.
+
+## Credits
+
+- JingleScript music: "Jingle Bells" by Kevin MacLeod (incompetech.com), licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).

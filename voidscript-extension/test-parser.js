@@ -77,3 +77,16 @@ ok("batch: no phantom command from code", nested.length === 1 && nested[0].tool 
 // Second command still streaming -> the reply is open, not finished.
 ok("batch: last command still open", VSParse.hasOpenToolBlock('{"command":"list_commands"}\n{"command":"script_read","params":{"target_file":"game.Ser'));
 ok("batch: all closed", !VSParse.hasOpenToolBlock('{"command":"list_commands"}\n{"command":"get_studio_state"}'));
+
+// ── Examples and prose are not commands ──
+ok("placeholder name is an example, not a call", VSParse.parseToolCalls('Commands look like {"command":"command_name","params":{}}.').length === 0);
+ok("angle-bracket placeholder ignored", VSParse.parseToolCalls('Write {"tool":"<tool>","arguments":{}} to call one.').length === 0);
+ok("sentence as a name ignored", VSParse.parseToolCalls('{"command":"run the script now please"}').length === 0);
+const exThenReal = VSParse.parseToolCalls('Format: {"command":"command_name"}. Now: {"command":"list_commands"}');
+ok("real call after an example still runs", exThenReal.length === 1 && exThenReal[0].tool === "list_commands");
+ok("server-qualified names still work", VSParse.parseToolCalls('{"command":"blender.get_scene_info"}').length === 1);
+// A half-streamed command is never parsed into a call before it closes.
+ok("partial JSON yields no call", VSParse.parseToolCalls('{"command":"multi_edit","params":{"edits":[{"old_string":"a"').length === 0);
+ok("partial LUA yields no call", VSParse.parseToolCalls('###LUA###\nworkspace.Part:Destroy()').length === 0);
+// Our own injected result turns are recognised, so they are never read as new instructions.
+ok("tool output is feedback", VSParse.isInjectedFeedback("Output of 'list_commands':\n{\"command\":\"execute_luau\"}"));

@@ -12,7 +12,7 @@
 <header id="titlebar" data-tauri-drag-region>
   <div class="tb-brand" data-tauri-drag-region>
     <img src="assets/logo.png" alt="" class="tb-logo" data-tauri-drag-region />
-    <span class="tb-name" data-tauri-drag-region>Void<span class="grad">Script</span></span>
+    <span class="tb-name" data-tauri-drag-region>Void<span class="grad">Script</span><sup class="sq">2</sup></span>
     <span class="tb-ver" id="tb-ver" data-tauri-drag-region></span>
   </div>
   <div class="tb-spacer" data-tauri-drag-region></div>
@@ -54,16 +54,18 @@
       <svg viewBox="0 0 24 24"><path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1H15v-6H9v6H4.5a1 1 0 0 1-1-1z"/></svg><span>Home</span></button>
     <button class="nav-item" data-view="chat" data-tip="Chat">
       <svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 14h4.5"/></svg><span>Chat</span></button>
-    <button class="nav-item" data-view="models" data-tip="Models">
-      <svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg><span>Models</span></button>
-    <button class="nav-item" data-view="uib" data-tip="UI builder">
-      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7M8.5 16.5h4"/></svg><span>UI builder</span></button>
+    <button class="nav-item" data-view="select" data-tip="Selection">
+      <svg viewBox="0 0 24 24"><path d="M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4"/><path d="m10 9 6 3-2.6.9L12.5 16.5z"/></svg><span>Selection</span></button>
+    <button class="nav-item" data-view="uicheck" data-tip="UI Check">
+      <svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="9" rx="1.8"/><rect x="17" y="8" width="4.5" height="9" rx="1.2"/><path d="M6 19h6M9 15v4"/></svg><span>UI Check</span></button>
+    <button class="nav-item" data-view="workshop" data-tip="Workshop">
+      <svg viewBox="0 0 24 24"><path d="M14.5 5.5a4 4 0 0 0 4.9 4.9l-8.6 8.6a2.1 2.1 0 0 1-3-3z"/><path d="m5 3 1 2.5L8.5 6.5 6 7.5 5 10 4 7.5 1.5 6.5 4 5.5z"/></svg><span>Workshop</span></button>
     <button class="nav-item" data-view="kit" data-tip="Toolkit">
       <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="2"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="2"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="2"/><path d="M17.25 13.5v7.5M13.5 17.25H21"/></svg><span>Toolkit</span></button>
     <button class="nav-item" data-view="explorer" data-tip="Explorer">
       <svg viewBox="0 0 24 24"><rect x="3" y="3.5" width="7" height="5" rx="1.5"/><rect x="13" y="9.5" width="8" height="5" rx="1.5"/><rect x="13" y="16" width="8" height="5" rx="1.5"/><path d="M6.5 8.5v10H13M6.5 12H13"/></svg><span>Explorer</span></button>
-    <button class="nav-item" data-view="browser" data-tip="Browser">
-      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.5 3.8 5.5 3.8 9s-1.2 6.5-3.8 9c-2.6-2.5-3.8-5.5-3.8-9S9.4 5.5 12 3z"/></svg><span>Browser</span><i class="nav-soon"></i></button>
+    <button class="nav-item" data-view="playtest" data-tip="Playtest">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M10 9.5v5l4.2-2.5z"/></svg><span>Playtest</span></button>
     <div class="side-sep"></div>
     <button class="nav-item" data-view="tools" data-tip="Tools">
       <svg viewBox="0 0 24 24"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/></svg><span>Tools</span></button>
@@ -100,6 +102,8 @@
         </div>
       </div>
 
+      <div class="doctor" id="doctor" aria-live="polite"></div>
+
       <div class="cards">
         <div class="card stat" id="card-bridge">
           <div class="card-h"><span class="dot"></span>Bridge</div>
@@ -126,8 +130,8 @@
       <div class="sec-h">Start something</div>
       <div class="quick" id="home-quick">
         <button class="qa" data-qa="chat"><span class="qi"><svg viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 0 1-12.3 7.6L3.5 21l1.4-4.6A8.5 8.5 0 1 1 20.5 12z"/></svg></span><b>New chat</b><span>Ask the AI to build anything</span></button>
-        <button class="qa" data-qa="models"><span class="qi"><svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M3.5 7.2 12 12l8.5-4.8M12 12v9.5"/></svg></span><b>Generate a model</b><span>Describe it, preview it in 3D</span></button>
-        <button class="qa" data-qa="uib"><span class="qi"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 9h18M8.5 13h7"/></svg></span><b>Design a UI</b><span>Shops, HUDs, menus</span></button>
+        <button class="qa" data-qa="select"><span class="qi"><svg viewBox="0 0 24 24"><path d="M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4"/><path d="m10 9 6 3-2.6.9L12.5 16.5z"/></svg></span><b>Fix what's selected</b><span>Anchor, weld, group, drop to ground</span></button>
+        <button class="qa" data-qa="uicheck"><span class="qi"><svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="9" rx="1.8"/><rect x="17" y="8" width="4.5" height="9" rx="1.2"/><path d="M6 19h6M9 15v4"/></svg></span><b>Check a UI</b><span>Phone, tablet and PC at once</span></button>
         <button class="qa" data-qa="kit"><span class="qi"><svg viewBox="0 0 24 24"><path d="M3 20h4.5v-4.5H12V11h4.5V6.5H21"/></svg></span><b>Start from a template</b><span>Obby, tycoon, simulator…</span></button>
         <button class="qa" data-qa="health"><span class="qi"><svg viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></svg></span><b>Health check</b><span>Backdoors, lag, old code</span></button>
         <button class="qa" data-qa="palette"><span class="qi"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg></span><b>Command palette</b><span>Everything, one keystroke away</span></button>
@@ -276,178 +280,81 @@
     </section>
 
     <!-- ── MODELS (3D model generator) ───────────────────────────────────── -->
-    <section class="view" id="view-models">
+    <section class="view" id="view-select">
       <div class="view-h">
-        <div><h2>Models</h2><p class="muted">Describe something and the AI builds it out of parts. Preview it in 3D, tweak it, then drop it into Studio.</p></div>
+        <div><h2>Selection</h2><p class="muted">Select something in Studio, then fix it here in one click. Every change is one Ctrl+Z in Studio.</p></div>
+        <button class="btn" id="btn-sel-read">Read selection</button>
       </div>
-      <div class="mg">
-        <div class="mg-side">
-          <div class="card">
-            <div class="card-t">New model</div>
-            <textarea class="input mg-desc" id="mg-desc" rows="4" placeholder="A red phoenix with golden wing tips…"></textarea>
-            <button class="btn sm enh-sm" id="btn-enhance-mg" title="Prompt Enhancer: spell out shape, proportions and materials of what you described. Ctrl+Z undoes it."><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg> Enhance</button>
-            <div class="field">
-              <label>Detail</label>
-              <div class="seg" id="mg-detail">
-                <button data-v="low">Low</button><button data-v="medium" class="on">Medium</button><button data-v="high">High</button>
-              </div>
-            </div>
-            <div class="field">
-              <label>Style</label>
-              <div class="seg" id="mg-style">
-                <button data-v="realistic" class="on">Realistic</button><button data-v="lowpoly">Low poly</button><button data-v="cartoon">Cartoon</button><button data-v="blocky">Blocky</button>
-              </div>
-            </div>
-            <div class="field">
-              <label>Reference image <span class="muted">(optional)</span></label>
-              <div class="refpick" id="mg-ref">
-                <button class="btn sm" id="btn-mg-ref">Choose picture…</button>
-                <img id="mg-ref-img" alt="" hidden /><button class="link" id="btn-mg-ref-x" hidden>Remove</button>
-                <input type="file" id="mg-ref-file" accept="image/*" hidden />
-              </div>
-            </div>
-            <div class="row">
-              <button class="btn sm" id="btn-mg-dice" title="Surprise me: a random idea">Surprise me</button>
-              <button class="btn primary grow" id="btn-mg-go">Generate <kbd class="kb-in">Ctrl ↵</kbd></button>
-              <button class="btn" id="btn-mg-stop" hidden>Stop</button>
-            </div>
-            <div class="mg-ideas" id="mg-ideas">
-              <button>Bullet train</button><button>Phoenix</button><button>Medieval tower</button><button>Food truck</button><button>Robot dog</button><button>Pirate ship</button>
-            </div>
-            <label class="chk gen-chat" title="Off: on NVIDIA the generators use a fast model, so they start in seconds. On: they use the model you picked for chat (bigger ones can queue for minutes)."><input type="checkbox" id="mg-chatmodel" /> Use my chat model (slower)</label>
-            <p class="mg-learn" id="mg-learn"></p>
+      <div class="st-empty card" id="sel-empty">
+        <svg viewBox="0 0 24 24"><path d="M4 4h4M4 4v4M20 4h-4M20 4v4M4 20h4M4 20v-4M20 20h-4M20 20v-4"/><path d="m10 9 6 3-2.6.9L12.5 16.5z"/></svg>
+        <p>Click a model, some parts or a folder in Studio, then press <b>Read selection</b>.</p>
+      </div>
+      <div class="st-grid" id="sel-body" hidden>
+        <div class="card">
+          <div class="card-t" id="sel-name"></div>
+          <p class="st-path" id="sel-path"></p>
+          <div class="st-facts" id="sel-facts"></div>
+          <p class="muted st-mats" id="sel-mats"></p>
+          <ul class="st-notes" id="sel-notes"></ul>
+        </div>
+        <div class="card">
+          <div class="card-t">Quick fixes</div>
+          <div class="st-acts" id="sel-acts"></div>
+          <div class="st-row">
+            <select class="input sm" id="sel-mat" aria-label="Material"></select><button class="btn sm" id="btn-sel-mat">Set material</button>
+            <input type="color" id="sel-color" value="#a3a2a5" aria-label="Colour" /><button class="btn sm" id="btn-sel-color">Set colour</button>
           </div>
-          <div class="card">
-            <div class="card-t">Saved <span class="tag" id="mg-count">0</span></div>
-            <div class="mg-list" id="mg-list"></div>
+          <div class="st-row">
+            <input class="input sm grow" id="sel-rename" placeholder="Coin" maxlength="40" aria-label="New name" /><button class="btn sm" id="btn-sel-rename">Rename (Coin1, Coin2…)</button>
+          </div>
+          <div class="st-row">
+            <input class="input sm grow" id="sel-tag" placeholder="Collectible" maxlength="40" aria-label="Tag" /><button class="btn sm" id="btn-sel-tag">Add tag</button>
           </div>
         </div>
-
-        <div class="mg-card" id="mg-card">
-          <div class="mg-head">
-            <b id="mg-name">No model yet</b><span class="mg-badge" id="mg-badge" hidden>Generated</span>
-            <div class="mg-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
+        <div class="card st-wide">
+          <div class="card-t">Change it with AI</div>
+          <div class="st-row">
+            <input class="input grow" id="sel-ask" placeholder='"make every light part neon" · "space these out 4 studs apart" · "add a ClickDetector to each"' />
+            <button class="btn primary" id="btn-sel-ai">Write it</button>
           </div>
-          <div class="mg-tools">
-            <button class="btn sm primary" id="btn-mg-insert" disabled>Insert into Studio</button>
-            <label class="chk small" title="One rigid, unanchored model - for vehicles, tools and props that move"><input type="checkbox" id="mg-welded" /> Welded</label>
-            <span class="vsep"></span>
-            <button class="ibtn" id="btn-mg-save" disabled title="Save to your list"><svg viewBox="0 0 24 24"><path d="M6 3.5h9.5L20 8v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M8 3.5V8h7M8 20.5v-6h8v6"/></svg></button>
-            <button class="ibtn" id="btn-mg-copy" disabled title="Copy the build script"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
-            <button class="ibtn" id="btn-mg-txt" disabled title="Save the script as a file"><svg viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5M9 13h6M9 16.5h4"/></svg></button>
-            <button class="ibtn" id="btn-mg-rbxmx" disabled title="Export .rbxmx - drag it into Studio, no bridge needed"><svg viewBox="0 0 24 24"><path d="M12 2.5 3.5 7.2v9.6L12 21.5l8.5-4.7V7.2z"/><path d="M12 12v9.5M12 12l8.5-4.8M12 12 3.5 7.2"/><path d="m16 14 2 1.2"/></svg></button>
-            <button class="ibtn" id="btn-mg-png" disabled title="Save the preview as a picture"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.5"/><circle cx="9" cy="9.5" r="1.8"/><path d="m21 15.5-5-5L5 20.5"/></svg></button>
-            <button class="ibtn" id="btn-mg-undo" disabled title="Undo the last change to this model"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
-            <span class="grow"></span>
-            <button class="ibtn" id="btn-mg-spin" title="Turntable: slowly rotate the preview"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 1 9 9"/><path d="M21 12a9 9 0 1 1-9-9"/><path d="M17.5 3.5 21 3v3.5"/></svg></button>
-            <button class="ibtn rate" id="btn-mg-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="ibtn rate" id="btn-mg-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
-            <button class="ibtn" id="btn-mg-reset" disabled title="Reset the camera"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3.5V8h4.5"/><circle cx="12" cy="12" r="2"/></svg></button>
+          <div class="st-review" id="sel-review" hidden>
+            <p class="muted">Read it first - it only runs when you press Run.</p>
+            <pre class="st-code" id="sel-code"></pre>
+            <div class="st-row"><button class="btn primary" id="btn-sel-run">Run in Studio</button><button class="btn" id="btn-sel-cancel">Cancel</button></div>
           </div>
-          <div class="mg-stage">
-            <div class="mg-view" id="mg-view"></div>
-            <pre class="mg-script" id="mg-script" hidden></pre>
-            <div class="mg-empty" id="mg-empty">
-              <svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M3 7l9 5 9-5M12 12v10"/></svg>
-              <p>Your model shows up here.</p>
-            </div>
-            <div class="mg-busy" id="mg-busy" hidden><span class="spin"></span><span class="gb-t" id="mg-busy-t">Designing…</span><span class="gb-bar"><i></i></span></div>
-            <div class="mg-stats" id="mg-stats" hidden></div>
-          </div>
-          <div class="mg-insp" id="mg-insp" hidden>
-            <b id="mg-insp-name"></b>
-            <input type="color" id="mg-insp-color" title="Colour" />
-            <select class="input sm" id="mg-insp-mat" title="Material"></select>
-            <button class="btn sm" id="btn-mg-insp-del">Delete part</button>
-            <span class="grow"></span>
-            <button class="link" id="btn-mg-insp-x">Done</button>
-          </div>
-          <div class="mg-quick" id="mg-quick">
-            <span class="muted">Recolour</span><span class="pals" id="mg-pals"></span>
-            <span class="grow"></span>
-            <span class="muted">Size</span><button class="btn sm" data-scale="0.5">½×</button><button class="btn sm" data-scale="0.8">−</button><button class="btn sm" data-scale="1.25">+</button><button class="btn sm" data-scale="2">2×</button>
-          </div>
-          <div class="mg-revise">
-            <input class="input grow" id="mg-change" placeholder='Ask for a change — "make the wings bigger"' disabled />
-            <button class="btn" id="btn-mg-revise" disabled>Revise</button>
-          </div>
-          <p class="mg-foot">Insert into Studio builds it as one Model in front of your camera (Ctrl+Z undoes it). Or copy the script into Studio's command bar.</p>
         </div>
       </div>
     </section>
 
-    <!-- ── UI BUILDER ────────────────────────────────────────────────────── -->
-    <section class="view" id="view-uib">
+    <section class="view" id="view-uicheck">
       <div class="view-h">
-        <div><h2>UI builder</h2><p class="muted">Describe a GUI - a shop, a HUD, a main menu - and get it designed, previewed and wired up with its LocalScript.</p></div>
+        <div><h2>UI Check</h2><p class="muted">See your ScreenGui on a phone, a tablet and a PC at once, and fix what breaks.</p></div>
+        <button class="btn" id="btn-uc-read">Check UI</button>
       </div>
-      <div class="mg">
-        <div class="mg-side">
-          <div class="card">
-            <div class="card-t">New UI</div>
-            <textarea class="input mg-desc" id="ub-desc" rows="4" placeholder="A shop with 3 items, prices in coins and a close button…"></textarea>
-            <button class="btn sm enh-sm" id="btn-enhance-ub" title="Prompt Enhancer: spell out layout, elements, text and style of what you described. Ctrl+Z undoes it."><svg viewBox="0 0 24 24"><path d="M4 20 14.5 9.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="m14.5 9.5 2.2-2.2" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" fill="none" opacity=".55"/><path d="M18 2.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z" fill="currentColor"/><path d="M10 3.5l.5 1.2 1.2.5-1.2.5-.5 1.2-.5-1.2-1.2-.5 1.2-.5z" fill="currentColor"/><path d="M20 11l.45 1.05 1.05.45-1.05.45L20 14l-.45-1.05-1.05-.45 1.05-.45z" fill="currentColor"/></svg> Enhance</button>
-            <div class="field">
-              <label>Style</label>
-              <div class="seg" id="ub-style">
-                <button data-v="chunky" class="on">Chunky</button><button data-v="clean">Clean</button><button data-v="dark">Dark</button><button data-v="cartoon">Cartoon</button>
-              </div>
-            </div>
-            <div class="field">
-              <label>Reference image <span class="muted">(optional)</span></label>
-              <div class="refpick" id="ub-ref">
-                <button class="btn sm" id="btn-ub-ref">Choose picture…</button>
-                <img id="ub-ref-img" alt="" hidden /><button class="link" id="btn-ub-ref-x" hidden>Remove</button>
-                <input type="file" id="ub-ref-file" accept="image/*" hidden />
-              </div>
-            </div>
-            <div class="row">
-              <button class="btn sm" id="btn-ub-dice" title="Surprise me: a random idea">Surprise me</button>
-              <button class="btn primary grow" id="btn-ub-go">Generate <kbd class="kb-in">Ctrl ↵</kbd></button>
-              <button class="btn" id="btn-ub-stop" hidden>Stop</button>
-            </div>
-            <div class="mg-ideas" id="ub-ideas">
-              <button>Shop menu</button><button>Main menu</button><button>Health + coins HUD</button><button>Settings panel</button><button>Daily reward popup</button><button>Inventory grid</button>
-            </div>
-            <label class="chk gen-chat" title="Off: on NVIDIA the generators use a fast model, so they start in seconds. On: they use the model you picked for chat (bigger ones can queue for minutes)."><input type="checkbox" id="ub-chatmodel" /> Use my chat model (slower)</label>
-            <p class="mg-learn" id="ub-learn"></p>
-          </div>
-          <div class="card">
-            <div class="card-t">Saved <span class="tag" id="ub-count">0</span></div>
-            <div class="mg-list" id="ub-list"></div>
-          </div>
+      <div class="st-empty card" id="uc-empty">
+        <svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="13" height="9" rx="1.8"/><rect x="17" y="8" width="4.5" height="9" rx="1.8"/><path d="M6 19h6M9 15v4"/></svg>
+        <p>Select a ScreenGui (or anything in it) in Studio, then press <b>Check UI</b>. With only one ScreenGui in StarterGui, you don't need to select anything.</p>
+      </div>
+      <div class="uc" id="uc-main" hidden>
+        <div class="card uc-view">
+          <div class="uc-head"><b id="uc-name"></b><div class="seg sm" id="uc-device"><button data-v="phone" class="on">Phone</button><button data-v="tablet">Tablet</button><button data-v="pc">PC</button></div></div>
+          <div class="uc-stage" id="uc-stage"></div>
+          <p class="muted small">A sketch of where things land - list and grid layouts place their items when the game runs.</p>
         </div>
-        <div class="mg-card">
-          <div class="mg-head">
-            <b id="ub-name">No UI yet</b><span class="mg-badge" id="ub-badge" hidden></span>
-            <div class="seg sm" id="ub-device" title="Preview on"><button data-v="phone">Phone</button><button data-v="tablet">Tablet</button><button data-v="pc" class="on">PC</button></div>
-            <div class="mg-tabs" id="ub-tabs"><button data-t="script">Script</button><button data-t="preview" class="on">Preview</button></div>
-          </div>
-          <div class="mg-tools">
-            <button class="btn sm primary" id="btn-ub-insert" disabled>Insert into Studio</button>
-            <label class="chk small" title="Buttons grow on hover and squish on click, panels pop in"><input type="checkbox" id="ub-anim" checked /> Animations</label>
-            <span class="vsep"></span>
-            <button class="ibtn" id="btn-ub-save" disabled title="Save to your list"><svg viewBox="0 0 24 24"><path d="M6 3.5h9.5L20 8v11a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M8 3.5V8h7M8 20.5v-6h8v6"/></svg></button>
-            <button class="ibtn" id="btn-ub-copy" disabled title="Copy the build script"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
-            <button class="ibtn" id="btn-ub-txt" disabled title="Save the script as a file"><svg viewBox="0 0 24 24"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5M9 13h6M9 16.5h4"/></svg></button>
-            <span class="grow"></span>
-            <button class="ibtn rate" id="btn-ub-good" title="Good - learn from this one" disabled><svg viewBox="0 0 24 24"><path d="M7 10v11H4V10zM7 10l4-8a2.5 2.5 0 0 1 2.5 2.5V8h5.6a2 2 0 0 1 2 2.3l-1.4 8.5a2 2 0 0 1-2 1.7H7"/></svg></button><button class="ibtn rate" id="btn-ub-bad" title="Not good - tell it why" disabled><svg viewBox="0 0 24 24"><path d="M17 14V3h3v11zM17 14l-4 8a2.5 2.5 0 0 1-2.5-2.5V16H4.9a2 2 0 0 1-2-2.3l1.4-8.5a2 2 0 0 1 2-1.7H17"/></svg></button>
-          </div>
-          <div class="mg-stage ub-stage">
-            <div class="ub-view" id="ub-view"></div>
-            <pre class="mg-script" id="ub-script" hidden></pre>
-            <div class="mg-empty" id="ub-empty"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 9h18"/></svg><p>Your UI shows up here, on a 16:9 game screen.</p></div>
-            <div class="mg-busy" id="ub-busy" hidden><span class="spin"></span><span class="gb-t" id="ub-busy-t">Designing…</span><span class="gb-bar"><i></i></span></div>
-            <div class="mg-stats" id="ub-stats" hidden></div>
-          </div>
-          <div class="mg-quick" id="ub-quick">
-            <span class="muted">Recolour</span><span class="pals" id="ub-hues"></span>
-          </div>
-          <div class="mg-revise">
-            <input class="input grow" id="ub-change" placeholder='Ask for a change — "make the buy buttons green"' disabled />
-            <button class="btn" id="btn-ub-revise" disabled>Revise</button>
-          </div>
-          <p class="mg-foot">Insert into Studio adds the ScreenGui (and its LocalScript) to StarterGui. Ctrl+Z undoes it.</p>
+        <div class="card uc-side">
+          <div class="card-t">What to fix</div>
+          <div id="uc-issues"></div>
         </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-workshop">
+      <div class="view-h">
+        <div><h2>Workshop</h2><p class="muted">Tools that build and check things in your place. Pick one, set it up, and it changes Studio in one step you can Ctrl+Z.</p></div>
+      </div>
+      <div class="wk">
+        <nav class="wk-nav card" id="wk-nav" aria-label="Workshop tools"></nav>
+        <div class="wk-panel card" id="wk-panel"></div>
       </div>
     </section>
 
@@ -538,8 +445,8 @@
     <!-- ── EXPLORER: the game tree, live from Studio ────────────────────────── -->
     <section class="view" id="view-explorer">
       <div class="view-h">
-        <div><h2>Explorer</h2><p class="muted">Your game, live from Studio. Inspect anything, read and edit scripts, or hand them to the AI.</p></div>
-        <div class="row"><button class="btn sm" id="btn-ex-refresh">Refresh</button></div>
+        <div><h2>Explorer</h2><p class="muted">Your game, live from Studio. Inspect anything, edit scripts, and see how your scripts connect.</p></div>
+        <div class="row"><div class="seg sm" id="ex-mode"><button data-m="tree" class="on">Tree</button><button data-m="scripts">Scripts map</button><button data-m="remotes">Remotes</button></div><button class="btn sm" id="btn-nav-scan" hidden>Map scripts</button><button class="btn sm" id="btn-ex-refresh">Refresh</button></div>
       </div>
       <div class="ex">
         <div class="ex-tree card">
@@ -552,59 +459,35 @@
       </div>
     </section>
 
-    <!-- ── BROWSER: AI sites with VoidScript built in ─────────────────────── -->
-    <section class="view" id="view-browser">
-      <div class="br-shell">
-        <aside class="br-side">
-          <div class="br-nav">
-            <button class="ibtn" id="br-back" title="Back (Alt+Left)"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
-            <button class="ibtn" id="br-fwd" title="Forward (Alt+Right)"><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg></button>
-            <button class="ibtn" id="br-reload" title="Reload (Ctrl+R)"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4.5V11h-6.5"/></svg></button>
-            <span class="grow"></span>
-            <button class="ibtn" id="br-ext" title="Open in your normal browser"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/></svg></button>
-          </div>
-          <label class="br-url"><span class="br-lock"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9.5" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><input id="br-url" placeholder="Search or type an address" spellcheck="false" autocomplete="off" /></label>
-          <div class="br-quick" id="br-quick"></div>
-          <div class="br-sep"><span>Tabs</span><span class="br-count" id="br-count"></span><button class="br-plus" id="br-new" title="New tab (Ctrl+T)"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
-          <div class="br-tabs" id="br-tabs"></div>
-          <div class="br-foot"><i></i>VoidScript is on every AI here</div>
-        </aside>
-        <div class="br-stage">
-          <div class="br-view" id="br-view">
-            <div class="br-start" id="br-start">
-              <p class="br-greet" id="br-greet"></p>
-              <h2 class="br-hello">What are we building?</h2>
-              <div class="br-ask">
-                <button class="br-ask-ai" id="br-ask-ai" title="Choose which AI to ask"></button>
-                <input id="br-search-q" placeholder="Ask anything, or type an address" spellcheck="false" autocomplete="off" />
-                <button class="br-ask-go" id="br-ask-go" title="Go (Enter)"><svg viewBox="0 0 24 24"><path d="M12 19V5M5.5 11.5 12 5l6.5 6.5"/></svg></button>
-                <div class="br-ask-menu" id="br-ask-menu" hidden></div>
-              </div>
-              <div class="br-chips" id="br-chips"></div>
-              <div class="br-sec-h">Your AIs</div>
-              <div class="br-grid" id="br-grid"></div>
-              <div class="br-add" id="br-add" hidden>
-                <input class="input" id="br-add-name" placeholder="Name" maxlength="24" />
-                <input class="input" id="br-add-url" placeholder="https://…" spellcheck="false" />
-                <button class="btn sm primary" id="br-add-ok">Add</button><button class="btn sm ghost" id="br-add-x">Cancel</button>
-              </div>
-              <div class="br-recent-wrap" id="br-recent-wrap" hidden><div class="br-sec-h">Recently visited</div><div class="br-recent" id="br-recent"></div></div>
-              <p class="br-note">Sign in once and you stay signed in. Google sign-in blocked? Use email instead.</p>
-            </div>
-            <div class="br-loading" id="br-loading" hidden><span class="spin"></span>Opening…</div>
-          </div>
+    <section class="view" id="view-playtest">
+      <div class="view-h">
+        <div><h2>Playtest</h2><p class="muted">Studio's Output, live. Play, test and hand any error straight to the AI.</p></div>
+        <div class="row">
+          <button class="btn" id="btn-pt-play">Play</button><button class="btn" id="btn-pt-stop">Stop</button>
+          <span class="vsep"></span>
+          <input class="input sm pt-secs" id="pt-secs" type="number" min="3" max="120" value="10" aria-label="Test run length in seconds" /><span class="muted">s</span>
+          <button class="btn primary" id="btn-pt-test" title="Play for that many seconds, stop, and keep the errors">Test run</button>
         </div>
       </div>
-      <div class="br-soon" id="br-soon">
-        <div class="br-soon-card">
-          <span class="soon-tag">Soon</span>
-          <h2>A browser, built in</h2>
-          <p class="muted">ChatGPT, Gemini and more, right inside VoidScript with the extension already on them. We're making sure it's solid first.</p>
+      <div class="pt">
+        <div class="card pt-main">
+          <div class="pt-bar">
+            <div class="seg sm" id="pt-filter"><button data-v="all" class="on">All</button><button data-v="err">Errors</button><button data-v="warn">Warnings</button><button data-v="info">Prints</button></div>
+            <input class="input sm grow" id="pt-q" placeholder="Search the Output" spellcheck="false" />
+            <label class="chk small"><input type="checkbox" id="pt-auto" checked /> Live</label>
+            <button class="btn sm ghost" id="btn-pt-refresh">Refresh</button><button class="btn sm ghost" id="btn-pt-clear" title="Clear what's shown here (Studio's Output stays)">Clear</button>
+          </div>
+          <div class="pt-out" id="pt-out" role="log" aria-live="polite"></div>
+          <p class="muted small-p" id="pt-status"></p>
+        </div>
+        <div class="card pt-side">
+          <div class="card-t">Test runs</div>
+          <div class="pt-runs" id="pt-runs"></div>
+          <p class="muted small-p">Click a run with errors to hand them to the AI.</p>
         </div>
       </div>
     </section>
 
-    <!-- ── TOOLS ─────────────────────────────────────────────────────────── -->
     <section class="view" id="view-tools">
       <div class="view-h">
         <div><h2>Tools</h2><p class="muted" id="tools-sub">Everything the AI can do through the bridge.</p></div>
@@ -798,7 +681,13 @@
         </div>
         <label class="switch-row"><span>Start the bridge when VoidScript opens</span><span class="switch"><input type="checkbox" id="set-autostart" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Closing the window keeps VoidScript running in the tray</span><span class="switch"><input type="checkbox" id="set-tray" /><span class="track"></span></span></label>
-        <label class="switch-row"><span>SpookyScript every October - Halloween look, logos and music</span><span class="switch"><input type="checkbox" id="set-halloween" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Classic look<em class="hint">turns off the VoidScript² glow, glass and grid</em></span><span class="switch"><input type="checkbox" id="set-classic" /><span class="track"></span></span></label>
+        <label class="switch-row"><span class="no-rename">SpookyScript every October - Halloween look, logos and music</span><span class="switch"><input type="checkbox" id="set-halloween" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>Preview JingleScript² now<em class="hint">try the Christmas look, music and lights before December - turn it off to go back</em></span><span class="switch"><input type="checkbox" id="set-jingle-force" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>JingleScript every December - evergreen Christmas look</span><span class="switch"><input type="checkbox" id="set-jingle-theme" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>JingleScript snow<em class="hint">off automatically when Windows asks for less motion</em></span><span class="switch"><input type="checkbox" id="set-jingle-snow" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>JingleScript music<em class="hint">Jingle Bells by Kevin MacLeod - the speaker button in the top bar mutes it</em></span><span class="switch"><input type="checkbox" id="set-jingle-music" /><span class="track"></span></span></label>
+        <label class="switch-row"><span>JingleScript lights along the top</span><span class="switch"><input type="checkbox" id="set-jingle-lights" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Show what I'm doing on Discord ("In Roblox Studio", "Prompting the AI"…)</span><span class="switch"><input type="checkbox" id="set-discord" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Flash the taskbar when a long reply finishes in the background</span><span class="switch"><input type="checkbox" id="set-attn" /><span class="track"></span></span></label>
         <label class="switch-row"><span>Watch Studio's Output and tell me about new errors<em class="hint">checks every 30 seconds while Studio is connected</em></span><span class="switch"><input type="checkbox" id="set-watch" /><span class="track"></span></span></label>
@@ -818,6 +707,7 @@
       <div class="card" data-sec="about">
         <div class="card-t">About</div>
         <p class="muted">VoidScript <span id="about-ver"></span> · free &amp; open-source (GPL-3.0) · not affiliated with Roblox Corporation.</p>
+        <p class="muted small-p">JingleScript music: "Jingle Bells" by Kevin MacLeod (incompetech.com), licensed under Creative Commons: By Attribution 4.0 (creativecommons.org/licenses/by/4.0).</p>
         <div class="row">
           <button class="btn sm" id="btn-show-disclaimer">Disclaimer</button>
           <button class="btn sm ghost" data-url="https://voidstudioai.netlify.app/">Website</button>
@@ -907,16 +797,22 @@
     </div>
   </div>
 </div>
-<script src="vendor/three.min.js"></script>
-<script src="modelkit.js"></script>
-<script src="modelview.js"></script>
-<script src="uikit.js"></script>
 <script src="toolkit.js"></script>
 <script src="spooky.js"></script>
 <script src="app.js"></script>
 <script src="features.js"></script>
 <script src="explorer.js"></script>
-<script src="browser.js"></script>
+<script src="navigator.js"></script>
 <script src="extras.js"></script>
+<script src="studiotools.js"></script>
+<script src="workshop.js"></script>
+<script src="workshop2.js"></script>
+<script src="workshop3.js"></script>
+<script src="workshop4.js"></script>
+<script src="playtest.js"></script>
+<script src="workshop5.js"></script>
+<script src="workshop6.js"></script>
+<script src="doctor.js"></script>
+<script src="jingle.js"></script>
 </body>
 </html>

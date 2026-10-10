@@ -39,6 +39,10 @@
   html.spooky .title{font-family:"Ink Free","Segoe Print",cursive;letter-spacing:.3px}
   html.spooky ::-webkit-scrollbar-thumb{background:rgba(168,85,247,.4)}
   html.spooky .title{text-shadow:0 0 12px rgba(255,122,24,.45)}
+  html.jingle{--bg:#08110d; --bg2:#0b1712; --card:#0e1c16; --card2:#12241c; --line:rgba(150,230,190,.1); --line2:rgba(150,230,190,.18)}
+  html.jingle body{background:radial-gradient(500px 260px at 90% -10%,rgba(229,72,77,.16),transparent 65%),var(--bg)}
+  html.jingle .title .s{background:linear-gradient(90deg,#e5484d,#f5c451);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #jingle-mark{width:22px;height:22px}
   html.spooky button, html.spooky .card, html.spooky .stat{border-color:rgba(168,85,247,.22)}
   #spooky-deco{position:fixed;inset:0;pointer-events:none;z-index:50;overflow:hidden}
   #spooky-deco i{position:absolute;display:block}
@@ -241,6 +245,7 @@
   .files-row button{ height:30px; padding:0 12px; border-radius:8px; border:0; background:var(--acc); color:#fff; font:600 12px "Segoe UI",sans-serif; cursor:pointer; }
   .files-note{ font-size:11px; color:var(--dim); line-height:1.45; margin-bottom:6px; }
   .files-note.ok{ color:var(--ok); } .files-note.bad{ color:#ff9aa8; }
+  sup.sq{font-size:.62em;font-weight:800;margin-left:1px;vertical-align:super;line-height:0}
 </style>
 </head>
 <body>
@@ -262,7 +267,7 @@
       </g>
     </svg>
     <div class="hgroup">
-      <span class="title">Void<span class="s">Script</span></span>
+      <span class="title">Void<span class="s">Script</span><sup class="sq">2</sup></span>
       <span class="subrow"><span id="version"></span></span>
     </div>
     <span id="provider-tag">Ready</span>
@@ -367,6 +372,14 @@
     <label class="sw"><input type="checkbox" data-cfg="vsSounds" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="setrow"><span class="lbl">SpookyScript every October</span>
     <label class="sw"><input type="checkbox" data-cfg="vsHalloween" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">Preview JingleScript² now</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsJinglePreview" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">JingleScript every December</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsJingle" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">JingleScript snow &amp; decorations</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsJingleDeco" /><span class="track"></span><span class="knob"></span></label></div>
+  <div class="setrow"><span class="lbl">JingleScript music</span>
+    <label class="sw"><input type="checkbox" data-cfg="vsJingleMusic" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="setrow"><span class="lbl">SpookyScript music</span>
     <label class="sw"><input type="checkbox" data-cfg="vsSpookyMusic" /><span class="track"></span><span class="knob"></span></label></div>
   <div class="seg" id="theme-seg">

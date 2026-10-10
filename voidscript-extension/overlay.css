@@ -1243,6 +1243,13 @@ html[data-vs-spooky] #vs-bar { box-shadow: 0 0 0 1px rgba(168, 85, 247, .25), 0 
 #vs-spooky { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; flex: none; padding: 0;
   border: 1px solid rgba(255, 255, 255, .12); border-radius: 7px; background: rgba(255, 255, 255, .05); color: #ff9a3d; cursor: pointer; }
 #vs-spooky:hover { background: rgba(168, 85, 247, .18); }
+#vs-jingle-music { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 24px; flex: none; padding: 0;
+  border: 1px solid rgba(255, 255, 255, .12); border-radius: 7px; background: rgba(255, 255, 255, .05); color: #ff6b6b; cursor: pointer; }
+#vs-jingle-music:hover { background: rgba(47, 191, 113, .18); }
+#vs-jingle-music:focus-visible { outline: 2px solid #2fbf71; outline-offset: 1px; }
+#vs-jingle-music .vs-sp-mute { display: none; }
+#vs-jingle-music.off .vs-sp-mute { display: inline; }
+#vs-jingle-music.off .vs-sp-wave { display: none; }
 #vs-spooky .vs-sp-mute { display: none; }
 #vs-spooky.off { color: #8b8fa3; }
 #vs-spooky.off .vs-sp-wave { display: none; }
@@ -1542,3 +1549,55 @@ html[data-vs-theme="or"] .vs-kit-card:hover { border-color: #e9e1d1; background:
 html.vs-light .vs-pal { background: #fff; color: #17181c; border-color: rgba(0, 0, 0, 0.1); }
 html.vs-light .vs-pal input { color: #17181c; border-bottom-color: rgba(0, 0, 0, 0.08); }
 html.vs-light .vs-pal-item.hl { background: rgba(0, 0, 0, 0.05); }
+
+/* ── JingleScript (all December): evergreen + cranberry, lights on the bar ── */
+html[data-vs-jingle] #vs-mark { display: none !important; }
+#vs-mark-jingle { flex: 0 0 auto; filter: drop-shadow(0 0 5px rgba(229, 72, 77, .55)); }
+html[data-vs-jingle] #vs-brand { background: linear-gradient(90deg, #ff6b6b, #e5484d 40%, #f5c451); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html[data-vs-jingle] #vs-action[data-kind="start"],
+html[data-vs-jingle] #vs-action[data-kind="start-degraded"],
+html[data-vs-jingle] #vs-action[data-kind="starting"] { background: linear-gradient(135deg, #e5484d, #2fbf71); box-shadow: 0 2px 12px rgba(229, 72, 77, .4); }
+html[data-vs-jingle] #vs-bar { box-shadow: 0 0 0 1px rgba(47, 191, 113, .25), 0 8px 26px rgba(229, 72, 77, .16); }
+html[data-vs-jingle] #vs-bar::before { content: ""; position: absolute; left: 16px; right: 16px; top: 0; height: 7px; pointer-events: none;
+  /* a small string of lights INSIDE the bar's top padding - never over the site or the buttons */
+  background: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='7'%3E%3Cpath d='M0 1Q21 5 42 1' fill='none' stroke='%2335574a' stroke-width='.9'/%3E%3Ccircle cx='10' cy='3.6' r='1.7' fill='%23ff4d55'/%3E%3Ccircle cx='21' cy='4.3' r='1.7' fill='%23ffc94d'/%3E%3Ccircle cx='32' cy='3.6' r='1.7' fill='%233ddc84'/%3E%3C/svg%3E") 0 0 / 42px 7px repeat-x; filter: drop-shadow(0 0 2px rgba(255, 200, 120, .55)); }
+
+/* ── Studio section in the menu (VoidScript²) ── */
+#vs-quick-acts, #vs-boosters { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px 10px; }
+#vs-quick-acts button, #vs-boosters button { font: 600 12px/1 inherit; padding: 6px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .05); color: inherit; }
+#vs-quick-acts button:hover, #vs-boosters button:hover { border-color: rgba(255, 122, 61, .6); background: rgba(255, 122, 61, .1); }
+#vs-quick-acts button:focus-visible, #vs-boosters button:focus-visible { outline: 2px solid #ff7a3d; outline-offset: 1px; }
+html.vs-light #vs-quick-acts button, html.vs-light #vs-boosters button { border-color: rgba(20, 23, 32, .16); background: rgba(20, 23, 32, .04); }
+
+/* The bar steps aside while the site shows a menu, tooltip or dialog where it is. */
+#vs-bar.vs-yield { opacity: 0 !important; pointer-events: none !important; transition: opacity .12s ease; }
+#vs-bar { transition: opacity .12s ease; }
+/* room for the lights in every bar layout, and an anchor for them when the bar is in the page flow */
+html[data-vs-jingle] #vs-bar { padding-top: 10px !important; }
+html[data-vs-jingle] #vs-bar.vs-bar-inline { position: relative; }
+
+
+/* ── JingleScript (all December): snow and decorations around the page, like
+   SpookyScript's. None of it takes clicks; "reduce motion" keeps it still. ── */
+#vs-jingle-frame { position: fixed; inset: 0; pointer-events: none; z-index: 2147483600; overflow: hidden;
+  box-shadow: inset 0 0 0 2px rgba(47, 191, 113, .35), inset 0 0 44px rgba(229, 72, 77, .14), inset 0 0 90px rgba(47, 191, 113, .08); }
+#vs-jingle-frame i { position: absolute; display: block; pointer-events: none; }
+#vs-jingle-frame .snow { left: 0; right: 0; top: -220px; height: calc(100% + 220px); background-image: radial-gradient(4.8px 4.8px at 14px 22px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(3.8px 3.8px at 66px 140px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(5.1px 5.1px at 120px 60px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(3.5px 3.5px at 170px 190px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(4.2px 4.2px at 200px 30px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(3.2px 3.2px at 90px 96px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(4.5px 4.5px at 40px 200px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%), radial-gradient(2.9px 2.9px at 150px 120px, rgba(255,255,255,.95) 0%, rgba(255,255,255,.75) 45%, transparent 75%); background-size: 220px 220px; opacity: .55; animation: vs-snowfall 16s linear infinite; will-change: transform; }
+#vs-jingle-frame .snow.s2 { background-image: radial-gradient(2.9px 2.9px at 30px 60px, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 45%, transparent 75%), radial-gradient(2.4px 2.4px at 110px 20px, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 45%, transparent 75%), radial-gradient(3.2px 3.2px at 180px 90px, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 45%, transparent 75%), radial-gradient(2.6px 2.6px at 60px 170px, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 45%, transparent 75%), radial-gradient(2.2px 2.2px at 210px 200px, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 45%, transparent 75%), radial-gradient(2.7px 2.7px at 140px 150px, rgba(255,255,255,.85) 0%, rgba(255,255,255,.6) 45%, transparent 75%); background-size: 220px 220px; opacity: .4; animation-duration: 27s; left: -60px; }
+@keyframes vs-snowfall { from { transform: translateY(0); } to { transform: translateY(220px); } }
+#vs-jingle-frame .holly { top: 4px; width: 78px; height: 52px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 70 46'%3E%3Cg stroke='%230f3d22' stroke-width='1.4'%3E%3Cpath d='M34 22C26 10 12 6 3 9c4 3 3 7 7 8-3 2-1 6 3 6-2 3 1 6 5 5 3 2 8 1 16-6z' fill='%232fa65a'/%3E%3Cpath d='M36 22c8-12 22-16 31-13-4 3-3 7-7 8 3 2 1 6-3 6 2 3-1 6-5 5-3 2-8 1-16-6z' fill='%2327914e'/%3E%3C/g%3E%3Cpath d='M34 22 14 14M36 22l20-8' stroke='%23164f2c' stroke-width='1'/%3E%3Cg stroke='%237a0f1a' stroke-width='1'%3E%3Ccircle cx='30' cy='27' r='5' fill='%23e5384d'/%3E%3Ccircle cx='40' cy='27' r='5' fill='%23e5384d'/%3E%3Ccircle cx='35' cy='35' r='5' fill='%23d42a3f'/%3E%3C/g%3E%3Ccircle cx='28.5' cy='25.5' r='1.4' fill='%23ffd0d6'/%3E%3Ccircle cx='38.5' cy='25.5' r='1.4' fill='%23ffd0d6'/%3E%3C/svg%3E"); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .45)); }
+#vs-jingle-frame .holly.l { left: 6px; transform: rotate(-14deg); }
+#vs-jingle-frame .holly.r { right: 6px; transform: scaleX(-1) rotate(-14deg); }
+#vs-jingle-frame .bauble { top: 0; right: 140px; width: 1px; height: 64px; background: rgba(245, 196, 81, .55); transform-origin: top center; animation: vs-bauble 5s ease-in-out infinite; }
+#vs-jingle-frame .bauble::after { content: ""; position: absolute; left: -12px; bottom: -28px; width: 24px; height: 29px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 36'%3E%3Crect x='11' y='0' width='8' height='6' rx='1.5' fill='%23d9b25a' stroke='%238a6a24'/%3E%3Ccircle cx='15' cy='20' r='13' fill='%23e5384d' stroke='%237a0f1a'/%3E%3Cpath d='M3 19c8 4 16 4 24 0' fill='none' stroke='%23f5c451' stroke-width='1.6'/%3E%3Cellipse cx='10' cy='14' rx='3.5' ry='2.2' fill='%23fff' opacity='.55'/%3E%3C/svg%3E"); filter: drop-shadow(0 0 8px rgba(229, 72, 77, .55)); }
+@keyframes vs-bauble { 0%, 100% { transform: rotate(6deg); } 50% { transform: rotate(-6deg); } }
+#vs-jingle-frame .snowman { left: 8px; bottom: -6px; width: 40px; height: 60px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 -10 44 68'%3E%3Cg stroke='%239fb4c8' stroke-width='1.2'%3E%3Ccircle cx='22' cy='42' r='14' fill='%23f4f8fc'/%3E%3Ccircle cx='22' cy='20' r='10' fill='%23fbfdff'/%3E%3C/g%3E%3Crect x='13' y='4' width='18' height='4' rx='1' fill='%231c2230'/%3E%3Crect x='16' y='-6' width='12' height='11' fill='%231c2230'/%3E%3Crect x='16' y='2' width='12' height='2.4' fill='%23e5384d'/%3E%3Ccircle cx='18.5' cy='18' r='1.4' fill='%231c2230'/%3E%3Ccircle cx='25.5' cy='18' r='1.4' fill='%231c2230'/%3E%3Cpath d='M22 21l8 2-8 1z' fill='%23ff8a3d'/%3E%3Cpath d='M14 29c5 3 11 3 16 0l1 3c-6 3-12 3-18 0z' fill='%23e5384d'/%3E%3Ccircle cx='22' cy='38' r='1.4' fill='%231c2230'/%3E%3Ccircle cx='22' cy='44' r='1.4' fill='%231c2230'/%3E%3C/svg%3E"); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, .5)); }
+#vs-jingle-frame .cane { right: 12px; bottom: 4px; width: 22px; height: 42px; background: no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 56'%3E%3Cpath d='M21 54V17a8 8 0 0 0-16 0' fill='none' stroke='%23ffffff' stroke-width='6.5' stroke-linecap='round'/%3E%3Cpath d='M21 54V17a8 8 0 0 0-16 0' fill='none' stroke='%23e5384d' stroke-width='6.5' stroke-linecap='round' stroke-dasharray='4 5'/%3E%3Cpath d='M23 14' /%3E%3C/svg%3E"); transform: rotate(12deg); filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .5)); }
+#vs-jingle-frame .star { top: 9%; left: -120px; width: 110px; height: 2px; border-radius: 2px; background: linear-gradient(90deg, transparent, rgba(255, 246, 200, .95)); opacity: 0; animation: vs-shoot 14s ease-in 3s infinite; }
+#vs-jingle-frame .star::after { content: ""; position: absolute; right: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: #fff6c8; box-shadow: 0 0 10px 3px rgba(255, 240, 180, .8); }
+@keyframes vs-shoot { 0% { transform: translate(0, 0) rotate(8deg); opacity: 0; } 3% { opacity: 1; } 12% { transform: translate(calc(100vw + 240px), 18vh) rotate(8deg); opacity: 0; } 100% { opacity: 0; transform: translate(calc(100vw + 240px), 18vh) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #vs-jingle-frame .snow, #vs-jingle-frame .bauble, #vs-jingle-frame .star { animation: none; }
+  #vs-jingle-frame .star { display: none; }
+}

@@ -178,21 +178,6 @@ function tidyChats() {
 $("tidy-seg").addEventListener("click", (e) => { const b = e.target.closest("[data-d]"); if (b) { lsSet("vs-keep-days", b.dataset.d); tidyChats(); } });
 tidyChats();
 
-// ── paste a picture straight into the Models / UI builder reference ────────
-document.addEventListener("paste", (e) => {
-  const view = $("view-models").classList.contains("active") ? "mg" : $("view-uib").classList.contains("active") ? "ub" : null;
-  if (!view || (e.target.closest && e.target.closest("textarea, input"))) return;
-  const f = [...(e.clipboardData ? e.clipboardData.files : [])].find((x) => /^image\//.test(x.type));
-  if (!f) return;
-  e.preventDefault();
-  const input = $(view + "-ref-file");
-  const dt = new DataTransfer();
-  dt.items.add(f);
-  input.files = dt.files;
-  input.dispatchEvent(new Event("change"));
-  toast("Reference picture added.");
-});
-
 // ── closing mid-build asks first ────────────────────────────────────────────
 $("win-close").onclick = async () => {
   if ((chat.busy || gen.busy) && !(await approve("quit", "Still working", "Close VoidScript now?", "The AI is still working. Closing now stops it partway - Ctrl+Z in Studio undoes what it already changed.", { once: true }))) return;

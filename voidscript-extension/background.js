@@ -9,19 +9,25 @@
 
 const PORT = 17613;
 
-// SpookyScript: the toolbar icon is a pumpkin all October (and Halloween night
-// into 1 November), unless Halloween mode is switched off.
-function spookyIcon() {
-  chrome.storage.local.get("vsHalloween", (o) => {
-    const d = new Date(), season = d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() === 1);
-    const on = season && !(o && o.vsHalloween === false);
-    const path = on ? { 16: "spooky/icon-16.png", 32: "spooky/icon-32.png", 48: "spooky/icon-48.png", 128: "spooky/icon-128.png" }
-      : chrome.runtime.getManifest().action.default_icon;
-    try { chrome.action.setIcon({ path }); chrome.action.setTitle({ title: on ? "SpookyScript" : "VoidScript Free" }); } catch {}
+// Seasonal looks: the toolbar icon is a pumpkin all October (and Halloween
+// night into 1 November) and a Christmas bauble all December, unless that look
+// is switched off. The development copy (it has dev-build.txt) gets the dev
+// versions, and pages learn it through storage (vsDevBuild).
+let devBuild = false;
+fetch(chrome.runtime.getURL("dev-build.txt")).then((r) => { devBuild = r.ok; }).catch(() => { devBuild = false; })
+  .finally(() => { try { chrome.storage.local.set({ vsDevBuild: devBuild }); } catch {} seasonIcon(); });
+function seasonIcon() {
+  chrome.storage.local.get(["vsHalloween", "vsJingle", "vsJinglePreview"], (o) => {
+    const d = new Date(), preview = !!(o && o.vsJinglePreview);
+    const spooky = !preview && (d.getMonth() === 9 || (d.getMonth() === 10 && d.getDate() === 1)) && !(o && o.vsHalloween === false);
+    const jingle = (preview || d.getMonth() === 11) && !(o && o.vsJingle === false);
+    const set = (dir, pre) => ({ 16: `${dir}/${pre}-16.png`, 32: `${dir}/${pre}-32.png`, 48: `${dir}/${pre}-48.png`, 128: `${dir}/${pre}-128.png` });
+    const path = spooky ? set("spooky", "icon") : jingle ? set("jingle", devBuild ? "dev" : "icon") : chrome.runtime.getManifest().action.default_icon;
+    try { chrome.action.setIcon({ path }); chrome.action.setTitle({ title: spooky ? "SpookyScript²" : jingle ? "JingleScript²" : "VoidScript²" }); } catch {}
   });
 }
-spookyIcon();
-try { chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && ch.vsHalloween) spookyIcon(); }); } catch {}
+seasonIcon();
+try { chrome.storage.onChanged.addListener((ch, area) => { if (area === "local" && (ch.vsHalloween || ch.vsJingle || ch.vsJinglePreview)) seasonIcon(); }); } catch {}
 const URL = `ws://127.0.0.1:${PORT}`;
 
 // Optional shared bridge secret (matches bridge.py VS_BRIDGE_TOKEN). Read from
@@ -434,7 +440,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       case "call_tool": {
         const timeout = (msg.timeout || 120000) + 10000;
         const r = await send(
-          { type: "call_tool", name: msg.name, arguments: msg.arguments, timeout: msg.timeout },
+          { type: "call_tool", name: msg.name, arguments: msg.arguments, timeout: msg.timeout, request_id: msg.request_id },
           timeout
         );
         sendResponse(r);

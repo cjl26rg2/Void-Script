@@ -15,6 +15,7 @@
 #                              config.json, logs/ and .git).
 #
 # Uses ONLY the Python standard library, so no extra install is ever needed.
+import hashlib
 import json
 import os
 import re
@@ -22,6 +23,7 @@ import shutil
 import sys
 import tempfile
 import time
+import urllib.parse
 import urllib.request
 import zipfile
 
@@ -130,11 +132,33 @@ def check_mode():
     return 0
 
 
-def download(url, dest):
+def asset_sha(assets, url):
+    """The SHA-256 GitHub publishes for the release file we download, or ""."""
+    for a in assets or []:
+        if a.get("browser_download_url") == url:
+            d = a.get("digest") or ""
+            return d[7:].lower() if d.lower().startswith("sha256:") else ""
+    return ""
+
+
+def download(url, dest, sha=""):
+    # Only ever from GitHub, over HTTPS.
+    host = urllib.parse.urlparse(url).hostname or ""
+    if not url.startswith("https://") or not (host == "github.com" or host.endswith(".github.com")
+                                             or host.endswith(".githubusercontent.com")):
+        raise ValueError(f"refusing to download an update from {host or url}")
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    h = hashlib.sha256()
     with urllib.request.urlopen(req, timeout=120) as resp:
         with open(dest, "wb") as f:
-            shutil.copyfileobj(resp, f)
+            while True:
+                chunk = resp.read(1 << 16)
+                if not chunk:
+                    break
+                h.update(chunk)
+                f.write(chunk)
+    if sha and h.hexdigest() != sha:
+        raise ValueError("the downloaded update does not match GitHub's checksum - not installing it")
 
 
 def extract(archive, dest_dir):
@@ -184,14 +208,14 @@ def clean_stale():
         pass
 
 
-def perform_swap(tag, url, quiet=False):
+def perform_swap(tag, url, quiet=False, sha=""):
     root = os.path.dirname(os.path.abspath(__file__))
     if not quiet:
         log(f"[update] New release {tag}. Downloading...")
     tmp = tempfile.mkdtemp(prefix="vs_update_")
     try:
         archive = os.path.join(tmp, "release.bin")
-        download(url, archive)
+        download(url, archive, sha)
         if not quiet:
             log("[update] Downloaded. Extracting...")
         extracted = os.path.join(tmp, "extract")
@@ -294,21 +318,23 @@ def auto_mode():
     if now - state.get("last_check", 0) < CHECK_TTL_SEC and state.get("last_tag"):
         tag = state.get("last_tag")
         url = state.get("last_url", "")
+        sha = state.get("last_sha", "")
     else:
         try:
             tag, url, _assets = latest_release()
         except Exception:
             return 0
+        sha = asset_sha(_assets, url)
         if tag:
             # Preserve applied_tag: this write replaces the whole state file, and
             # dropping the tag of an already-applied release would let a future
             # launch re-download + re-apply it (and re-trigger start.bat's
             # restart chain) because read_installed_version() would no longer see it.
-            write_state({"last_check": now, "last_tag": tag, "last_url": url,
+            write_state({"last_check": now, "last_tag": tag, "last_url": url, "last_sha": sha,
                          "applied_tag": state.get("applied_tag", "")})
     if not tag or not url or not is_newer(tag, installed):
         return 0
-    if perform_swap(tag, url, quiet=True):
+    if perform_swap(tag, url, quiet=True, sha=sha):
         log(f"UPDATE_APPLIED {tag}")
     return 0
 
@@ -327,7 +353,7 @@ def full_mode():
         log(f"[update] Already up to date (installed {installed}, latest {tag}).")
         write_state({"last_check": int(time.time()), "last_tag": tag, "last_url": url})
         return 0
-    return 0 if perform_swap(tag, url, quiet=False) else 1
+    return 0 if perform_swap(tag, url, quiet=False, sha=asset_sha(assets, url)) else 1
 
 
 def is_dev_folder():

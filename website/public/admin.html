@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex" />
 <title>Admin · VoidScript</title>
 <link rel="icon" href="/logo.png" />
-<link rel="stylesheet" href="/style.css?v=5" />
+<link rel="stylesheet" href="/style.css?v=6" />
 </head>
 <body class="adm">
 <header class="nav"><div class="wrap nav-in">
@@ -38,8 +38,8 @@
         <label>Discord ID <span>right-click them in Discord → Copy User ID (turn on Developer Mode first)</span>
           <div class="adm-row"><input class="adm-in" id="f-id" placeholder="123456789012345678" inputmode="numeric" /><button type="button" class="btn sm" id="lookup">Look up</button></div></label>
         <div class="adm-preview" id="preview" hidden></div>
-        <label>Role <span>shown as a badge</span><input class="adm-in" id="f-role" placeholder="Owner · Main developer · Developer" maxlength="40" list="roles" /></label>
-        <datalist id="roles"><option>Owner</option><option>Main developer</option><option>Developer</option><option>Designer</option><option>Moderator</option><option>Tester</option></datalist>
+        <label>Role <span>shown as a badge</span><input class="adm-in" id="f-role" placeholder="Owner, Management, Developer, Admin, Helper, Tester…" maxlength="40" list="roles" /></label>
+        <datalist id="roles"><option>Owner</option><option>Management</option><option>Main developer</option><option>Developer</option><option>Admin</option><option>Moderator</option><option>Helper</option><option>Designer</option><option>Tester</option></datalist>
         <label>Description <span>leave it empty and one is written from their name and role</span><textarea class="adm-in" id="f-desc" rows="5" maxlength="1200" placeholder="What they do on VoidScript…"></textarea>
           <button type="button" class="btn sm" id="auto-desc" style="align-self:flex-start">Write one for me</button></label>
         <div class="adm-grid2">

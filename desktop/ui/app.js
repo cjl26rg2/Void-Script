@@ -146,7 +146,7 @@ function go(view) {
   if (view === "terminal") $("term").scrollTop = $("term").scrollHeight;
   if (view === "chat") $("chat-input").focus();
   if (view === "mcp") loadMcp();
-  if (view === "models") mgView();
+  if (view === "select" && S.state.connected) selRead(true);
 }
 document.querySelectorAll(".nav-item").forEach((b) => b.addEventListener("click", () => go(b.dataset.view)));
 $("btn-go-chat").onclick = () => go("chat");
@@ -543,598 +543,6 @@ async function genModel() {
     return FAST_NV.find((id) => ids.has(id)) || null;
   } catch { return null; }
 }
-for (const id of ["mg-chatmodel", "ub-chatmodel"]) {
-  $(id).checked = genUseChat();
-  $(id).onchange = (e) => {
-    try { localStorage.setItem("vs-gen-chatmodel", e.target.checked ? "1" : "0"); } catch {}
-    for (const o of ["mg-chatmodel", "ub-chatmodel"]) $(o).checked = e.target.checked;
-  };
-}
-
-// Free tiers (NVIDIA especially) can queue a request for minutes before the first
-// word, so waiting to START gets far longer than a reply that stops mid-way.
-const GEN_FIRST_MS = 240000; // nothing at all yet
-const GEN_STALL_MS = 90000;  // it was writing, then went quiet
-const fmtLeft = (s) => (s < 60 ? `${Math.ceil(s)}s` : `${Math.floor(s / 60)}m ${String(Math.round(s % 60)).padStart(2, "0")}s`);
-
-// What each generator has learned from this user: notes from every revision and
-// thumbs-down, and the results they liked. Both go into later prompts.
-let learn = { model: { lessons: [], liked: [] }, ui: { lessons: [], liked: [] } };
-try { Object.assign(learn, JSON.parse(localStorage.getItem("vs-learn") || "{}")); } catch {}
-function saveLearn() { try { localStorage.setItem("vs-learn", JSON.stringify(learn)); } catch {} renderLearn(); }
-function addLesson(kind, desc, note) {
-  const line = desc ? `${note} (said about "${desc.slice(0, 60)}")` : note;
-  const L = learn[kind].lessons;
-  learn[kind].lessons = [line].concat(L.filter((x) => x !== line)).slice(0, 12);
-  saveLearn();
-}
-// The liked result closest to this request (shared words), else the newest.
-function learnFor(kind, desc) {
-  const L = learn[kind], words = new Set(String(desc).toLowerCase().match(/[a-z]{3,}/g) || []);
-  let best = L.liked[0], score = 0;
-  for (const x of L.liked) {
-    const s = (String(x.prompt).toLowerCase().match(/[a-z]{3,}/g) || []).filter((w) => words.has(w)).length;
-    if (s > score) { score = s; best = x; }
-  }
-  return { lessons: L.lessons, example: best && best.spec };
-}
-function renderLearn() {
-  for (const [kind, id] of [["model", "mg-learn"], ["ui", "ub-learn"]]) {
-    const L = learn[kind], n = L.liked.length, m = L.lessons.length;
-    $(id).innerHTML = n || m ? `Learning from ${n} like${n === 1 ? "" : "s"} · ${m} note${m === 1 ? "" : "s"} · <button class="link" data-forget="${kind}">Forget</button>` : "";
-  }
-}
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-forget]");
-  if (!b) return;
-  learn[b.dataset.forget] = { lessons: [], liked: [] };
-  saveLearn();
-  toast("Forgot what it learned.");
-});
-function rate(kind, spec, prompt, good) {
-  const L = learn[kind];
-  L.liked = L.liked.filter((x) => x.spec.name !== spec.name);
-  if (good) L.liked = [{ spec, prompt, t: Date.now() }].concat(L.liked).slice(0, 5);
-  saveLearn();
-}
-
-function genStart(job) {
-  if (chat.busy || gen.busy) { toast("Something else is generating - wait for it or press Stop first."); return false; }
-  if (!keySet()) { toast(`Add your ${PROV_NAME[prov()]} API key in Settings first.`, 3500); go("settings"); return false; }
-  gen.busy = true; chat.stop = false;
-  Object.assign(job, { done: 0, passesLeft: 0, lag: null, stalled: false, retried: false, note: "", model: undefined });
-  job.setBusy(true);
-  return true;
-}
-function genEnd(job) { gen.busy = false; gen.onDelta = () => {}; job.setBusy(false); }
-
-// One AI call for a generator. The reply streams into the live preview, the
-// pill shows a progress bar and an ETA, and a reply that is stopped, stalls or
-// breaks off still hands back everything it finished (marked .cut).
-async function genCall(job, o) {
-  const pill = $(job.pill), tEl = pill.querySelector(".gb-t"), bar = pill.querySelector(".gb-bar i");
-  if (job.model === undefined) job.model = await genModel(); // once per job, not per pass
-  const t0 = Date.now();
-  let text = "", thinking = false, firstAt = 0, last = t0, heard = false, drawn = 0, drawAt = 0;
-  const count = () => (text.match(/"n"\s*:/g) || []).length;
-  gen.onDelta = (c, r) => { last = Date.now(); heard = true; if (r) thinking = true; text += c; };
-  job.stalled = false;
-  const tick = () => {
-    const now = Date.now(), n = count(), done = job.done + n;
-    if (n && !firstAt) firstAt = now;
-    if (!job.stalled && now - last > (heard ? GEN_STALL_MS : GEN_FIRST_MS)) { job.stalled = true; invoke("ai_cancel").catch(() => {}); }
-    const total = Math.max(job.total, Math.ceil(done * 1.08));
-    let line;
-    const units = (k) => `${k} ${k === 1 ? job.unit.slice(0, -1) : job.unit}`;
-    const who = job.model ? job.model.split("/").pop() : PROV_NAME[prov()];
-    const spookLabel = (l) => (spooky.on ? l.replace("Designing", "Summoning").replace("Revising", "Cursing").replace("Shaping", "Conjuring").replace("Detailing", "Haunting") : l);
-    const what = thinking ? (spooky.on ? "Brewing" : "Thinking") : !heard && now - t0 > 8000 ? `Waiting for ${who}` : spookLabel(o.label);
-    if (!n) line = `${what} · ${Math.round((now - t0) / 1000)}s` + (job.done ? ` · ${units(job.done)}` : "");
-    else {
-      line = `${spookLabel(o.label)} · ${units(done)}`;
-      if (n > 2) {
-        // Parts still to write at this call's pace, plus the wait before each later
-        // pass starts writing (measured on the first one).
-        const lag = job.lag != null ? job.lag : (firstAt - t0) / 1000;
-        const left = (total - done) / (n / (now - firstAt)) / 1000 + job.passesLeft * lag;
-        line += left > 3 ? ` · ~${fmtLeft(left)} left` : " · finishing";
-      }
-    }
-    tEl.textContent = line;
-    bar.style.width = (Math.min(done / total, 0.97) * 100).toFixed(1) + "%";
-    if (n > drawn && now - drawAt > 900) {
-      let sp = null;
-      try { sp = o.live(text); } catch {}
-      if (sp) { drawn = n; drawAt = now; job.preview(sp); }
-    }
-  };
-  const timer = setInterval(tick, 400);
-  tick();
-  try {
-    // A reference image goes along as a vision attachment.
-    const user = o.image ? [{ type: "text", text: o.prompt }, { type: "image_url", image_url: { url: o.image } }] : o.prompt;
-    // Output sized to the job (a huge limit makes some providers queue it longer);
-    // a reply that still runs out keeps every finished part.
-    const { res } = await callModel({ messages: [{ role: "system", content: o.sys }, { role: "user", content: user }], temperature: o.temp, max_tokens: o.maxTokens || 10000 },
-      { model: job.model || undefined, noThink: true });
-    const m = res && res.choices && res.choices[0] && res.choices[0].message;
-    return o.final(splitThinking(m || {}).content || text);
-  } catch (e) {
-    // Keep a stopped/broken run only if it got far enough to be worth more than
-    // what was on screen before.
-    let kept = null;
-    try { kept = o.live(text); } catch {}
-    if (kept && (kept.parts || kept.elements).length >= job.minKeep) {
-      kept.cut = true;
-      job.note = job.stalled ? "The AI stalled" : chat.stop ? "Stopped" : "The reply broke off";
-      return kept;
-    }
-    // A stall is usually the provider's queue, not the request: try once more.
-    if (job.stalled && !chat.stop && !job.retried) {
-      job.retried = true;
-      clearInterval(timer);
-      toast("The AI stalled - trying once more…", 4000);
-      return genCall(job, o);
-    }
-    // The model can't see images: go again without the picture.
-    if (o.image && !chat.stop && /image|vision|multimodal|content.*(array|type)|image_url/i.test(errText(e))) {
-      clearInterval(timer);
-      toast("This model can't see images - generating from your description only. Pick a vision model (e.g. Gemini) to use pictures.", 7000);
-      return genCall(job, Object.assign({}, o, { image: null }));
-    }
-    if (chat.stop && !job.stalled) toast("Stopped.");
-    else if (job.stalled) toast(`${PROV_NAME[prov()]} stopped responding twice. Try again in a minute, or pick a faster model in the header.`, 8000);
-    else if (!chat.stop) toast(errText(e), 7000);
-    if (!chat.stop) sfx("error");
-    return null;
-  } finally {
-    clearInterval(timer);
-    if (firstAt && job.lag == null) job.lag = (firstAt - t0) / 1000;
-  }
-}
-
-// ── models: AI-designed part models with a 3D preview ───────────────────────
-const mg = { spec: null, prompt: "", detail: "medium", style: "realistic", image: null, badge: "", revs: 0, busy: false, view: null, rated: 0 };
-
-// Reference picture for a generator: read as a data URL (the app's CSP allows
-// data: images), shrunk to 1024px JPEG so it's quick to send.
-function refPicker(k, state) {
-  const file = $(`${k}-ref-file`), img = $(`${k}-ref-img`), x = $(`btn-${k}-ref-x`);
-  const show = () => { img.hidden = x.hidden = !state.image; if (state.image) img.src = state.image; };
-  $(`btn-${k}-ref`).onclick = () => file.click();
-  x.onclick = () => { state.image = null; show(); };
-  file.onchange = () => {
-    const f = file.files[0];
-    file.value = "";
-    if (!f) return;
-    const rd = new FileReader();
-    rd.onload = () => {
-      const im = new Image();
-      im.onload = () => {
-        const k2 = Math.min(1, 1024 / Math.max(im.width, im.height));
-        const c = document.createElement("canvas");
-        c.width = Math.max(1, Math.round(im.width * k2)); c.height = Math.max(1, Math.round(im.height * k2));
-        c.getContext("2d").drawImage(im, 0, 0, c.width, c.height);
-        state.image = c.toDataURL("image/jpeg", 0.85);
-        show();
-        toast("Picture added - the AI will copy it. Works best with a vision model (Gemini, GPT-4o…).", 5000);
-      };
-      im.onerror = () => toast("That file isn't a picture I can read.");
-      im.src = rd.result;
-    };
-    rd.readAsDataURL(f);
-  };
-}
-// One-click palettes for Recolour (darkest to lightest is matched automatically).
-const PALETTES = [
-  ["#7A1F1F", "#C0392B", "#E8A33D", "#F5E6C8"], ["#14324A", "#2E86C1", "#7FB3D5", "#ECF3F9"],
-  ["#1E3B20", "#3E7B3A", "#9BC53D", "#F1EBC9"], ["#2B1B3D", "#6C3483", "#D35BA0", "#F9D8E8"],
-  ["#1A1A1A", "#4A4A4A", "#9A9A9A", "#F2F2F2"], ["#3B2A1A", "#7B5235", "#C49A6C", "#EFE2CF"],
-];
-let mgSaved = [];
-try { mgSaved = JSON.parse(localStorage.getItem("vs-models") || "[]"); } catch {}
-const MG_SYSTEM = "You are a top Roblox builder who designs detailed 3D models out of simple parts. You reply with JSON only.";
-
-function mgView() {
-  if (!mg.view && window.VSModelView && window.THREE) {
-    mg.view = VSModelView.create($("mg-view"));
-    mg.view.onPick = (i) => { if (!mg.busy && mg.spec) mgPick(i); };
-  }
-  return mg.view;
-}
-function mgRender() {
-  const has = !!mg.spec;
-  $("mg-name").textContent = has ? mg.spec.name : "No model yet";
-  $("mg-badge").hidden = !mg.badge;
-  $("mg-badge").textContent = mg.badge;
-  $("mg-empty").hidden = has || mg.busy;
-  for (const id of ["btn-mg-txt", "btn-mg-copy", "btn-mg-insert", "btn-mg-save", "btn-mg-reset", "mg-change", "btn-mg-revise", "btn-mg-good", "btn-mg-bad"]) $(id).disabled = !has || mg.busy;
-  $("mg-quick").querySelectorAll("button").forEach((b) => { b.disabled = !has || mg.busy; });
-  for (const id of ["btn-mg-rbxmx", "btn-mg-png"]) $(id).disabled = !has || mg.busy;
-  $("btn-mg-undo").disabled = mg.busy || !(mg.undo && mg.undo.length);
-  $("btn-mg-good").classList.toggle("on", mg.rated > 0);
-  $("btn-mg-bad").classList.toggle("on", mg.rated < 0);
-  $("btn-mg-go").disabled = mg.busy;
-  $("btn-mg-stop").hidden = !mg.busy;
-  $("mg-busy").hidden = !mg.busy;
-  $("btn-mg-revise").textContent = mg.revs ? `Revise · ${mg.revs}` : "Revise";
-  if (has) {
-    const st = VSModel.stats(mg.spec);
-    $("mg-stats").hidden = false;
-    $("mg-stats").textContent = `${st.parts} parts · ${st.size.join(" × ")} studs`;
-    $("mg-script").textContent = mgLuau();
-  } else $("mg-stats").hidden = true;
-  $("mg-count").textContent = String(mgSaved.length);
-  $("mg-list").innerHTML = mgSaved.length ? mgSaved.map((m, i) => `
-    <div class="mg-item" data-i="${i}"><b>${esc(m.spec.name)}</b><span>${m.spec.parts.length} parts · ${esc(ago(m.t))}</span><button class="link" data-del="${i}" title="Delete">×</button></div>`).join("")
-    : '<p class="muted small-p">Models you save show up here.</p>';
-}
-// edit: the same model changed in place (keep the camera where it is).
-function mgShow(spec, badge, edit) {
-  if (mg.spec && mg.spec !== spec) mg.undo = [mg.spec].concat(mg.undo || []).slice(0, 30);
-  mg.spec = spec;
-  mg.badge = badge;
-  mg.rated = 0;
-  mgPick(-1);
-  mgRender();
-  const v = mgView();
-  if (v) v.show(spec, edit ? "edit" : undefined);
-}
-// Click a part in the preview to edit it.
-function mgPick(i) {
-  mg.pick = mg.spec && mg.spec.parts[i] ? i : -1;
-  const v = mg.view;
-  if (v) v.select(mg.pick);
-  $("mg-insp").hidden = mg.pick < 0;
-  if (mg.pick < 0) return;
-  const p = mg.spec.parts[mg.pick];
-  $("mg-insp-name").textContent = `${p.n} · ${p.s}`;
-  $("mg-insp-color").value = p.c.toLowerCase();
-  $("mg-insp-mat").value = p.m;
-}
-function mgEditPart(change) {
-  const i = mg.pick;
-  const parts = mg.spec.parts.map((p, k) => (k === i ? Object.assign({}, p, change) : p));
-  mgShow({ name: mg.spec.name, parts }, "Edited", true);
-  mgPick(i);
-}
-$("mg-insp-mat").innerHTML = VSModel.MATERIALS.map((m) => `<option>${m}</option>`).join("");
-$("mg-insp-color").oninput = (e) => mgEditPart({ c: e.target.value.toUpperCase() });
-$("mg-insp-mat").onchange = (e) => mgEditPart({ m: e.target.value });
-$("btn-mg-insp-del").onclick = () => {
-  if (mg.spec.parts.length < 2) { toast("That's the last part."); return; }
-  const i = mg.pick;
-  mgShow({ name: mg.spec.name, parts: mg.spec.parts.filter((_, k) => k !== i) }, "Edited", true);
-};
-$("btn-mg-insp-x").onclick = () => mgPick(-1);
-$("btn-mg-undo").onclick = () => {
-  if (!mg.undo || !mg.undo.length) return;
-  mg.spec = mg.undo.shift();
-  mg.badge = "Undone";
-  mgPick(-1);
-  mgRender();
-  if (mg.view) mg.view.show(mg.spec, "edit");
-};
-$("btn-mg-rbxmx").onclick = async () => {
-  const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".rbxmx";
-  try { if (await invoke("save_text", { name, content: VSModel.toRbxmx(mg.spec, { welded: $("mg-welded").checked }) })) toast("Saved - drag the file into Studio to add the model.", 4500); }
-  catch (e) { toast(errText(e)); }
-};
-$("btn-mg-png").onclick = async () => {
-  const v = mgView();
-  if (!v) return;
-  const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".png";
-  try { if (await invoke("save_text", { name, content: v.snapshot(), base64: true })) toast("Picture saved."); }
-  catch (e) { toast(errText(e)); }
-};
-const mgJob = (total) => ({
-  pill: "mg-busy", unit: "parts", minKeep: 8, total,
-  setBusy(b) { mg.busy = b; $("mg-busy").classList.remove("live"); mgRender(); },
-  preview(sp) { const v = mgView(); if (v) { v.show(sp, true); $("mg-busy").classList.add("live"); } },
-});
-// After a run: show the result, or put the previous model back in the preview.
-function mgFinish(job, spec, badge) {
-  if (spec) bumpStat("models");
-  if (!spec) { if (mg.spec) { const v = mgView(); if (v) v.show(mg.spec); } return false; }
-  VSModel.ground(spec);
-  mgShow(spec, job.note ? "Partial" : badge);
-  if (job.note) toast(`${job.note} - kept the ${spec.parts.length} parts it finished. Revise to keep going.`, 6000);
-  sfx("done");
-  return true;
-}
-const mgLuau = () => VSModel.toLuau(mg.spec, { welded: $("mg-welded").checked });
-$("mg-welded").onchange = () => mgRender();
-refPicker("mg", mg);
-$("mg-style").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-v]");
-  if (!b) return;
-  mg.style = b.dataset.v;
-  $("mg-style").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-});
-$("mg-pals").innerHTML = PALETTES.map((p, i) => `<button class="pal" data-pal="${i}" title="Recolour">${p.map((c) => `<i style="background:${c}"></i>`).join("")}</button>`).join("");
-$("mg-quick").addEventListener("click", (e) => {
-  const b = e.target.closest("button");
-  if (!b || !mg.spec) return;
-  if (b.dataset.pal) mgShow(VSModel.recolor(mg.spec, PALETTES[Number(b.dataset.pal)]), "Recoloured", true);
-  else if (b.dataset.scale) {
-    const k = Number(b.dataset.scale);
-    mgShow(VSModel.ground(VSModel.scale(mg.spec, k)), `Resized ${k}×`);
-  }
-});
-$("mg-detail").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-v]");
-  if (!b) return;
-  mg.detail = b.dataset.v;
-  $("mg-detail").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-});
-$("mg-ideas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("mg-desc").value = b.textContent; $("mg-desc").focus(); } });
-// Big models are built in passes - no AI can write 200 parts in one reply, which
-// is what made High fail. The shape comes first, then detail passes add to it.
-$("btn-mg-go").onclick = async () => {
-  const desc = $("mg-desc").value.trim();
-  if (!desc) { toast("Describe the model first."); $("mg-desc").focus(); return; }
-  const passes = VSModel.PASSES[mg.detail] || VSModel.PASSES.medium;
-  const job = mgJob(passes.reduce((a, [lo, hi]) => a + Math.round((lo + hi) / 2), 0));
-  if (!genStart(job)) return;
-  const extra = learnFor("model", desc);
-  let spec = null;
-  try {
-    for (let i = 0; i < passes.length; i++) {
-      job.passesLeft = passes.length - 1 - i;
-      let next;
-      if (i === 0) {
-        next = await genCall(job, { label: passes.length > 1 ? "Shaping" : "Designing", sys: MG_SYSTEM, temp: 0.4, maxTokens: passes[0][1] * 75 + 1500,
-          prompt: VSModel.buildPrompt(desc, mg.detail, Object.assign({ budget: passes[0], firstPass: passes.length > 1, style: mg.style, image: !!mg.image }, extra)),
-          image: mg.image,
-          live: (t) => VSModel.parse(t, true), final: (t) => VSModel.parse(t) });
-      } else {
-        // Self-check first: duplicates go now, floating parts get fixed in this pass.
-        const check = VSModel.audit(VSModel.ground(spec));
-        const before = check.spec;
-        next = await genCall(job, { label: `Detailing ${i}/${passes.length - 1}`, sys: MG_SYSTEM, temp: 0.5, maxTokens: passes[i][1] * 75 + 1500,
-          prompt: VSModel.detailPrompt(before, desc, passes[i], Object.assign({ issues: check.issues }, extra)),
-          live: (t) => { const d = VSModel.parseDelta(t, true); return d.add.length ? VSModel.applyDelta(before, { add: d.add, remove: [] }) : null; },
-          final: (t) => VSModel.applyDelta(before, VSModel.parseDelta(t)) });
-        // A detail pass that fails still leaves a finished model.
-        if (!next) { if (!chat.stop && !job.stalled) toast("A detail pass failed - kept the model from the pass before.", 5000); break; }
-      }
-      if (!next) break;
-      spec = next;
-      job.done = spec.parts.length;
-      job.preview(spec);
-      if (chat.stop || job.stalled) break;
-    }
-    // Drop exact duplicate parts (they flicker in Studio) - no extra AI pass.
-    if (spec) spec = VSModel.audit(VSModel.ground(spec)).spec;
-  } finally { genEnd(job); }
-  if (mgFinish(job, spec, "Generated")) { mg.prompt = desc; mg.revs = 0; }
-};
-$("btn-mg-stop").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
-async function mgRevise() {
-  const change = $("mg-change").value.trim();
-  if (!change || !mg.spec || mg.busy) return;
-  const before = mg.spec, job = mgJob(before.parts.length + 15);
-  if (!genStart(job)) return;
-  job.done = before.parts.length;
-  let spec = null;
-  try {
-    spec = await genCall(job, { label: "Revising", sys: MG_SYSTEM, temp: 0.4,
-      prompt: VSModel.revisePrompt(before, change, learnFor("model", mg.prompt)),
-      live: (t) => { const d = VSModel.parseDelta(t, true); return d.add.length ? VSModel.applyDelta(before, d) : null; },
-      final: (t) => VSModel.applyDelta(before, VSModel.parseDelta(t)) });
-  } finally { genEnd(job); }
-  addLesson("model", mg.prompt, change); // every change asked for teaches it
-  if (mgFinish(job, spec, "Revised")) { mg.revs++; $("mg-change").value = ""; }
-}
-$("btn-mg-revise").onclick = mgRevise;
-$("mg-change").addEventListener("keydown", (e) => { if (e.key === "Enter") mgRevise(); });
-$("btn-mg-good").onclick = () => {
-  mg.rated = 1; rate("model", mg.spec, mg.prompt, true); mgRender();
-  toast("Liked - new models will aim for this level of detail.");
-};
-$("btn-mg-bad").onclick = () => {
-  mg.rated = -1; rate("model", mg.spec, mg.prompt, false); mgRender();
-  $("mg-change").placeholder = "What's wrong with it? It fixes it and remembers for next time";
-  $("mg-change").focus();
-};
-document.querySelectorAll(".mg-tabs button").forEach((b) => b.addEventListener("click", () => {
-  document.querySelectorAll(".mg-tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  const script = b.dataset.t === "script";
-  $("mg-script").hidden = !script;
-  $("mg-view").style.visibility = script ? "hidden" : "visible";
-}));
-$("btn-mg-reset").onclick = () => mg.view && mg.view.reset();
-$("btn-mg-copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(mgLuau()); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
-};
-$("btn-mg-txt").onclick = async () => {
-  const name = mg.spec.name.replace(/[^\w -]/g, "").trim().replace(/\s+/g, "_") + ".txt";
-  try { if (await invoke("save_text", { name, content: mgLuau() })) toast("Saved."); }
-  catch (e) { toast(errText(e)); }
-};
-$("btn-mg-insert").onclick = async () => {
-  if (!S.state.connected) { toast("Start the bridge and open Roblox Studio first.", 3500); return; }
-  const btn = $("btn-mg-insert");
-  btn.disabled = true; btn.textContent = "Inserting…";
-  try {
-    const r = await invoke("bridge_request", { payload: { type: "call_tool", name: "execute_luau", arguments: { code: mgLuau(), datamodel_type: "Edit" } }, timeoutMs: 90000 });
-    if (r && r.type === "tool_result" && r.ok) { toast(`${mg.spec.name} is in Studio. Ctrl+Z undoes it.`, 3500); sfx("done"); }
-    else { toast("Studio couldn't build it: " + ((r && (r.error || r.text)) || "unknown error"), 6000); sfx("error"); }
-  } catch (e) { toast(errText(e), 5000); }
-  finally { btn.textContent = "Insert into Studio"; mgRender(); }
-};
-$("btn-mg-save").onclick = () => {
-  mgSaved = [{ spec: mg.spec, prompt: mg.prompt, t: Date.now() }].concat(mgSaved.filter((m) => m.spec.name !== mg.spec.name)).slice(0, 30);
-  try { localStorage.setItem("vs-models", JSON.stringify(mgSaved)); } catch { toast("Not enough room to save more models - delete some first."); return; }
-  mg.badge = "Saved";
-  mgRender();
-  toast("Saved.");
-};
-$("mg-list").addEventListener("click", (e) => {
-  const del = e.target.closest("[data-del]");
-  if (del) {
-    mgSaved.splice(Number(del.dataset.del), 1);
-    try { localStorage.setItem("vs-models", JSON.stringify(mgSaved)); } catch {}
-    mgRender();
-    return;
-  }
-  const it = e.target.closest(".mg-item");
-  if (!it) return;
-  const m = mgSaved[Number(it.dataset.i)];
-  mg.prompt = m.prompt || ""; mg.revs = 0;
-  mgShow(m.spec, "Saved");
-});
-mgRender();
-
-// ── UI builder ──────────────────────────────────────────────────────────────
-const ub = { spec: null, prompt: "", badge: "", revs: 0, busy: false, style: "chunky", device: "pc", image: null, rated: 0 };
-let ubSaved = [];
-try { ubSaved = JSON.parse(localStorage.getItem("vs-uis") || "[]"); } catch {}
-const ubDraw = (spec) => VSUI.render($("ub-view"), spec, ub.device);
-const ubLuau = () => VSUI.toLuau(ub.spec, { animate: $("ub-anim").checked });
-$("ub-anim").onchange = () => ubRender();
-// Theme hues for Recolour (the GUI's main colour family moves to this hue).
-const HUES = [[217, "#3A86FF"], [0, "#FF4D4D"], [140, "#2ECC71"], [270, "#9B59B6"], [28, "#FF9F43"], [330, "#FF6FB5"], [180, "#1ABC9C"], [220, "#3C4454", 0.18]];
-$("ub-hues").innerHTML = HUES.map(([h, c], i) => `<button class="hue" data-hue="${i}" style="background:${c}" title="Recolour"></button>`).join("");
-$("ub-quick").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-hue]");
-  if (!b || !ub.spec) return;
-  const [h, , sat] = HUES[Number(b.dataset.hue)];
-  ubShow(VSUI.recolor(ub.spec, h, sat), "Recoloured");
-});
-refPicker("ub", ub);
-$("ub-device").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-v]");
-  if (!b) return;
-  ub.device = b.dataset.v;
-  $("ub-device").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-  if (ub.spec) ubDraw(ub.spec);
-});
-$("btn-ub-save").onclick = () => {
-  ubSaved = [{ spec: ub.spec, prompt: ub.prompt, t: Date.now() }].concat(ubSaved.filter((m) => m.spec.name !== ub.spec.name)).slice(0, 30);
-  try { localStorage.setItem("vs-uis", JSON.stringify(ubSaved)); } catch { toast("Not enough room to save more UIs - delete some first."); return; }
-  ub.badge = "Saved";
-  ubRender();
-  toast("Saved.");
-};
-$("ub-list").addEventListener("click", (e) => {
-  const del = e.target.closest("[data-del]");
-  if (del) {
-    ubSaved.splice(Number(del.dataset.del), 1);
-    try { localStorage.setItem("vs-uis", JSON.stringify(ubSaved)); } catch {}
-    ubRender();
-    return;
-  }
-  const it = e.target.closest(".mg-item");
-  if (!it) return;
-  const m = ubSaved[Number(it.dataset.i)];
-  ub.prompt = m.prompt || ""; ub.revs = 0;
-  ubShow(m.spec, "Saved");
-});
-$("ub-style").addEventListener("click", (e) => {
-  const b = e.target.closest("button[data-v]");
-  if (!b) return;
-  ub.style = b.dataset.v;
-  $("ub-style").querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
-});
-const UB_SYSTEM = "You are a top Roblox UI artist who builds polished game GUIs. You reply with JSON only.";
-function ubRender() {
-  const has = !!ub.spec;
-  $("ub-name").textContent = has ? ub.spec.name : "No UI yet";
-  $("ub-badge").hidden = !ub.badge;
-  $("ub-badge").textContent = ub.badge;
-  $("ub-empty").hidden = has || ub.busy;
-  $("ub-busy").hidden = !ub.busy;
-  for (const id of ["btn-ub-txt", "btn-ub-copy", "btn-ub-insert", "btn-ub-save", "ub-change", "btn-ub-revise", "btn-ub-good", "btn-ub-bad"]) $(id).disabled = !has || ub.busy;
-  $("ub-count").textContent = String(ubSaved.length);
-  $("ub-quick").querySelectorAll("button").forEach((b) => { b.disabled = !has || ub.busy; });
-  $("ub-list").innerHTML = ubSaved.length ? ubSaved.map((m, i) => `
-    <div class="mg-item" data-i="${i}"><b>${esc(m.spec.name)}</b><span>${m.spec.elements.length} elements · ${esc(ago(m.t))}</span><button class="link" data-del="${i}" title="Delete">×</button></div>`).join("")
-    : '<p class="muted small-p">UIs you save show up here.</p>';
-  $("btn-ub-good").classList.toggle("on", ub.rated > 0);
-  $("btn-ub-bad").classList.toggle("on", ub.rated < 0);
-  $("btn-ub-go").disabled = ub.busy;
-  $("btn-ub-stop").hidden = !ub.busy;
-  $("btn-ub-revise").textContent = ub.revs ? `Revise · ${ub.revs}` : "Revise";
-  $("ub-stats").hidden = !has;
-  if (has) {
-    $("ub-stats").textContent = `${ub.spec.elements.length} elements${ub.spec.script.trim() ? " · with LocalScript" : ""}`;
-    $("ub-script").textContent = ubLuau();
-  }
-}
-function ubShow(spec, badge) {
-  ub.spec = spec; ub.badge = badge; ub.rated = 0;
-  ubRender();
-  ubDraw(spec);
-}
-const ubJob = (total) => ({
-  pill: "ub-busy", unit: "elements", minKeep: 3, total,
-  setBusy(b) { ub.busy = b; $("ub-busy").classList.remove("live"); ubRender(); },
-  preview(sp) { ubDraw(sp); $("ub-busy").classList.add("live"); },
-});
-function ubFinish(job, spec, badge) {
-  if (spec) bumpStat("uis");
-  if (!spec) { if (ub.spec) ubDraw(ub.spec); else $("ub-view").innerHTML = ""; return false; }
-  ubShow(spec, job.note ? "Partial" : badge);
-  if (job.note) toast(`${job.note} - kept the ${spec.elements.length} elements it finished. Revise to keep going.`, 6000);
-  sfx("done");
-  return true;
-}
-$("ub-ideas").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { $("ub-desc").value = b.textContent; $("ub-desc").focus(); } });
-$("btn-ub-go").onclick = async () => {
-  const desc = $("ub-desc").value.trim();
-  if (!desc) { toast("Describe the UI first."); $("ub-desc").focus(); return; }
-  const job = ubJob(35);
-  if (!genStart(job)) return;
-  let spec = null;
-  try {
-    spec = await genCall(job, { label: "Designing", sys: UB_SYSTEM, temp: 0.5,
-      prompt: VSUI.buildPrompt(desc, ub.style, Object.assign({ image: !!ub.image }, learnFor("ui", desc))),
-      image: ub.image,
-      live: (t) => VSUI.parse(t, true), final: (t) => VSUI.parse(t) });
-  } finally { genEnd(job); }
-  if (ubFinish(job, spec, "Generated")) { ub.prompt = desc; ub.revs = 0; }
-};
-$("btn-ub-stop").onclick = () => { chat.stop = true; invoke("ai_cancel").catch(() => {}); };
-async function ubRevise() {
-  const change = $("ub-change").value.trim();
-  if (!change || !ub.spec || ub.busy) return;
-  const job = ubJob(ub.spec.elements.length);
-  if (!genStart(job)) return;
-  let spec = null;
-  try {
-    spec = await genCall(job, { label: "Revising", sys: UB_SYSTEM, temp: 0.5,
-      prompt: VSUI.revisePrompt(ub.spec, change, learnFor("ui", ub.prompt)),
-      live: (t) => VSUI.parse(t, true), final: (t) => VSUI.parse(t) });
-  } finally { genEnd(job); }
-  addLesson("ui", ub.prompt, change);
-  if (ubFinish(job, spec, "Revised")) { ub.revs++; $("ub-change").value = ""; }
-}
-$("btn-ub-revise").onclick = ubRevise;
-$("ub-change").addEventListener("keydown", (e) => { if (e.key === "Enter") ubRevise(); });
-$("btn-ub-good").onclick = () => {
-  ub.rated = 1; rate("ui", ub.spec, ub.prompt, true); ubRender();
-  toast("Liked - new UIs will aim for this level of polish.");
-};
-$("btn-ub-bad").onclick = () => {
-  ub.rated = -1; rate("ui", ub.spec, ub.prompt, false); ubRender();
-  $("ub-change").placeholder = "What's wrong with it? It fixes it and remembers for next time";
-  $("ub-change").focus();
-};
-document.querySelectorAll("#ub-tabs button").forEach((b) => b.addEventListener("click", () => {
-  document.querySelectorAll("#ub-tabs button").forEach((x) => x.classList.toggle("on", x === b));
-  $("ub-script").hidden = b.dataset.t !== "script";
-}));
-$("btn-ub-copy").onclick = async () => {
-  try { await navigator.clipboard.writeText(ubLuau()); toast("Script copied - paste it into Studio's command bar."); } catch { toast("Could not copy."); }
-};
-$("btn-ub-txt").onclick = async () => {
-  try { if (await invoke("save_text", { name: ub.spec.name + ".txt", content: ubLuau() })) toast("Saved."); } catch (e) { toast(errText(e)); }
-};
-$("btn-ub-insert").onclick = () => runLuau(ubLuau(), `${ub.spec.name} is in StarterGui. Press Play to try it.`, $("btn-ub-insert"));
-ubRender();
-renderLearn();
-
 // Run Luau in Studio (Edit) from a button, with feedback on the button itself.
 async function runLuau(code, okMsg, btn) {
   if (!S.state.connected) { toast("Start the bridge and open Roblox Studio first.", 3500); return null; }
@@ -1790,8 +1198,8 @@ function systemPrompt(opts = {}) {
     "- Keep replies short and natural, like a friendly Roblox dev. When you finish, say what you built in a sentence or two.",
   ];
   if (!st.connected) lines.push("", "The Roblox Studio bridge is offline right now, so the Studio tools are unavailable. If the user asks you to build, tell them to start the bridge on the VoidScript Home tab and open Roblox Studio.");
-  if (ws && access() === "full") lines.push("", `You also have workspace_* tools with access to the user's whole PC. Use absolute Windows paths (C:\\...) or paths relative to ${s.workspace_dir || "the user's home folder"}. Deletes need the user's approval. Don't touch system folders or files the user didn't mention.`);
-  else if (ws) lines.push("", `You also have workspace_* tools for files in the user's chosen folder (${s.workspace_dir}). Paths are relative to that folder and you cannot leave it.${access() === "ask" ? " The user approves every write, delete and command, so say briefly why before each one." : " Deletes need the user's approval."}`);
+  if (ws && access() === "full") lines.push("", `You also have workspace_* tools with access to the user's whole PC. Use absolute Windows paths (C:\\...) or paths relative to ${s.workspace_dir || "the user's home folder"}. Deletes and commands need the user's approval. Don't touch system folders or files the user didn't mention.`);
+  else if (ws) lines.push("", `You also have workspace_* tools for files in the user's chosen folder (${s.workspace_dir}). Paths are relative to that folder and you cannot leave it.${access() === "ask" ? " The user approves every write, delete and command, so say briefly why before each one." : " Deletes and commands need the user's approval."}`);
   if (mode.memory && st.connected) lines.push(...memoryLines());
   lines.push("", effort().line);
   if (mode.agent && !opts.plan) lines.push("", "AGENT MODE: work through the whole request on your own - break it into steps, build every part, and don't stop to ask unless something is truly ambiguous. After you finish, VoidScript playtests the game and sends you any new errors from the Output to fix.");
@@ -2063,7 +1471,9 @@ async function runCall(call, map) {
       out = await invoke("ws_delete", { path });
     } else if (entry.op === "run") {
       const command = String(args.command || "");
-      if (access() === "ask" && !(await approve("run", "Run a command", "Allow running this command?", `${command}\n\nin ${S.settings.workspace_dir || "your home folder"}`))) {
+      // Commands always need a click, whatever the access level: a command line
+      // the AI picked never runs on its own.
+      if (!(await approve("run", "Run a command", "Allow running this command?", `${command}\n\nin ${S.settings.workspace_dir || "your home folder"}`))) {
         card.set("deny", "denied"); return "The user denied this command. Don't retry it - ask what they want instead.";
       }
       out = await invoke("ws_run", { command });
@@ -2768,8 +2178,6 @@ invoke("is_dev").then((v) => { spooky.dev = !!v; applySpooky(); }).catch(() => {
 // Halloween versions of the suggestions and ideas, swapped in while it's on.
 const SPOOKY_IDEAS = {
   ".sugg": ["Build a haunted house with flickering lights", "Make a zombie that chases the nearest player", "Add a graveyard with fog and glowing tombstones", "Make a pumpkin that gives candy when touched"],
-  "#mg-ideas button": ["Haunted mansion", "Jack-o'-lantern", "Witch's cauldron", "Coffin", "Scarecrow", "Ghost ship"],
-  "#ub-ideas button": ["Trick-or-treat shop", "Candy counter HUD", "Haunted main menu", "Costume picker", "Spooky reward chest", "Ghost radar"],
 };
 const plainIdeas = {};
 // [selector, VoidScript text, SpookyScript text]
@@ -2777,13 +2185,13 @@ const SPOOKY_TEXT = [
   ["#chat-empty h2", "What are we building?", "What are we haunting tonight?"],
 ];
 function applySpooky() {
-  const on = lsGet("vs-halloween") !== "off" && (VSSpooky.inSeason() || lsGet("vs-spooky-force") === "1");
+  const on = lsGet("vs-halloween") !== "off" && (VSSpooky.inSeason() || lsGet("vs-spooky-force") === "1") && lsGet("vs-jingle-force") !== "1"; // previewing JingleScript² wins
   spooky.on = on;
   document.documentElement.classList.toggle("spooky", on);
-  document.title = on ? "SpookyScript" : "VoidScript";
-  document.querySelector(".tb-name").innerHTML = on ? 'Spooky<span class="grad">Script</span>' : 'Void<span class="grad">Script</span>';
+  document.title = on ? "SpookyScript²" : "VoidScript²";
+  document.querySelector(".tb-name").innerHTML = on ? 'Spooky<span class="grad">Script</span><sup class="sq">2</sup>' : 'Void<span class="grad">Script</span><sup class="sq">2</sup>';
   const logo = on ? (spooky.dev ? "assets/logo-spooky-dev.png" : "assets/logo-spooky.png") : "assets/logo.png";
-  document.querySelectorAll('img[src$="logo.png"], img[src$="logo-spooky.png"], img[src$="logo-spooky-dev.png"]').forEach((i) => { i.src = logo; });
+  document.querySelectorAll('img[src*="assets/logo"]').forEach((i) => { i.src = logo; }); // any logo, the JingleScript bauble included
   if (on && spooky.dev) document.querySelector(".tb-name").insertAdjacentHTML("beforeend", ' <span class="dev-tag">DEV</span>');
   if (spooky.icon !== on) { spooky.icon = on; invoke("set_spooky_icon", { on }).catch(() => {}); }
   for (const [sel, list] of Object.entries(SPOOKY_IDEAS)) {
@@ -2812,7 +2220,7 @@ function applySpooky() {
 function renameAll(root) {
   const [from, to] = spooky.on ? [/VoidScript/g, "SpookyScript"] : [/SpookyScript/g, "VoidScript"];
   const w = document.createTreeWalker(root || document.body, NodeFilter.SHOW_TEXT, {
-    acceptNode: (n) => (n.nodeValue.search(from) >= 0 && !n.parentElement.closest(".msg, pre, code, textarea, .mg-script, .term, #chat-body .bubble") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
+    acceptNode: (n) => (n.nodeValue.search(from) >= 0 && !n.parentElement.closest(".no-rename, .msg, pre, code, textarea, .mg-script, .term, #chat-body .bubble") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP),
   });
   const hits = [];
   let n;
@@ -2881,8 +2289,6 @@ async function enhance(kind, box, btn) {
   }
 }
 $("btn-enhance-chat").onclick = () => enhance("chat", $("chat-input"), $("btn-enhance-chat"));
-$("btn-enhance-mg").onclick = () => enhance("model", $("mg-desc"), $("btn-enhance-mg"));
-$("btn-enhance-ub").onclick = () => enhance("ui", $("ub-desc"), $("btn-enhance-ub"));
 
 // ── Discord status ─────────────────────────────────────────────────────────
 // What you're doing, for your Discord profile. The backend sends it (only when it
@@ -2893,15 +2299,16 @@ checkStudio();
 setInterval(checkStudio, 10000);
 function discordStatus() {
   const studio = !!(S.state && S.state.studio) || studioOpen;
-  if (mg.busy) return ["Building a model", "Model maker"];
-  if (ub.busy) return ["Designing a UI", "UI builder"];
   if (chat.busy) return studio ? ["Building in Roblox Studio", "Prompting the AI"] : ["Prompting the AI", "In the VoidScript app"];
   if (studio) return ["In Roblox Studio", "Coding next level on Roblox"];
   return ["In the VoidScript app", "Coding next level on Roblox"];
 }
 setInterval(() => {
   const [d, st] = discordStatus();
-  invoke("rpc_set", { details: spooky.on ? "🎃 " + d : d, state: spooky.on ? st.replace("Coding next level on Roblox", "SpookyScript - coding spooky on Roblox") : st, spooky: spooky.on }).catch(() => {});
+  const jol = typeof jingle !== "undefined" && jingle.on;
+  invoke("rpc_set", { details: spooky.on ? "🎃 " + d : jol ? "🎄 " + d : d,
+    state: spooky.on ? st.replace("Coding next level on Roblox", "SpookyScript - coding spooky on Roblox") : jol ? st.replace("Coding next level on Roblox", "JingleScript - coding festive on Roblox") : st,
+    spooky: spooky.on, jingle: jol }).catch(() => {});
 }, 3000);
 
 // ── boot ────────────────────────────────────────────────────────────────────

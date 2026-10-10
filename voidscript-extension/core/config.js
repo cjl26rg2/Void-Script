@@ -505,9 +505,9 @@ IMPORTANT: Your very first action is to write \`list_commands\` with no params (
   // copy-free even on a fresh machine.
   const UVX_SETUP = [
     "uvx comes from the uv tool (a single exe, no separate Python install needed). Install it one of these ways:",
-    "  1) PowerShell (easiest):  powershell -ExecutionPolicy ByPass -c \"irm https://astral.sh/uv/install.ps1 | iex\"",
-    "  2) Windows Store:         winget install astral-sh.uv",
-    "  3) pip:                   pip install uv",
+    "  1) winget (easiest):      winget install astral-sh.uv",
+    "  2) pip:                   pip install uv",
+    "  3) The installer page:    https://docs.astral.sh/uv/getting-started/installation/",
     "Then CLOSE and reopen the terminal (or quit start.bat and run it again) so PATH refreshes, and check it works with:  uvx --version",
     "uvx downloads each Python tool on first run, so the FIRST launch needs internet and can take a minute.",
     "If the bridge says the server couldn't start: run start.bat from the same terminal where uv works, or add the uv install folder to PATH (usually %USERPROFILE%\\.local\\bin on Windows).",

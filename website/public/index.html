@@ -3,14 +3,14 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>VoidScript · Build Roblox games with AI</title>
+<title>VoidScript² · Build Roblox games with AI</title>
 <meta name="description" content="VoidScript connects AI to your open Roblox Studio. Describe what you want and it builds it: scripts, models, UIs, whole games. Free and open source." />
 <meta property="og:title" content="VoidScript · Build Roblox games with AI" />
 <meta property="og:description" content="Describe it, and VoidScript builds it in your open Roblox Studio. Free and open source." />
 <meta property="og:image" content="/logo.png" />
 <meta name="theme-color" content="#0e0f12" />
 <link rel="icon" href="/logo.png" />
-<link rel="stylesheet" href="/style.css?v=5" />
+<link rel="stylesheet" href="/style.css?v=6" />
 <script>
   // SpookyScript: 1 October to 1 November (or ?spooky to preview it any time).
   (function () {
@@ -22,9 +22,9 @@
 <body>
 <header class="nav">
   <div class="wrap nav-in">
-    <a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b></span></a>
+    <a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b><sup class="sq">2</sup></span></a>
     <nav class="links">
-      <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#browser">Browser</a><a href="#faq">FAQ</a>
+      <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#v2">VoidScript²</a><a href="#faq">FAQ</a>
       <a href="/team">Team</a>
       <a href="https://github.com/cjl26rg2/Void-Script" target="_blank" rel="noopener">GitHub</a>
     </nav>
@@ -32,7 +32,7 @@
     <button class="menu-btn" id="menu-btn" aria-label="Menu" aria-expanded="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
   </div>
   <nav class="mobile-nav" id="mobile-nav" hidden>
-    <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#browser">Browser</a><a href="#new">What's new</a><a href="#faq">FAQ</a><a href="/github">GitHub</a><a href="/discord">Discord</a>
+    <a href="#features">Features</a><a href="#how">How it works</a><a href="#ai">AI</a><a href="#v2">VoidScript²</a><a href="#new">What's new</a><a href="#faq">FAQ</a><a href="/github">GitHub</a><a href="/discord">Discord</a>
   </nav>
 </header>
 
@@ -54,7 +54,7 @@
     </div>
 
     <div class="shot" aria-hidden="true">
-      <div class="shot-bar"><i></i><i></i><i></i><span>VoidScript</span></div>
+      <div class="shot-bar"><i></i><i></i><i></i><span>VoidScript²</span></div>
       <div class="shot-body">
         <div class="shot-rail"><b class="on"></b><b></b><b></b><b></b><b></b></div>
         <div class="shot-list"><em>Today</em><b class="on">Build a 5-stage obby</b><b>Spinning coin pickup</b><b>Shop with DataStore</b><em>Yesterday</em><b>Zombie waves</b><b>Day / night cycle</b></div>
@@ -121,23 +121,32 @@
     </div>
   </section>
 
-  <section class="wrap sec" id="browser">
+  <section class="wrap sec" id="v2">
     <div class="split">
       <div>
-        <p class="eyebrow">New in 7.1</p>
-        <h2>A browser, built in.</h2>
-        <p class="muted">ChatGPT, Gemini, Claude, DeepSeek and 15 more AIs open right inside VoidScript, with VoidScript already on every one. No extension to install, and you stay signed in.</p>
+        <p class="eyebrow">New in VoidScript²</p>
+        <h2>Tools that work on your game, not just a chat.</h2>
+        <p class="muted">Select something in Studio and fix it in one click, see your UI on a phone, a tablet and a PC at once, and watch Studio's Output live with every error one click from the AI.</p>
         <ul class="ticks">
-          <li>Tabs down the side, like the browsers you already use</li>
-          <li>Pin your favourite AIs and add your own shortcuts</li>
-          <li>Separate from your normal browser, so nothing gets mixed up</li>
+          <li><b>Selection</b> - anchor, weld, group, drop, snap, or let the AI change just what you picked</li>
+          <li><b>UI Check</b> - finds off-screen buttons, tiny text and tap targets, with one-click fixes</li>
+          <li><b>Workshop</b> - 29 tools: interactions, scatter, NPC routes, a GUI kit, snapshots and script diffs, lint, physics and performance checks</li>
+          <li><b>Playtest</b> - Studio's Output live in the app, test runs with a history, errors straight to the AI</li>
         </ul>
       </div>
-      <div class="bw" aria-hidden="true">
-        <div class="bw-bar"><i></i><i></i><i></i></div>
-        <div class="bw-body">
-          <div class="bw-side"><span class="bw-url"></span><div class="bw-pins"><i><img src="/ai/chatgpt.png" alt="" loading="lazy" /></i><i><img src="/ai/gemini.png" alt="" loading="lazy" /></i><i><img src="/ai/deepseek.png" alt="" loading="lazy" /></i><i><img src="/ai/claude.png" alt="" loading="lazy" /></i><i><img src="/ai/grok.png" alt="" loading="lazy" /></i><i><img src="/ai/qwen.png" alt="" loading="lazy" /></i><i><img src="/ai/copilot.png" alt="" loading="lazy" /></i><i><img src="/ai/perplexity.png" alt="" loading="lazy" /></i><i><img src="/ai/mistral.png" alt="" loading="lazy" /></i></div><span class="bw-tab on"></span><span class="bw-tab"></span><span class="bw-tab"></span></div>
-          <div class="bw-main"><b class="bw-h">Where to?</b><span class="bw-search"></span><div class="bw-grid"><span class="bw-t"><i><img src="/ai/chatgpt.png" alt="" loading="lazy" /></i><b>ChatGPT</b></span><span class="bw-t"><i><img src="/ai/gemini.png" alt="" loading="lazy" /></i><b>Gemini</b></span><span class="bw-t"><i><img src="/ai/deepseek.png" alt="" loading="lazy" /></i><b>DeepSeek</b></span><span class="bw-t"><i><img src="/ai/claude.png" alt="" loading="lazy" /></i><b>Claude</b></span><span class="bw-t"><i><img src="/ai/grok.png" alt="" loading="lazy" /></i><b>Grok</b></span><span class="bw-t"><i><img src="/ai/qwen.png" alt="" loading="lazy" /></i><b>Qwen</b></span><span class="bw-t"><i><img src="/ai/copilot.png" alt="" loading="lazy" /></i><b>Copilot</b></span><span class="bw-t"><i><img src="/ai/perplexity.png" alt="" loading="lazy" /></i><b>Perplexity</b></span><span class="bw-t"><i><img src="/ai/mistral.png" alt="" loading="lazy" /></i><b>Le Chat</b></span><span class="bw-t"><i><img src="/ai/meta.png" alt="" loading="lazy" /></i><b>Meta AI</b></span><span class="bw-t"><i><img src="/ai/kimi.png" alt="" loading="lazy" /></i><b>Kimi</b></span><span class="bw-t"><i><img src="/ai/zai.png" alt="" loading="lazy" /></i><b>GLM</b></span></div></div>
+      <div class="v2m" aria-hidden="true">
+        <div class="bw-bar"><i></i><i></i><i></i><span>Playtest</span></div>
+        <div class="v2m-body">
+          <div class="v2m-tabs"><b class="on">All 7</b><b>Errors 2</b><b>Warnings 1</b><b>Prints 4</b></div>
+          <div class="v2m-out">
+            <span>Server started · 3 players</span>
+            <span class="e">ServerScriptService.Shop:42: attempt to index nil with 'Coins' <em>Ask the AI</em></span>
+            <span>Round 1 begins</span>
+            <span class="w">Infinite yield possible on 'ReplicatedStorage:WaitForChild("Remotes")'</span>
+            <span>Coins saved for Builderman</span>
+            <span class="e">Workspace.Door.Script:7: Expected identifier <em>Ask the AI</em></span>
+            <span>Round 1 over</span>
+          </div>
         </div>
       </div>
     </div>

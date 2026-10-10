@@ -1,6 +1,6 @@
 [package]
 name = "voidscript"
-version = "7.1.0"
+version = "8.0.0"
 description = "VoidScript - AI agent for Roblox Studio"
 edition = "2021"
 license = "GPL-3.0-or-later"

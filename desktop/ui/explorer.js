@@ -162,13 +162,17 @@ async function exAction(x) {
     if (editing) { const t = box.querySelector(".ex-edit"); t.value = d.source; t.focus(); }
   } else if (x === "save") {
     const src = box.querySelector(".ex-edit").value;
-    if (src.includes("]==]")) { toast("That script contains ]==] - edit it in Studio instead."); return; }
+    if (src.includes("]==]") || d.source.includes("]==]")) { toast("That script contains ]==] - edit it in Studio instead."); return; }
     try {
       await exLuau(EX_RESOLVE + `local n = resolve(${exPath(path)})
 if not n then error("it moved or was deleted - press Refresh") end
+-- Someone changed it in Studio since we opened it: don't overwrite their work.
+if n.Source ~= [==[
+${d.source}]==] then error("it was changed in Studio while you were editing. Copy your version, press Refresh, and edit again") end
 local CH = game:GetService("ChangeHistoryService")
 CH:SetWaypoint("Before VoidScript edit")
-local src = [==[${src}]==]
+local src = [==[
+${src}]==] -- Lua drops the newline right after [==[, so this keeps a script's own first line exact
 local ok = pcall(function() game:GetService("ScriptEditorService"):UpdateSourceAsync(n, function() return src end) end)
 if not ok then n.Source = src end
 CH:SetWaypoint("VoidScript edit")

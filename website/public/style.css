@@ -328,3 +328,27 @@ textarea.adm-in { height: auto; padding: 10px 12px; resize: vertical; line-heigh
 @media (max-width: 860px) { .adm-cols, .adm-grid2 { grid-template-columns: 1fr; } }
 
 .adm-login .btn { white-space: nowrap; flex: 0 0 auto; }
+
+/* /team, grouped by rank */
+.tm-group { margin-top: 34px; }
+.tm-group h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 15px; text-transform: uppercase; letter-spacing: .08em; color: var(--fg); }
+.tm-group h3 i { width: 10px; height: 10px; border-radius: 3px; background: var(--tm); box-shadow: 0 0 12px var(--tm); }
+.tm-group h3 span { font-size: 12px; font-weight: 600; color: var(--dim); letter-spacing: 0; }
+.tm-group h3::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* VoidScript² */
+.tb-name .sq, .title .sq, .brand .sq, sup.sq { font-size: .62em; font-weight: 800; margin-left: 1px; vertical-align: super; line-height: 0; background: var(--grad, linear-gradient(135deg, #ff7a3d, #ffb36b)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* VoidScript² section: a little Playtest window */
+.v2m { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: rgba(255,255,255,.02); box-shadow: 0 30px 70px -30px rgba(0,0,0,.7); }
+.v2m .bw-bar { display: flex; align-items: center; gap: 6px; }
+.v2m .bw-bar span { margin-left: 8px; font-size: 12px; color: var(--dim); }
+.v2m-body { padding: 14px; }
+.v2m-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.v2m-tabs b { font-size: 11.5px; font-weight: 600; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line); color: var(--dim); }
+.v2m-tabs b.on { color: var(--fg); border-color: var(--acc, #ff7a3d); }
+.v2m-out { display: flex; flex-direction: column; gap: 4px; font: 12px/1.5 ui-monospace, Consolas, monospace; padding: 10px; border-radius: 10px; background: rgba(0,0,0,.3); }
+.v2m-out span { color: var(--dim); padding-left: 8px; border-left: 2px solid transparent; }
+.v2m-out .e { color: #f7a5b3; border-left-color: #f2637a; }
+.v2m-out .w { color: #f3d08a; border-left-color: #f0b440; }
+.v2m-out em { font-style: normal; font-family: inherit; margin-left: 8px; font-size: 11px; color: var(--acc, #ff7a3d); }

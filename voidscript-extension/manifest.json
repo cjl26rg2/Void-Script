@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "SpookyScript × Roblox Studio Agent",
-  "version": "7.1.0",
+  "name": "SpookyScript² × Roblox Studio Agent",
+  "version": "8.0.0",
   "description": "Turn 99 AI sites - DeepSeek, Gemini, Kimi.ai, GLM, Qwen, Arena, Meta AI, ChatGPT, Claude, Grok, Perplexity, Copilot, Mistral, T3 Chat, Poolside, Twinny, Cody, Chatbase and more - into a Roblox Studio agent that drives Studio through a local bridge.",
   "permissions": ["storage", "notifications"],
   "host_permissions": [
@@ -124,7 +124,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["model.html", "model-viewer.js", "vendor/three.min.js", "core/modelview.js", "ui-view.html", "ui-viewer.js", "core/uikit.js", "spooky/icon-48.png", "spooky/music.mp3"],
+      "resources": ["model.html", "model-viewer.js", "vendor/three.min.js", "core/modelview.js", "ui-view.html", "ui-viewer.js", "core/uikit.js", "spooky/icon-48.png", "jingle/icon-48.png", "jingle/dev-48.png", "jingle/music.mp3", "spooky/music.mp3"],
       "matches": [
         "https://aisearch.com/*",
         "https://app.humane.com/*",

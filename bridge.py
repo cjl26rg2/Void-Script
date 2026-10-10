@@ -33,6 +33,11 @@ import threading
 import time
 import urllib.parse
 try:
+    import winproc  # process/port lookups through the Windows API
+except Exception:  # noqa: BLE001
+    winproc = None
+
+try:
     import filetools  # files on the user's PC, inside their chosen workspace folder
 except Exception:  # noqa: BLE001 - the bridge works without it
     filetools = None
@@ -96,7 +101,7 @@ def _enable_ansi_colors():
 HOST = "127.0.0.1"
 # Keep in sync with voidscript-extension/manifest.json "version" - printed at
 # startup so a user's terminal output alone tells us which build they're on.
-BRIDGE_VERSION = "7.1.0"
+BRIDGE_VERSION = "8.0.0"
 PORT = int(os.environ.get("VS_BRIDGE_PORT", "17613"))
 HERE = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(HERE, "config.json")
@@ -333,54 +338,17 @@ STUDIO_MCP_PORT = 13469
 
 
 def _port_owner(port):
-    """(pid, name, path) of the process LISTENING on `port`, or None. Win32 only."""
+    """(pid, name, path) of the process LISTENING on `port`, or None. Win32 only.
+    Asks Windows directly (IPv4 and IPv6) instead of running netstat/PowerShell."""
     if sys.platform != "win32":
         return None
-    # BOTH stacks: "-p TCP" alone is IPv4-only, and a squatter listening on
-    # [::1]:<port> (IPv6 loopback) was then completely invisible to this probe
-    # even while Get-NetTCPConnection showed it plainly (the likely reason the
-    # boot-time squatter check stayed silent on a machine where ropilot
-    # provably held the port - see the 2026-07-13 live report).
-    out = ""
-    for proto in ("TCP", "TCPv6"):
-        try:
-            out += subprocess.run(
-                ["netstat", "-ano", "-p", proto],
-                capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=8,
-            ).stdout
-        except Exception:
-            pass
-    if not out:
-        return None
-    pid = None
-    # v4 lines end the local address in ":<port>", v6 in "]:<port>" - matching
-    # on the ":<port> " suffix (with the column gap) covers both shapes.
-    needle = f":{port} "
-    for line in out.splitlines():
-        if "LISTENING" in line and needle in line:
-            parts = line.split()
-            if parts and parts[-1].isdigit():
-                pid = parts[-1]
-                break
+    pid = winproc.port_owner(port)
     if not pid:
         return None
-    name, path = "?", ""
-    try:
-        ps = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"$p=Get-Process -Id {pid} -ErrorAction SilentlyContinue; "
-             f"if($p){{$p.Name; $p.Path}}"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=8,
-        ).stdout.splitlines()
-        ps = [l.strip() for l in ps if l.strip()]
-        if ps:
-            name = ps[0]
-            path = ps[1] if len(ps) > 1 else ""
-    except Exception:
-        pass
-    return (pid, name, path)
+    name = winproc.name_of(pid) or "?"
+    if name.lower().endswith(".exe"):
+        name = name[:-4]
+    return (str(pid), name, winproc.path_of(pid))
 
 
 def _roblox_studio_app_running():
@@ -394,15 +362,7 @@ def _roblox_studio_app_running():
             return None
     if sys.platform != "win32":
         return None
-    try:
-        out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq RobloxStudioBeta.exe"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=8,
-        ).stdout
-    except Exception:
-        return None
-    return "RobloxStudioBeta.exe" in out
+    return winproc.running("RobloxStudioBeta.exe")
 
 
 def _kill_orphan_studio_mcp():
@@ -430,23 +390,14 @@ def _kill_orphan_studio_mcp():
         return
     if _roblox_studio_app_running() is not False:
         return
-    try:
-        out = subprocess.run(
-            ["tasklist", "/FI", "IMAGENAME eq StudioMCP.exe"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=8,
-        ).stdout
-    except Exception:
-        return
-    if "StudioMCP.exe" not in out:
+    left = winproc.pids_named("StudioMCP.exe")
+    if not left:
         return
     log("Found leftover StudioMCP.exe process(es) with no Roblox Studio running - "
         "cleaning them up (known cause of a phantom 'Studio connected' state).", "yl")
-    try:
-        subprocess.run(["taskkill", "/F", "/IM", "StudioMCP.exe"],
-                       capture_output=True, text=True, timeout=8)
-    except Exception as e:
-        log(f"could not clean up orphaned StudioMCP.exe: {e}", "rd")
+    for pid in left:
+        if not winproc.kill(pid):
+            log(f"could not clean up orphaned StudioMCP.exe (pid {pid}).", "rd")
 
 
 def _descendant_pids(root_pid):
@@ -454,31 +405,7 @@ def _descendant_pids(root_pid):
     could not be read (in which case callers must NOT make kill decisions)."""
     if sys.platform != "win32":
         return None
-    try:
-        out = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             "Get-CimInstance Win32_Process | ForEach-Object "
-             "{ \"$($_.ProcessId) $($_.ParentProcessId)\" }"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=10,
-        ).stdout
-    except Exception:
-        return None
-    children = {}
-    for line in out.splitlines():
-        parts = line.split()
-        if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
-            children.setdefault(int(parts[1]), []).append(int(parts[0]))
-    if not children:
-        return None
-    pids = {int(root_pid)}
-    stack = [int(root_pid)]
-    while stack:
-        for c in children.get(stack.pop(), []):
-            if c not in pids:
-                pids.add(c)
-                stack.append(c)
-    return pids
+    return winproc.descendants(root_pid)
 
 
 def _reclaim_studio_port(client):
@@ -522,36 +449,31 @@ def _reclaim_studio_port(client):
     log(f"port {STUDIO_MCP_PORT} is held by a StudioMCP.exe (pid {pid_i}) that this "
         "bridge did NOT launch - a leftover from a previous session. Studio "
         "registered to it, so our proxy sees 0 tools.", "yl")
-    try:
-        subprocess.run(["taskkill", "/F", "/PID", str(pid_i)],
-                       capture_output=True, text=True, timeout=8)
-    except Exception as e:
-        log(f"could not kill the leftover StudioMCP.exe: {e}", "rd")
+    if not winproc.kill(pid_i):
+        log("could not end the leftover StudioMCP.exe.", "rd")
         return False
     log(f"killed the leftover StudioMCP.exe (pid {pid_i}) to free Studio's MCP port.", "cy")
     return True
 
 
-def _process_cmdline(pid):
-    """Full command line of `pid`, or "" if it can't be read. Win32 only.
+BRIDGE_PID_FILE = os.path.join(os.environ.get("LOCALAPPDATA") or HERE, "VoidScript", "bridge.pid")
 
-    Used to tell OUR OWN kind of process (a python running bridge.py) apart
-    from an unrelated app that merely happens to listen on the same port -
-    the process NAME is just "python"/"py"/"pythonw", far too generic to kill
-    on. The command line is what proves it is a leftover bridge."""
-    if sys.platform != "win32":
-        return ""
+
+def _write_pid_file():
     try:
-        out = subprocess.run(
-            ["powershell", "-NoProfile", "-Command",
-             f"(Get-CimInstance Win32_Process -Filter \"ProcessId={pid}\" "
-             f"-ErrorAction SilentlyContinue).CommandLine"],
-            capture_output=True, text=True, encoding="utf-8", errors="replace",
-            timeout=8,
-        ).stdout
-    except Exception:
-        return ""
-    return (out or "").strip()
+        os.makedirs(os.path.dirname(BRIDGE_PID_FILE), exist_ok=True)
+        with open(BRIDGE_PID_FILE, "w") as f:
+            f.write(str(os.getpid()))
+    except OSError:
+        pass
+
+
+def _last_bridge_pid():
+    try:
+        with open(BRIDGE_PID_FILE) as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
 
 
 def _reclaim_bridge_port():
@@ -585,79 +507,36 @@ def _reclaim_bridge_port():
     # the port alone would murder whatever legitimately owns 17613.
     if "python" not in (name or "").lower() and "py" != (name or "").lower():
         return False
-    cmdline = _process_cmdline(pid_i)
-    if "bridge.py" not in cmdline.lower():
+    if pid_i != _last_bridge_pid():
         log(f"port {PORT} is held by pid {pid_i} ('{name}') but it does not look "
             f"like a VoidScript bridge - leaving it alone.", "yl")
         return False
     log(f"port {PORT} is held by a leftover VoidScript bridge (pid {pid_i}) from a "
         "previous session - killing it so this one can start.", "yl")
-    try:
-        subprocess.run(["taskkill", "/F", "/PID", str(pid_i)],
-                       capture_output=True, text=True, timeout=8)
-    except Exception as e:
-        log(f"could not kill the leftover bridge (pid {pid_i}): {e}", "rd")
+    if not winproc.kill(pid_i):
+        log(f"could not end the leftover bridge (pid {pid_i}).", "rd")
         return False
     log(f"killed the leftover bridge (pid {pid_i}); the port is free now.", "cy")
     return True
 
 
 def _kill_port_squatter():
-    """Kill a NON-Roblox process holding Studio's MCP port, no questions asked.
-
-    Called only when the child's stderr has PROVEN the port is hijacked (see
-    MCPClient.saw_foreign_ws_host - StudioMCP connected to a foreign host and
-    could not parse its protocol; the ropilot case). At that point there is no
-    ambiguity left to justify check_studio_port's interactive prompt, and the
-    prompt was itself a trap: many users never answer it, and the one-shot boot
-    check often runs a beat before a background helper (ropilot) grabs the
-    port. Here we have hard evidence, so kill the squatter outright. Returns
-    (killed, name) so the caller can tell the user which app to uninstall /
-    remove from startup, since it will otherwise reclaim the port on next boot.
-    """
+    """Another app is holding Studio's MCP port. We used to end it automatically;
+    a tool that quietly kills other software is not something we want to be, so
+    now we only name it and tell the user how to free the port. Returns
+    (False, name) so the caller still shows the uninstall / startup hint."""
     owner = _port_owner(STUDIO_MCP_PORT)
     if owner:
         pid, name, path = owner
         if "roblox" in (path or "").lower() or "studiomcp" in (name or "").lower():
             return False, None  # legitimate Studio-side owner; not a squatter
-        log(f"port {STUDIO_MCP_PORT} is hijacked by '{name}' (pid {pid}, {path}).", "yl")
+        log(f"port {STUDIO_MCP_PORT} is in use by '{name}' (pid {pid}, {path}).", "yl")
         log("    StudioMCP connected to it instead of Roblox Studio - that is why "
-            "there are 0 tools.", "yl")
-        try:
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                           capture_output=True, text=True, timeout=8)
-        except Exception as e:
-            log(f"could not kill '{name}': {e}", "rd")
-            return False, name
-        log(f"killed '{name}' so Studio can use the port.", "cy")
-        return True, name
-    # We could NOT resolve who owns the port, yet StudioMCP's stderr proved the
-    # port is hijacked (this function is only called under that proof). This is
-    # the state that used to fail SILENTLY: _port_owner returning None (e.g. a
-    # squatter listening on IPv6 loopback that an IPv4-only netstat missed, or
-    # any netstat quirk) left the user staring at 0 tools with no explanation.
-    # Never be silent here. Try a name-based fallback for the known offender
-    # (ropilot ships a background helper that squats this port), then always
-    # tell the user what we know.
-    log(f"port {STUDIO_MCP_PORT} is hijacked (StudioMCP could not talk to Roblox "
-        "Studio on it) but the owning process could not be identified by port.", "yl")
-    # ropilot is a multi-process app (validated live 2026-07-13): the port is
-    # held by ropilot-infra-helper.exe, supervised by ropilot-infra.exe. Kill
-    # both so the supervisor can't just respawn the helper and re-grab the port.
-    killed_name = None
-    for img in ("ropilot-infra-helper.exe", "ropilot-infra.exe", "ropilot.exe"):
-        try:
-            res = subprocess.run(["taskkill", "/F", "/IM", img],
-                                 capture_output=True, text=True, timeout=8)
-        except Exception:
-            continue
-        if res.returncode == 0:
-            killed_name = img
-            log(f"killed '{img}' (known port squatter) so Studio can use the port.", "cy")
-    if killed_name:
-        return True, killed_name
-    log("    Could not auto-kill it. Find it manually: run  netstat -ano | "
-        f"findstr {STUDIO_MCP_PORT}  then end that PID in Task Manager.", "yl")
+            "there are 0 tools. Close that app (Task Manager) and restart the bridge.", "yl")
+        return False, name
+    log(f"port {STUDIO_MCP_PORT} is taken (StudioMCP could not talk to Roblox "
+        "Studio on it) but the app holding it could not be identified.", "yl")
+    log("    Close other Roblox AI tools that run in the background, then restart the bridge.", "yl")
     return False, None
 
 
@@ -719,9 +598,9 @@ def check_studio_port():
         ans = ""
     if ans in ("y", "yes", "o", "oui"):
         try:
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
-                           capture_output=True, text=True, timeout=8)
-            log(f"killed {name} (pid {pid}). Studio can use the port now.", "cy")
+            if not winproc.kill(pid):
+                raise OSError("Windows refused")
+            log(f"closed {name} (pid {pid}). Studio can use the port now.", "cy")
             # Tell the user the finishing step IMMEDIATELY, here, instead of only
             # after the ~48s server-launch grace loop that follows: killing the
             # squatter frees the port, but Studio's MCP plugin registers only
@@ -1230,10 +1109,7 @@ class MCPClient:
             # taskkill /T kills the whole tree.
             try:
                 if sys.platform == "win32":
-                    subprocess.run(
-                        ["taskkill", "/F", "/T", "/PID", str(self.proc.pid)],
-                        capture_output=True, timeout=8,
-                    )
+                    winproc.kill_tree(self.proc.pid)
                 else:
                     self.proc.terminate()
             except Exception:
@@ -1988,7 +1864,61 @@ def safe_call(name, arguments, timeout):
         return {"ok": False, "error": str(e), "kind": type(e).__name__}
 
 
-async def run_tool_task(ws, name, args, timeout, rid):
+# Commands the extension has already sent, by request id. The id is made from
+# the chat, the reply and the command itself, so the same command reaching us
+# twice (a page refresh, two tabs on one chat, a reconnect, a retry after a
+# timeout) is answered from here instead of being run again in Studio.
+# Failed calls are forgotten so a real retry still works.
+_LEDGER = {}          # request_id -> {"t": time, "fut": Future, "res": dict|None}
+_LEDGER_TTL = 30 * 60
+_LEDGER_MAX = 500
+
+
+def _ledger_trim():
+    now = time.monotonic()
+    for k in [k for k, v in _LEDGER.items() if now - v["t"] > _LEDGER_TTL]:
+        _LEDGER.pop(k, None)
+    while len(_LEDGER) > _LEDGER_MAX:
+        _LEDGER.pop(next(iter(_LEDGER)), None)
+
+
+async def run_tool_task(ws, name, args, timeout, rid, request_id=None):
+    if request_id:
+        _ledger_trim()
+        seen = _LEDGER.get(request_id)
+        if seen:
+            if seen["res"] is None:
+                log(f"-> {name}: same request already running - waiting for it instead of running it twice", "yl")
+                res = dict(await asyncio.shield(seen["fut"]))
+            else:
+                res = dict(seen["res"])
+            log(f"<- {name}: duplicate request, answered with the earlier result", "yl")
+            res["duplicate"] = True
+            try:
+                await ws.send(json.dumps({"type": "tool_result", "id": rid, **res}))
+            except websockets.ConnectionClosed:
+                pass
+            return
+        entry = {"t": time.monotonic(), "fut": asyncio.get_running_loop().create_future(), "res": None}
+        _LEDGER[request_id] = entry
+    res = {"ok": False, "error": "the bridge stopped this command", "kind": "cancelled"}
+    try:
+        res = await _run_tool(name, args, timeout)
+    finally:
+        if request_id and not entry["fut"].done():
+            entry["fut"].set_result(res)  # never leave a waiting duplicate hanging
+    if request_id:
+        if res.get("ok"):
+            entry["res"] = res
+        else:
+            _LEDGER.pop(request_id, None)
+    try:
+        await ws.send(json.dumps({"type": "tool_result", "id": rid, **res}))
+    except websockets.ConnectionClosed:
+        pass
+
+
+async def _run_tool(name, args, timeout):
     """Execute one tool off the socket read loop and send its result back.
 
     Kept as a standalone task (not awaited inline in handler) so a long tool
@@ -2004,10 +1934,7 @@ async def run_tool_task(ws, name, args, timeout, rid):
     # the console; they still land in bridge_debug.log. A failed/slow call
     # DOES surface on the terminal - that's the signal a user should notice.
     log(f"<- {name} ({elapsed:.1f}s){slow}: {summary}", tag, terminal=not res.get("ok") or elapsed > 5)
-    try:
-        await ws.send(json.dumps({"type": "tool_result", "id": rid, **res}))
-    except websockets.ConnectionClosed:
-        pass
+    return res
 
 
 async def broadcast_status():
@@ -2239,7 +2166,9 @@ async def handler(ws):
                 # The extension only ever has ONE call_tool in flight (its agent
                 # loop awaits each result before sending the next), so this never
                 # overlaps tool executions.
-                asyncio.create_task(run_tool_task(ws, name, args, timeout, rid))
+                req = msg.get("request_id")
+                req = str(req)[:128] if req else None
+                asyncio.create_task(run_tool_task(ws, name, args, timeout, rid, req))
 
             elif mtype in ("add_server", "remove_server"):
                 # Adding/removing an addon MCP server rewrites config.json, which
@@ -2990,6 +2919,7 @@ async def main():
         server_ctx = await websockets.serve(
             handler, HOST, PORT, ping_interval=20, ping_timeout=20,
             max_size=16 * 1024 * 1024)
+        _write_pid_file()  # lets the next launch prove a leftover bridge is ours
     except OSError as e:
         # errno 10048 (Win) / EADDRINUSE: something we could NOT auto-kill still
         # owns the port - another app, or a python whose cmdline we couldn't read.

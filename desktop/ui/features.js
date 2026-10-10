@@ -92,7 +92,7 @@ function renderHome() {
     ? recent.map((c) => `<button class="hc-row" data-id="${c.id}"><b>${esc(c.title || "New chat")}</b><span>${esc(ago(c.t))}</span></button>`).join("")
     : '<p class="muted small-p">No chats yet. Ask for something and it shows up here.</p>';
   const n = (k) => (stats[k] || 0).toLocaleString();
-  $("home-stats").innerHTML = [["messages", "messages sent"], ["chats", "chats"], ["models", "models built"], ["uis", "UIs designed"], ["systems", "systems added"], ["fallbacks", "provider saves"]]
+  $("home-stats").innerHTML = [["messages", "messages sent"], ["chats", "chats"], ["systems", "systems added"], ["fallbacks", "provider saves"]]
     .map(([k, l]) => `<div><b>${n(k)}</b><span>${l}</span></div>`).join("");
 }
 $("home-chats").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) openChat(b.dataset.id); });
@@ -161,7 +161,7 @@ input.addEventListener("keydown", (e) => {
 $("slash-pop").addEventListener("mousedown", (e) => { const b = e.target.closest("[data-i]"); if (b) { e.preventDefault(); runSlash(Number(b.dataset.i)); } });
 
 // ── command palette (Ctrl+K) ────────────────────────────────────────────────
-const PAGES = [["home", "Home"], ["chat", "Chat"], ["models", "Models"], ["uib", "UI builder"], ["kit", "Toolkit"], ["browser", "Browser (soon)"], ["tools", "Tools"], ["mcp", "MCP servers"], ["terminal", "Terminal"], ["updates", "Updates"], ["settings", "Settings"]];
+const PAGES = [["home", "Home"], ["chat", "Chat"], ["select", "Selection"], ["uicheck", "UI Check"], ["kit", "Toolkit"], ["tools", "Tools"], ["mcp", "MCP servers"], ["terminal", "Terminal"], ["updates", "Updates"], ["settings", "Settings"]];
 function paletteItems() {
   const navIcon = (v) => { const s = document.querySelector(`.nav-item[data-view="${v}"] svg`); return s ? s.outerHTML : ICONS.go; };
   const items = [];
@@ -249,7 +249,7 @@ function showKeys() {
 }
 $("btn-shortcuts").onclick = showKeys;
 $("btn-keys-close").onclick = () => { $("shortcuts").hidden = true; };
-const NAV_ORDER = ["home", "chat", "models", "uib", "kit", "browser", "tools", "mcp", "terminal"];
+const NAV_ORDER = ["home", "chat", "select", "uicheck", "kit", "tools", "mcp", "terminal"];
 document.addEventListener("keydown", (e) => {
   const ctrl = e.ctrlKey || e.metaKey;
   const k = e.key.toLowerCase();
@@ -408,23 +408,6 @@ $("chat-starts").innerHTML = VSKit.TEMPLATES.filter((t) => ["obby", "tycoon", "s
   .map((t) => `<button data-t="${t.id}">${t.icon}${esc(t.name)}</button>`).join("");
 $("chat-starts").addEventListener("click", (e) => { const b = e.target.closest("[data-t]"); if (b) runBrief(VSKit.TEMPLATES.find((t) => t.id === b.dataset.t)); });
 
-// ── generators: Ctrl+Enter and "Surprise me" ────────────────────────────────
-const MG_IDEAS = ["A cozy wooden cabin with a stone chimney", "A low-poly fox sitting down", "A sci-fi hover bike", "A medieval market stall with fruit", "A treasure chest full of gold", "A lighthouse on rocks", "A food truck selling tacos", "A tiny steam train", "A crystal-topped wizard tower", "A park bench under a street lamp", "A cartoon rocket ship", "A pirate cannon on wheels", "A desk with a gaming PC", "A giant mushroom house", "A wooden windmill", "A robot shopkeeper"];
-const UB_IDEAS = ["A shop with 6 items in a grid, prices and a buy button", "A main menu with Play, Settings and Credits", "A daily reward popup with 7 days", "A HUD with health, coins and level", "An inventory with 20 slots and a tooltip", "A pet egg hatch screen", "A settings panel with volume sliders and toggles", "A round timer and player count bar", "A trading window between two players", "A quest log with three quests"];
-const pick = (a) => a[Math.floor(Math.random() * a.length)];
-$("btn-mg-dice").onclick = () => { $("mg-desc").value = pick(MG_IDEAS); $("mg-desc").focus(); };
-$("btn-ub-dice").onclick = () => { $("ub-desc").value = pick(UB_IDEAS); $("ub-desc").focus(); };
-for (const [box, btn] of [["mg-desc", "btn-mg-go"], ["ub-desc", "btn-ub-go"]]) {
-  $(box).addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); if (!$(btn).disabled && !$(btn).hidden) $(btn).click(); } });
-}
-$("btn-mg-spin").classList.add("on");
-$("btn-mg-spin").onclick = () => {
-  const v = mgView();
-  if (!v) return;
-  v.spin = !v.spin;
-  $("btn-mg-spin").classList.toggle("on", v.spin);
-};
-
 // ── Home tips ───────────────────────────────────────────────────────────────
 const TIPS = [
   "Press Ctrl+K to jump anywhere or run any action.",
@@ -433,7 +416,7 @@ const TIPS = [
   "Never run out moves the chat to your next free provider when one hits its limit.",
   "Star a message to save it as a prompt, then reuse it with /p.",
   "Name a part KillBrick, Coin or JumpPad and add that system from the Script library.",
-  "Ctrl+Enter generates in Models and the UI builder.",
+  "Select something in Studio, then open Selection to fix it in one click.",
   "Undo in the chat header rolls Studio back one step.",
   "Pin chats you come back to - they stay at the top of the list.",
   "Ctrl+Shift+F hides everything but the page you're on.",
@@ -445,7 +428,7 @@ showTip();
 
 // ── what's new (once per version) ───────────────────────────────────────────
 const WHATS_NEW = [
-  [ICONS.find, "The Browser is here", "19 AIs inside the app with VoidScript built in, an Ask box and real browser tabs."],
+  [ICONS.play, "Playtest", "Studio's Output live in the app, test runs with a history, and errors to the AI in one click."],
   [ICONS.retry, "Undo and more", "Undo deleted chats, recent models, favourite templates and a right-click menu for chats."],
   [ICONS.code, "Explorer edits", "Flip, type or duplicate right in the Explorer."],
   [ICONS.bolt, "21 ready-made systems", "Teleport pads, speed pads, healing pads, tool givers and auto teams join the library."],
@@ -477,7 +460,7 @@ document.addEventListener("keydown", (e) => {
   else if (e.key === "-") { e.preventDefault(); setZoom((Number(lsGet("vs-zoom")) || 1) - 0.1); }
   else if (e.key === "0" && !e.shiftKey) { e.preventDefault(); setZoom(1); }
 });
-KEYS.splice(KEYS.length - 1, 0, [["Ctrl", "Shift", "F"], "Focus mode"], [["Ctrl", "+ / −"], "Zoom in or out"], [["Ctrl", "Enter"], "Generate (Models, UI builder)"]);
+KEYS.splice(KEYS.length - 1, 0, [["Ctrl", "Shift", "F"], "Focus mode"], [["Ctrl", "+ / −"], "Zoom in or out"]);
 
 // ── find in chat (Ctrl+F) ───────────────────────────────────────────────────
 const findBar = document.createElement("div");
@@ -664,7 +647,7 @@ importFile.onchange = async () => {
 
 // ── remember the last page ──────────────────────────────────────────────────
 const baseGo = go;
-go = function (view) { baseGo(view); if (view !== "browser") lsSet("vs-last-view", view); if (view !== "chat") quoteBtn.hidden = true; };
+go = function (view) { baseGo(view); lsSet("vs-last-view", view); if (view !== "chat") quoteBtn.hidden = true; };
 {
   const last = lsGet("vs-last-view");
   if (last && last !== "home" && $("view-" + last)) go(last);

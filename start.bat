@@ -1,26 +1,34 @@
 :: SPDX-License-Identifier: GPL-3.0-or-later
-:: VoidScript launcher (Windows). Finds a usable Python, makes sure the
-:: `websockets` dependency is present, frees the bridge port if a previous run
-:: left it held, then runs bridge.py. Written for VoidScript; kept GPL-3.0 as
-:: part of the project.
+:: VoidScript2 launcher (Windows). Finds a usable Python, makes sure the
+:: `websockets` library is there, then runs bridge.py. It never downloads or
+:: runs an installer by itself, and only updates when you say yes.
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 chcp 65001 >nul
-title VoidScript Bridge  -  Roblox Studio agent
 cd /d "%~dp0"
 
-:: ---- palette ---------------------------------------------------------------
-:: 24-bit ANSI (Windows 10 1607+ / 11). ASCII-only art on purpose: colour codes
-:: mixed with Unicode box glyphs confuse cmd's parser under chcp 65001.
+:: ---- look ------------------------------------------------------------------
+:: 24-bit colour (Windows 10 1607+ / 11). The art is plain ASCII on purpose:
+:: colour codes mixed with Unicode glyphs confuse cmd's parser under chcp 65001.
 for /f %%e in ('echo prompt $E ^| cmd') do set "E=%%e"
 set "C0=%E%[0m"
 set "CB=%E%[1m"
-set "CRED=%E%[38;2;255;90;82m"
-set "CVIO=%E%[38;2;124;140;255m"
-set "CWHT=%E%[38;2;236;236;242m"
-set "CDIM=%E%[38;2;120;120;140m"
-set "COK=%E%[38;2;52;211;153m"
-set "CWARN=%E%[38;2;251;191;36m"
+set "CACC=%E%[38;2;255;122;61m"
+set "CACC2=%E%[38;2;255;179;107m"
+set "CWHT=%E%[38;2;240;240;245m"
+set "CDIM=%E%[38;2;125;126;140m"
+set "COK=%E%[38;2;63;207;142m"
+set "CWARN=%E%[38;2;240;180;64m"
+set "CRED=%E%[38;2;242;99;122m"
+:: The Halloween release ships SpookyScript.exe - wear its colours and name too.
+set "NAME=VoidScript"
+if exist "%~dp0SpookyScript.exe" (
+    set "NAME=SpookyScript"
+    set "CACC=%E%[38;2;255;140;40m"
+    set "CACC2=%E%[38;2;190;130;255m"
+)
+title %NAME%2 bridge  -  keep this window open
+if not defined VS_GUI mode con: cols=100 lines=34 >nul 2>nul
 
 :: ---- config ----------------------------------------------------------------
 set "PORT=17613"
@@ -31,142 +39,111 @@ if not exist "%LOGDIR%" md "%LOGDIR%" >nul 2>nul
 call :note "==== %DATE% %TIME%  launcher started (port %PORT%) ===="
 for /f "delims=" %%v in ('ver') do call :note "%%v"
 
-rem The ASCII banner ("keep this window open") is for the console; the app has its own UI.
-if not defined VS_GUI call :banner
+:: The banner is for the console; the app has its own screens.
+if not defined VS_GUI (
+    if "%NAME%"=="SpookyScript" (call :banner_spooky) else (call :banner_void)
+    echo   %CDIM%AI that builds in Roblox Studio  -  local bridge%C0%
+    echo.
+)
 
-:: ---- 0. sanity: are we actually in the project folder? ---------------------
+:: ---- 0. are we in the project folder? --------------------------------------
 :: Opening start.bat straight from inside the ZIP extracts it alone to %TEMP%,
 :: so bridge.py is missing and Python fails with a confusing error. Catch it.
 if not exist "%~dp0bridge.py" (
-    call :fail "bridge.py is not next to start.bat."
-    echo   You probably ran start.bat from *inside* the ZIP. Extract the whole
-    echo   ZIP first ^(right-click the .zip -^> "Extract All..."^), then run
-    echo   start.bat from the extracted folder.
+    call :fail "bridge.py isn't next to start.bat." "You probably opened start.bat from inside the ZIP. Right-click the ZIP," "choose Extract All, then run start.bat from the extracted folder."
     call :note "ABORT: bridge.py missing (launched from inside the ZIP?)."
-    call :halt 1
+    call :halt 1 & exit /b 1
 )
 
-:: ---- 1. locate a usable Python --------------------------------------------
-echo   %CVIO%[1/3]%C0% %CB%Locating Python...%C0%
+:: ---- 1. Python -------------------------------------------------------------
+call :step 1 "Python"
 set "PY="
 call :try_python "py -3"                    && goto :have_python
 call :try_python "python"                   && goto :have_python
 call :scan_python_dirs                       && goto :have_python
 
-:: none found -> try to install it
+:: None found. VoidScript never downloads or runs installers by itself - you
+:: install Python, then start it again. Exit code 3 tells the VoidScript app to
+:: show its "Python needed" help instead of a generic error.
 call :note "no usable Python on PATH or in the usual install folders."
-where winget >nul 2>nul
-if errorlevel 1 (
-    :: winget missing (stripped-down / older Windows) -> auto-install by
-    :: downloading the official installer straight from python.org.
-    echo         %CWARN%Not found and winget is unavailable - downloading Python%C0%
-    echo         from python.org and installing it silently...
-    call :install_python_direct
-    if errorlevel 1 (
-        call :fail "Python is not installed, and the automatic install failed."
-        echo   Install Python 3.9+ yourself: https://www.python.org/downloads/
-        echo   Tick %CB%"Add python.exe to PATH"%C0% during setup, then rerun start.bat.
-        call :note "ABORT: no Python and no winget / auto-install failed."
-        call :halt 1
-    )
-    goto :have_python
-)
-echo         %CWARN%Not found - installing Python via winget...%C0%
-winget install --id Python.Python.3.12 --source winget --accept-package-agreements --accept-source-agreements
-call :note "winget install finished (see console for its own result)."
-echo         Re-checking...
-:: a fresh install does not update THIS window's PATH, so re-scan the folders too
-call :try_python "py -3"      && goto :have_python
-call :try_python "python"     && goto :have_python
-call :scan_python_dirs        && goto :have_python
-call :fail "Python still not found after the winget install."
-echo   Install it manually from https://www.python.org/downloads/ ^(tick
-echo   "Add python.exe to PATH"^) and run start.bat again.
-call :note "ABORT: no usable Python even after winget."
-call :halt 1
+call :fail "Python isn't installed." "VoidScript needs Python 3.9 or newer. Get it from https://www.python.org/downloads/" "and tick 'Add python.exe to PATH' - or run:  winget install Python.Python.3.12"
+call :halt 3 & exit /b 3
 
 :have_python
 for /f "delims=" %%v in ('call %PY% --version 2^>^&1') do set "PYVER=%%v"
-echo         %COK%Using%C0% %PY%  %CDIM%(!PYVER!)%C0%
+call :ok "!PYVER!" "%PY%"
 call :note "python: %PY% (!PYVER!)"
+set "VER="
+for /f "delims=" %%v in ('call %PY% -c "import json;print(json.load(open(r'%~dp0voidscript-extension\manifest.json',encoding='utf-8'))['version'])" 2^>nul') do set "VER=%%v"
 
-:: ---- 1.5. auto-update (fully automatic) -----------------------------------
-:: Downloads and applies a newer GitHub release on every launch, then restarts
-:: this launcher so the NEW bridge.py is the one that runs. Silent when nothing
-:: is newer; offline/API errors are silent too and never block startup.
-::
-:: The restart window is launched with --skip-update so it NEVER runs the
-:: updater again: the update was just applied, and re-running it is what used
-:: to spawn one new window per restart (an unbounded chain when the updater
-:: kept reporting UPDATE_APPLIED). The old window exits for real after
-:: spawning, instead of continuing on to start its own bridge.
+:: ---- 1.5. updates (only when you say yes) ----------------------------------
+:: Under the VoidScript app, updates are the app's job: it asks first, on its
+:: Updates page. Run by hand, we look first and only install when you say yes.
+:: The restart window runs with --skip-update so it never updates twice.
 if "%~1"=="--skip-update" set "SKIP_UPDATE=1"
+if defined VS_GUI set "SKIP_UPDATE=1"
+if not defined SKIP_UPDATE if exist "%~dp0update.py" (
+    set "UPCHK="
+    for /f "delims=" %%u in ('call %PY% "%~dp0update.py" --check 2^>nul') do set "UPCHK=%%u"
+    if /i "!UPCHK:~0,16!"=="UPDATE_AVAILABLE" (
+        echo.
+        echo   %CACC%%CB%  NEW  %C0%  %CWHT%A new %NAME% is out:%C0% %CB%!UPCHK:~17!%C0%
+        choice /c YN /n /t 20 /d N /m "         Install it now? [Y/N - no after 20 seconds] "
+        if errorlevel 2 set "SKIP_UPDATE=1"
+    ) else set "SKIP_UPDATE=1"
+)
 if not defined SKIP_UPDATE (
     if exist "%~dp0update.py" (
         for /f "delims=" %%u in ('call %PY% "%~dp0update.py" --auto 2^>nul') do set "UPAUTO=%%u"
         if defined UPAUTO (
             if /i "!UPAUTO:~0,14!"=="UPDATE_APPLIED" (
                 echo.
-                echo   %COK%UPDATE INSTALLED%C0%  !UPAUTO!
-                echo   Reload the extension at chrome://extensions after this restarts.
+                echo   %COK%%CB%  UPDATED  %C0%  !UPAUTO:~15!  %CDIM%- reload the extension at chrome://extensions after this restarts%C0%
                 call :note "auto-update applied: !UPAUTO!"
-                echo.
-                echo   %CVIO%Restarting VoidScript with the new version...%C0%
-                :: Restart-loop guard: count consecutive auto-restarts. If the new
-                :: window somehow re-triggers an update anyway, stop after 3
-                :: instead of opening a window per restart forever.
+                echo   %CDIM%Restarting with the new version...%C0%
+                :: Restart-loop guard: if the new window somehow updates again,
+                :: stop after 3 restarts instead of opening windows forever.
                 set "RESTART_COUNT=0"
                 if exist "%TEMP%\vs_restart_count" set /p RESTART_COUNT=<"%TEMP%\vs_restart_count"
                 set /a RESTART_COUNT+=1
                 > "%TEMP%\vs_restart_count" echo !RESTART_COUNT!
                 if !RESTART_COUNT! GTR 3 (
                     del "%TEMP%\vs_restart_count" >nul 2>nul
-                    echo.
-                    echo   %CRED%ERROR:%C0% Auto-update kept restarting (!RESTART_COUNT!x^) - stopping to
-                    echo   avoid an endless loop. Run start.bat again in a minute, or check the
-                    echo   Void-Script releases on GitHub for a broken update.
+                    call :fail "The update kept restarting (!RESTART_COUNT! times), so it stopped." "Run start.bat again in a minute, or check the releases on GitHub."
                     call :note "ABORT: update restart loop detected (!RESTART_COUNT! restarts)."
                     if not defined VS_GUI pause >nul
                     exit /b 1
                 )
-                rem Under the VoidScript app, hand the restart back to the app: exit
-                rem code 99 means "update installed", and the app relaunches the bridge.
+                rem Under the app, exit code 99 means "update installed" and the app relaunches.
                 if defined VS_GUI exit /b 99
-                start "VoidScript Update" /d "%~dp0" cmd /c ""%~f0" --skip-update"
+                start "%NAME% update" /d "%~dp0" cmd /c ""%~f0" --skip-update"
                 exit /b 0
             )
         )
     )
 )
-:: The skip-update window (and any normal launch) clears the restart counter, so
-:: the next launch starts from zero.
+:: A normal launch clears the restart counter, so the next one starts from zero.
 del "%TEMP%\vs_restart_count" >nul 2>nul
 
-:: ---- 2. dependency: websockets --------------------------------------------
-echo.
-echo   %CVIO%[2/3]%C0% %CB%Checking the websockets library...%C0%
+:: ---- 2. websockets ---------------------------------------------------------
+call :step 2 "Libraries"
 %PY% -c "import websockets" >nul 2>nul
 if errorlevel 1 (
-    echo         Installing websockets ^(one time only^)...
+    echo          %CDIM%installing websockets ^(one time only^)...%C0%
     %PY% -m pip install --user websockets
     if errorlevel 1 (
-        call :fail "Could not install websockets (see pip output above)."
-        echo   Usually this is no internet, a firewall/AV blocking pip, or a
-        echo   Microsoft Store Python with no working pip. Install from
-        echo   https://www.python.org/downloads/ and tick "Add to PATH".
+        call :fail "Couldn't install the websockets library (see pip above)." "Usually: no internet, a firewall blocking pip, or the Microsoft Store Python." "Install Python from https://www.python.org/downloads/ and tick 'Add to PATH'."
         call :note "ABORT: pip install websockets failed."
-        call :halt 1
+        call :halt 1 & exit /b 1
     )
 )
-echo         %COK%Ready%C0%
+call :ok "websockets" ""
 call :note "websockets present."
 
-:: ---- 3. free the port, then run the bridge --------------------------------
-echo.
-echo   %CVIO%[3/3]%C0% %CB%Starting the bridge...%C0%
-call :free_port
-
-call :keepopen
+:: ---- 3. run the bridge -----------------------------------------------------
+call :step 3 "Bridge"
+call :ok "starting on port %PORT%" ""
+if not defined VS_GUI call :ready
 call :note "launching bridge.py"
 %PY% "%~dp0bridge.py"
 set "RC=%errorlevel%"
@@ -174,17 +151,15 @@ call :note "bridge.py exited with code %RC%"
 
 echo.
 if "%RC%"=="0" (
-    echo   %COK%Bridge stopped normally.%C0%
+    echo   %COK%%CB%  STOPPED  %C0%  %CDIM%The bridge stopped normally.%C0%
 ) else (
-    echo   %CRED%Bridge stopped with error code %RC%.%C0% Scroll up for the Python
-    echo   message and include this whole window in any bug report.
-    echo   Log: %LOG%
+    call :fail "The bridge stopped with error code %RC%." "Scroll up for the Python message and include this whole window in a bug report." "Log: %LOG%"
 )
-call :halt %RC%
+call :halt %RC% & exit /b %RC%
 
 
 :: ===========================================================================
-::  subroutines
+::  helpers
 :: ===========================================================================
 
 :: :try_python "<command>"  - set PY and return 0 if the command is a real,
@@ -211,87 +186,39 @@ for %%D in ("%LOCALAPPDATA%\Programs\Python" "%ProgramFiles%" "%ProgramFiles(x86
 )
 exit /b 1
 
-:: :install_python_direct  - no winget available: download the official Python
-:: installer from python.org and run it silently (per-user, PrependPath so a
-:: re-run of this launcher finds it). Requires an internet connection.
-:install_python_direct
-set "PY_URL=https://www.python.org/ftp/python/3.12.10/python-3.12.10-amd64.exe"
-set "PY_INST=%TEMP%\voidscript-python-setup.exe"
-if /i "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "PY_URL=https://www.python.org/ftp/python/3.12.10/python-3.12.10-arm64.exe"
-echo         Downloading the Python installer...
-curl.exe -L --fail --silent --show-error -o "%PY_INST%" "%PY_URL%" || (
-    powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri '%PY_URL%' -OutFile '%PY_INST%'"
-)
-if not exist "%PY_INST%" (
-    call :note "ABORT: direct Python download failed (curl and PowerShell both)."
-    exit /b 1
-)
-call :note "downloaded Python installer from %PY_URL%."
-echo         Installing Python 3.12 (silent, per-user)...
-"%PY_INST%" /quiet InstallAllUsers=0 PrependPath=1 Include_launcher=1 Include_test=0 Include_doc=0 Include_tcltk=1
-set "RC_INST=%errorlevel%"
-del "%PY_INST%" >nul 2>nul
-if not "%RC_INST%"=="0" (
-    call :note "ABORT: silent Python install exited with code %RC_INST%."
-    exit /b 1
-)
-call :note "silent Python install completed (code %RC_INST%)."
-echo         Re-checking...
-call :try_python "py -3"      && exit /b 0
-call :try_python "python"     && exit /b 0
-call :scan_python_dirs        && exit /b 0
-exit /b 1
-
-:: :free_port  - if a previous bridge is still holding PORT, replace it. A
-:: double-launch is easy to do by accident, and a silent bind failure looks
-:: like nothing happened.
-:free_port
-set "HOLDER="
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr :%PORT% ^| findstr LISTENING 2^>nul') do set "HOLDER=%%p"
-if not defined HOLDER exit /b 0
-echo         %CWARN%A previous bridge (pid !HOLDER!) is on port %PORT% - replacing it.%C0%
-call :note "killing leftover bridge pid !HOLDER! on port %PORT%."
-taskkill /F /T /PID !HOLDER! >nul 2>nul
-rem ~1s pause for the port to free up. Not "timeout": it refuses to run without
-rem console input, which is exactly how the VoidScript app launches this script.
-ping -n 2 127.0.0.1 >nul
-set "HOLDER="
-for /f "tokens=5" %%p in ('netstat -aon ^| findstr :%PORT% ^| findstr LISTENING 2^>nul') do set "HOLDER=%%p"
-if defined HOLDER (
-    echo         %CWARN%Port %PORT% is still held by pid !HOLDER!.%C0% If the bridge
-    echo         fails to start, close that process in Task Manager and retry.
-    call :note "WARN: port %PORT% still held by pid !HOLDER! after taskkill."
-)
+:: :step <n> "<name>"  - a step header with a progress bar
+:step
+set "_bar=#####-----"
+if "%~1"=="2" set "_bar=##########-----"
+if "%~1"=="3" set "_bar=###############"
+if "%~1"=="1" set "_bar=#####----------"
+echo   %CACC%%CB%[%~1/3]%C0%  %CWHT%%CB%%~2%C0%   %CACC2%!_bar!%C0%
 exit /b 0
 
-:banner
-echo.
-echo   %CRED%    _______%C0%
-echo   %CRED%   /\      \%C0%      %CB%%CWHT%VOID%CVIO%SCRIPT%C0%   %CVIO%^</^>%C0%
-echo   %CRED%  /  \______\%C0%     %CDIM%AI agent  %CRED%x%CDIM%  ROBLOX STUDIO%C0%
-echo   %CRED%  \  /      /%C0%     %CDIM%local bridge%C0%
-echo   %CRED%   \/______/%C0%
-echo.
-echo   %CVIO%==============================================%C0%
-echo.
+:: :ok "<what>" "<detail>"
+:ok
+echo          %COK%ok%C0%  %CWHT%%~1%C0%  %CDIM%%~2%C0%
 exit /b 0
 
-:keepopen
-echo.
-echo  %CRED%##############################################################%C0%
-echo  %CRED%##%C0%                                                          %CRED%##%C0%
-echo  %CRED%##%C0%   %CB%%CWHT%KEEP THIS WINDOW OPEN%C0% %CDIM%-%C0% %CRED%DO NOT CLOSE IT%C0%                %CRED%##%C0%
-echo  %CRED%##%C0%                                                          %CRED%##%C0%
-echo  %CRED%##%C0%   %CDIM%VoidScript stops the moment this closes. Just%C0%          %CRED%##%C0%
-echo  %CRED%##%C0%   %CDIM%minimize it and leave it running in the background.%C0%    %CRED%##%C0%
-echo  %CRED%##%C0%                                                          %CRED%##%C0%
-echo  %CRED%##############################################################%C0%
-echo.
-exit /b 0
-
+:: :fail "<headline>" ["<line>" ...]  - a red panel, up to three extra lines
 :fail
 echo.
-echo   %CRED%ERROR:%C0% %~1
+echo   %CRED%%CB%  PROBLEM  %C0%  %CWHT%%CB%%~1%C0%
+if not "%~2"=="" echo   %CRED%^|%C0%  %~2
+if not "%~3"=="" echo   %CRED%^|%C0%  %~3
+if not "%~4"=="" echo   %CRED%^|%C0%  %~4
+echo.
+exit /b 0
+
+:ready
+echo.
+echo   %CACC%==========================================================================%C0%
+echo   %COK%%CB%  READY  %C0%  %CWHT%%CB%%NAME%2 %VER%%C0%  %CDIM%bridge on port %PORT%%C0%
+echo.
+echo   %CACC%^|%C0%  %CWHT%Keep this window open%C0% %CDIM%- minimise it. Closing it stops %NAME%.%C0%
+echo   %CACC%^|%C0%  %CDIM%Next: open Roblox Studio, then your AI site, and press%C0% %CWHT%Start%C0%%CDIM%.%C0%
+echo   %CACC%^|%C0%  %CDIM%Help and updates: https://voidscript.dev%C0%
+echo   %CACC%==========================================================================%C0%
 echo.
 exit /b 0
 
@@ -303,9 +230,29 @@ exit /b 0
 
 :: :halt <code>  - pause so the window stays readable, then exit with <code>.
 :halt
-rem Under VoidScript.exe (VS_GUI) there is no visible console to press a key in;
-rem the app shows the error and its own close button instead.
+rem Under the app (VS_GUI) there's no console to press a key in; the app shows
+rem the error and its own close button instead.
 if defined VS_GUI exit /b %~1
-echo   Press any key to close.
+echo   %CDIM%Press any key to close.%C0%
 pause >nul
 exit /b %~1
+
+:banner_void
+echo.
+echo  %E%[38;2;255;122;61m __     __    _     _  ____            _       _   %E%[38;2;255;179;107m ___ %C0%
+echo  %E%[38;2;252;115;73m \ \   / /__ (_) __^| ^|/ ___^|  ___ _ __(_)_ __ ^| ^|_ %E%[38;2;255;179;107m^|_  )%C0%
+echo  %E%[38;2;250;107;85m  \ \ / / _ \^| ^|/ _` ^|\___ \ / __^| '__^| ^| '_ \^| __^|%E%[38;2;255;179;107m / / %C0%
+echo  %E%[38;2;247;100;98m   \ V / (_) ^| ^| (_^| ^| ___) ^| (__^| ^|  ^| ^| ^|_) ^| ^|_ %E%[38;2;255;179;107m/___^|%C0%
+echo  %E%[38;2;245;92;110m    \_/ \___/^|_^|\__,_^|^|____/ \___^|_^|  ^|_^| .__/ \__^|%E%[38;2;255;179;107m     %C0%
+echo  %E%[38;2;242;85;122m                                        ^|_^|        %E%[38;2;255;179;107m     %C0%
+exit /b 0
+
+:banner_spooky
+echo.
+echo  %E%[38;2;255;140;40m  ____                    _          ____            _       _   %E%[38;2;255;179;107m ___ %C0%
+echo  %E%[38;2;238;129;81m / ___^| _ __   ___   ___ ^| ^| ___   _/ ___^|  ___ _ __(_)_ __ ^| ^|_ %E%[38;2;255;179;107m^|_  )%C0%
+echo  %E%[38;2;220;118;123m \___ \^| '_ \ / _ \ / _ \^| ^|/ / ^| ^| \___ \ / __^| '__^| ^| '_ \^| __^|%E%[38;2;255;179;107m / / %C0%
+echo  %E%[38;2;203;107;164m  ___) ^| ^|_) ^| (_) ^| (_) ^|   ^<^| ^|_^| ^|___) ^| (__^| ^|  ^| ^| ^|_) ^| ^|_ %E%[38;2;255;179;107m/___^|%C0%
+echo  %E%[38;2;185;96;206m ^|____/^| .__/ \___/ \___/^|_^|\_\\__, ^|____/ \___^|_^|  ^|_^| .__/ \__^|%E%[38;2;255;179;107m     %C0%
+echo  %E%[38;2;168;85;247m       ^|_^|                     ^|___/                  ^|_^|        %E%[38;2;255;179;107m     %C0%
+exit /b 0

@@ -19,15 +19,22 @@ const DATA = path.join(__dirname, "data", "team.json");
 const RESERVED = new Set(["admin", "team", "api", "download", "github", "discord", "health", "robots.txt", "sitemap.xml", "ai", "style.css", "logo.png", "spooky.png", "404", "index", "public", "data"]);
 const SLUG = /^[a-z0-9][a-z0-9-]{1,23}$/i;
 // Each role gets its own colour and a written-for-you description.
+// Each rank: its colour (matching the Discord server), where it sits on /team,
+// the heading for its group, and a description written for whoever has it.
 const ROLES = {
-  owner: { color: "#f5b942", about: (n) => `${n} founded VoidScript and leads where it goes next. From the first idea to every big update, ${n} shapes what VoidScript is: the look, the features, and making sure building on Roblox feels like talking to a teammate.` },
-  "main developer": { color: "#8b6cff", about: (n) => `${n} is VoidScript's main developer, deep in the engine that connects AI to Roblox Studio. When something new ships or something breaks, ${n} is the one making it work, fast and reliably.` },
-  developer: { color: "#4c8dff", about: (n) => `${n} builds VoidScript, working on the features you use every day and making building on Roblox with AI faster and smoother.` },
-  designer: { color: "#f2557a", about: (n) => `${n} designs how VoidScript looks and feels - the screens, the icons and every little detail that makes it nice to use.` },
-  moderator: { color: "#2fc58b", about: (n) => `${n} keeps the VoidScript community friendly and helpful, and is often the first to answer when someone needs a hand.` },
-  tester: { color: "#2fc5c5", about: (n) => `${n} tests VoidScript before everyone else, finding the bugs so you never have to.` },
+  owner: { color: "#f5b942", rank: 0, group: "Owner", about: (n) => `${n} founded VoidScript and leads where it goes next. From the first idea to every big update, ${n} shapes what VoidScript is: the look, the features, and making sure building on Roblox feels like talking to a teammate.` },
+  management: { color: "#a855f7", rank: 1, group: "Management", about: (n) => `${n} is part of VoidScript's management team, keeping everything running smoothly behind the scenes - planning updates, organising the team and making the big calls with the owner.` },
+  "main developer": { color: "#8b6cff", rank: 2, group: "Main developer", about: (n) => `${n} is VoidScript's main developer, deep in the engine that connects AI to Roblox Studio. When something new ships or something breaks, ${n} is the one making it work, fast and reliably.` },
+  developer: { color: "#9b59b6", rank: 3, group: "Developers", about: (n) => `${n} builds VoidScript, working on the features you use every day and making building on Roblox with AI faster and smoother.` },
+  admin: { color: "#e74c3c", rank: 4, group: "Admins", about: (n) => `${n} is a VoidScript admin, looking after the community and the Discord server and making sure everyone has a good time building.` },
+  moderator: { color: "#7f8c9d", rank: 5, group: "Moderators", about: (n) => `${n} keeps the VoidScript community friendly and helpful, and is often the first to step in when something needs sorting.` },
+  helper: { color: "#f1c40f", rank: 6, group: "Helpers", about: (n) => `${n} helps people get VoidScript set up and building, answering questions in the Discord and pointing everyone in the right direction.` },
+  designer: { color: "#f2557a", rank: 7, group: "Designers", about: (n) => `${n} designs how VoidScript looks and feels - the screens, the icons and every little detail that makes it nice to use.` },
+  tester: { color: "#2ecc71", rank: 8, group: "Testers", about: (n) => `${n} tests VoidScript before everyone else, trying every new feature early and finding the bugs so you never have to.` },
 };
-const roleOf = (r) => ROLES[String(r || "").trim().toLowerCase()] || { color: "#ff7a3d", about: (n) => `${n} is part of the VoidScript team, helping build the AI that builds Roblox games.` };
+// "Developers", "Admins", "Testers"… count as the same rank as the singular.
+const roleKey = (r) => { const k = String(r || "").trim().toLowerCase(); return ROLES[k] ? k : ROLES[k.replace(/s$/, "")] ? k.replace(/s$/, "") : ""; };
+const roleOf = (r) => ROLES[roleKey(r)] || { color: "#ff7a3d", rank: 9, group: "Team", about: (n) => `${n} is part of the VoidScript team, helping build the AI that builds Roblox games.` };
 
 // ── storage ─────────────────────────────────────────────────────────────────
 function load() {
@@ -40,7 +47,7 @@ function save(list) {
   fs.renameSync(tmp, DATA);
 }
 const nameOf = (p) => p.display || p.label || (p.slug.charAt(0).toUpperCase() + p.slug.slice(1));
-const sorted = () => load().sort((a, b) => (a.order || 0) - (b.order || 0));
+const sorted = () => load().sort((a, b) => (roleOf(a.role).rank - roleOf(b.role).rank) || ((a.order || 0) - (b.order || 0)));
 
 // ── Discord (cached 30 minutes) ─────────────────────────────────────────────
 const dcache = new Map();
@@ -118,9 +125,9 @@ const shell = (title, body, desc, image) => `<!doctype html>
 <title>${esc(title)}</title><meta name="description" content="${esc(desc || "")}" />
 <meta property="og:title" content="${esc(title)}" /><meta property="og:description" content="${esc(desc || "")}" />
 <meta property="og:image" content="${esc(image || "/logo.png")}" /><meta name="theme-color" content="#0e0f12" />
-<link rel="icon" href="/logo.png" /><link rel="stylesheet" href="/style.css?v=5" />${SPOOKY_HEAD}</head>
+<link rel="icon" href="/logo.png" /><link rel="stylesheet" href="/style.css?v=6" />${SPOOKY_HEAD}</head>
 <body class="tm-page"><div class="tm-sky" aria-hidden="true"></div>
-<header class="nav"><div class="wrap nav-in"><a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b></span></a>
+<header class="nav"><div class="wrap nav-in"><a class="brand" href="/"><img src="/logo.png" alt="" width="26" height="26" /><span>Void<b>Script</b><sup class="sq">2</sup></span></a>
 <nav class="links"><a href="/#features">Features</a><a href="/team">Team</a><a href="/github">GitHub</a><a href="/discord">Discord</a></nav><a class="btn sm primary" href="/download">Download</a></div></header>
 <main class="wrap team-wrap">${body}</main>
 <footer class="wrap foot"><span>VoidScript · free &amp; open source</span><span class="grow"></span><a href="/team">Team</a><a href="/github">GitHub</a><a href="/discord">Discord</a></footer>
@@ -185,13 +192,23 @@ async function profilePage(p) {
   return shell(`${v.name} · VoidScript`, `<div class="pf-wrap">${profileCard(p, d)}${rest}<a class="tm-back" href="/team">← The whole team</a></div>`,
     `${v.name}${p.role ? ", " + p.role : ""} of VoidScript. ${v.about}`.slice(0, 200), v.avatar);
 }
+function groups(list, ds) {
+  const out = [];
+  list.forEach((p, i) => {
+    const r = roleOf(p.role);
+    let g = out[out.length - 1];
+    if (!g || g.name !== r.group) out.push(g = { name: r.group, color: r.color, items: [] });
+    g.items.push(miniCard(p, ds[i]));
+  });
+  return out.map((g) => `<section class="tm-group" style="--tm:${esc(g.color)}"><h3><i></i>${esc(g.name)}<span>${g.items.length}</span></h3><div class="tm-grid">${g.items.join("")}</div></section>`).join("");
+}
 async function teamPage() {
   const list = sorted();
   const ds = await Promise.all(list.map((p) => discordUser(p.discord_id)));
   const stack = list.slice(0, 6).map((p, i) => `<img src="${esc(view(p, ds[i]).avatar)}" alt="" width="40" height="40" referrerpolicy="no-referrer" />`).join("");
   const body = list.length ? `<section class="tm-hero"><div class="tm-stack">${stack}</div><p class="eyebrow">The team</p><h2>The people behind VoidScript</h2>
       <p class="muted">${list.length} ${list.length === 1 ? "person" : "people"} building the AI that builds Roblox games.</p></section>
-    <div class="tm-grid">${list.map((p, i) => miniCard(p, ds[i])).join("")}</div>`
+    ${groups(list, ds)}`
     : `<section class="tm-hero"><h2>The team page is coming soon.</h2></section>`;
   return shell("Team · VoidScript", body, "Meet the people behind VoidScript.");
 }

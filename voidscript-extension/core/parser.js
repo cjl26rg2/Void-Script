@@ -90,11 +90,18 @@ const VSParse = (() => {
   // Normalise a parsed JSON object into { tool, arguments }, accepting both the
   // new VoidScript schema ("command"/"params") and the legacy/function-calling
   // schema ("tool"/"arguments"/"name"/"args"). Returns null if not a valid call.
+  // Names a model writes when it is EXPLAINING the format rather than calling
+  // anything: {"command":"command_name"}, {"tool":"<tool>"}, {"command":"..."}.
+  // Running those would send an "unknown command" error back and start a loop
+  // over what was only an example, so they are not commands at all.
+  const PLACEHOLDER_RE = /^(?:<[^>]*>|\.{2,}|…|x|foo|name|tool|command|example\w*|(?:your|some|the|a)?[_ ]?(?:tool|command)[_ ]?name|tool_or_command|cmd)$/i;
+
   function normalizeCall(o) {
     if (!o || typeof o !== "object") return null;
     const name = o.command != null ? o.command : (o.tool != null ? o.tool : o.name);
     let args = o.params != null ? o.params : (o.arguments != null ? o.arguments : o.args);
-    if (typeof name !== "string" || !name) return null;
+    if (typeof name !== "string" || !name.trim() || PLACEHOLDER_RE.test(name.trim())) return null;
+    if (!/^[\w.:\-\/]{1,80}$/.test(name.trim())) return null; // a sentence, not a command name
     if (!args || typeof args !== "object") args = {};
     return { tool: name, arguments: args };
   }
